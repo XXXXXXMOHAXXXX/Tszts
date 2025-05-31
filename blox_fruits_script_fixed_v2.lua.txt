@@ -196,22 +196,43 @@ local function GetQuestData()
     local level = GetPlayerLevel()
     local questData = {}
     
-    -- First Sea (1-700)
     if level >= 1 and level <= 9 then
-        questData = {name = "BanditQuest1", num = 1, pos = Vector3.new(1059, 17, 1547), mob = "Bandit", mobPos = Vector3.new(1045, 17, 1560)}
+        questData.name = "BanditQuest1"
+        questData.num = 1
+        questData.pos = Vector3.new(1059, 17, 1547)
+        questData.mob = "Bandit"
+        questData.mobPos = Vector3.new(1045, 17, 1560)
     elseif level >= 10 and level <= 14 then
-        questData = {name = "JungleQuest", num = 1, pos = Vector3.new(-1598, 37, 153), mob = "Monkey", mobPos = Vector3.new(-1448, 50, 63)}
+        questData.name = "JungleQuest"
+        questData.num = 1
+        questData.pos = Vector3.new(-1598, 37, 153)
+        questData.mob = "Monkey"
+        questData.mobPos = Vector3.new(-1448, 50, 63)
     elseif level >= 15 and level <= 29 then
-        questData = {name = "BuggyQuest1", num = 1, pos = Vector3.new(-1139, 5, 4380), mob = "Pirate", mobPos = Vector3.new(-1103, 14, 4370)}
+        questData.name = "BuggyQuest1"
+        questData.num = 1
+        questData.pos = Vector3.new(-1139, 5, 4380)
+        questData.mob = "Pirate"
+        questData.mobPos = Vector3.new(-1103, 14, 4370)
     elseif level >= 30 and level <= 39 then
-        questData = {name = "DesertQuest", num = 1, pos = Vector3.new(897, 7, 4388), mob = "Desert Bandit", mobPos = Vector3.new(924, 7, 4481)}
+        questData.name = "DesertQuest"
+        questData.num = 1
+        questData.pos = Vector3.new(897, 7, 4388)
+        questData.mob = "Desert Bandit"
+        questData.mobPos = Vector3.new(924, 7, 4481)
     elseif level >= 40 and level <= 59 then
-        questData = {name = "DesertQuest", num = 2, pos = Vector3.new(897, 7, 4388), mob = "Desert Officer", mobPos = Vector3.new(1608, 7, 4371)}
+        questData.name = "DesertQuest"
+        questData.num = 2
+        questData.pos = Vector3.new(897, 7, 4388)
+        questData.mob = "Desert Officer"
+        questData.mobPos = Vector3.new(1608, 7, 4371)
     elseif level >= 60 and level <= 74 then
-        questData = {name = "SnowQuest", num = 1, pos = Vector3.new(1384, 87, -1297), mob = "Snow Bandit", mobPos = Vector3.new(1289, 106, -1221)}
+        questData.name = "SnowQuest"
+        questData.num = 1
+        questData.pos = Vector3.new(1384, 87, -1297)
+        questData.mob = "Snow Bandit"
+        questData.mobPos = Vector3.new(1289, 106, -1221)
     elseif level >= 75 and level <= 89 then
-        questData = {name = "SnowQuest", num = 2, pos = Vector3.new(1384, 87, -1297), mob = "Snowman", mobPos = Vector3.new(1289, 106, -1221)}
-    elseif level >= 90 and level <= 99 then
         questData = {name = "MarineQuest", num = 1, pos = Vector3.new(-2440, 73, 2048), mob = "Marine", mobPos = Vector3.new(-2678, 73, 2328)}
     elseif level >= 100 and level <= 119 then
         questData = {name = "MarineQuest", num = 2, pos = Vector3.new(-2440, 73, 2048), mob = "Marine", mobPos = Vector3.new(-2678, 73, 2328)}
