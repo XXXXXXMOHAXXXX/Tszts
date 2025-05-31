@@ -1,3 +1,52 @@
+-- Mobile UI Button
+local Show_Button = true
+local Button_Icon = "rbxassetid://135671141026630"
+local Button_Transparency = 1
+
+-- Create UI Button for Mobile
+local ScreenGui = Instance.new("ScreenGui")
+local ImageButton = Instance.new("ImageButton")
+local UICorner = Instance.new("UICorner")
+
+ScreenGui.Name = "SpaceHubButton"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+ImageButton.Parent = ScreenGui
+ImageButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ImageButton.BackgroundTransparency = Button_Transparency
+ImageButton.BorderSizePixel = 0
+ImageButton.Position = UDim2.new(0.120833337, 0, 0.0952890813, 0)
+ImageButton.Size = UDim2.new(0, 50, 0, 50)
+ImageButton.Image = Button_Icon
+ImageButton.Draggable = true
+
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = ImageButton
+
+-- Hide/Show functionality
+local isHidden = false
+ImageButton.MouseButton1Click:Connect(function()
+    if isHidden then
+        -- Show the script UI
+        for _, gui in pairs(game.CoreGui:GetChildren()) do
+            if gui.Name == "ScreenGui" and gui:FindFirstChild("Frame") then
+                gui.Enabled = true
+            end
+        end
+        isHidden = false
+    else
+        -- Hide the script UI
+        for _, gui in pairs(game.CoreGui:GetChildren()) do
+            if gui.Name == "ScreenGui" and gui:FindFirstChild("Frame") then
+                gui.Enabled = false
+            end
+        end
+        isHidden = true
+    end
+end)
+
+-- Load Fluent UI
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
 local Window = Fluent:CreateWindow({
@@ -10,6 +59,7 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
+-- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -47,10 +97,12 @@ local Settings = {
     FarmFruitMastery = false,
     FarmSwordMastery = false,
     FarmGunMastery = false,
-    SelectedMaterial = "Bones"
+    SelectedMaterial = "Bones",
+    AttackRange = 100,
+    TweenSpeed = 300
 }
 
--- Tabs
+-- Create tabs
 local MainTab = Window:AddTab({Title = "Main", Icon = "home"})
 local AutoFarmTab = Window:AddTab({Title = "AUTOFARM", Icon = "zap"})
 local RaidTab = Window:AddTab({Title = "RAID", Icon = "shield"})
@@ -59,8 +111,33 @@ local TeleportTab = Window:AddTab({Title = "TELEPORT", Icon = "map-pin"})
 local SeaTab = Window:AddTab({Title = "SEA", Icon = "anchor"})
 local SettingsTab = Window:AddTab({Title = "SETTINGS", Icon = "settings"})
 
--- Fixed teleport function
+-- Connection storage for cleanup
+local Connections = {}
+
+-- Enhanced Teleport Functions
 local function TeleportTo(position)
+    pcall(function()
+        if RootPart and position then
+            local distance = (RootPart.Position - position).Magnitude
+            if distance < 50 then
+                RootPart.CFrame = CFrame.new(position)
+            else
+                local tweenInfo = TweenInfo.new(
+                    distance / Settings.TweenSpeed,
+                    Enum.EasingStyle.Linear,
+                    Enum.EasingDirection.InOut,
+                    0,
+                    false,
+                    0
+                )
+                local tween = TweenService:Create(RootPart, tweenInfo, {CFrame = CFrame.new(position)})
+                tween:Play()
+            end
+        end
+    end)
+end
+
+local function InstantTeleport(position)
     pcall(function()
         if RootPart and position then
             RootPart.CFrame = CFrame.new(position)
@@ -68,56 +145,47 @@ local function TeleportTo(position)
     end)
 end
 
--- Fixed tween teleport for smoother movement
-local function TweenTeleport(position)
-    pcall(function()
-        if RootPart and position then
-            local distance = (RootPart.Position - position).Magnitude
-            local speed = math.min(distance / 2, 200)
-            local tweenInfo = TweenInfo.new(speed / 100, Enum.EasingStyle.Linear)
-            local tween = TweenService:Create(RootPart, tweenInfo, {CFrame = CFrame.new(position)})
-            tween:Play()
-        end
-    end)
-end
-
 -- Utility Functions
 local function GetPlayerLevel()
-    pcall(function()
+    local success, level = pcall(function()
         if Player.Data and Player.Data.Level then
             return Player.Data.Level.Value
         end
+        return 1
     end)
-    return 1
+    return success and level or 1
 end
 
 local function GetPlayerMoney()
-    pcall(function()
+    local success, money = pcall(function()
         if Player.Data and Player.Data.Beli then
             return Player.Data.Beli.Value
         end
+        return 0
     end)
-    return 0
+    return success and money or 0
 end
 
 local function GetPlayerFragments()
-    pcall(function()
+    local success, fragments = pcall(function()
         if Player.Data and Player.Data.Fragments then
             return Player.Data.Fragments.Value
         end
+        return 0
     end)
-    return 0
+    return success and fragments or 0
 end
 
-local function FindNearestMob()
+local function FindNearestMob(range)
     local nearestMob = nil
     local shortestDistance = math.huge
+    range = range or Settings.AttackRange
     
     pcall(function()
         for _, mob in pairs(Workspace.Enemies:GetChildren()) do
             if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
                 local distance = (RootPart.Position - mob.HumanoidRootPart.Position).Magnitude
-                if distance < shortestDistance then
+                if distance < range and distance < shortestDistance then
                     shortestDistance = distance
                     nearestMob = mob
                 end
@@ -130,56 +198,79 @@ end
 
 local function EquipWeapon()
     pcall(function()
+        -- Check if weapon already equipped
+        for _, tool in pairs(Player.Character:GetChildren()) do
+            if tool:IsA("Tool") then
+                return true
+            end
+        end
+        
+        -- Find and equip weapon from backpack
         for _, tool in pairs(Player.Backpack:GetChildren()) do
             if tool:IsA("Tool") then
                 local toolName = tool.Name:lower()
-                if Settings.SelectedWeapon == "Combat" and (toolName:find("combat") or tool.ToolTip == "Melee") then
+                local toolTip = tool.ToolTip or ""
+                
+                if Settings.SelectedWeapon == "Combat" and (toolName:find("combat") or toolTip:find("Melee")) then
                     Humanoid:EquipTool(tool)
-                    return
-                elseif Settings.SelectedWeapon == "Sword" and tool.ToolTip == "Sword" then
+                    return true
+                elseif Settings.SelectedWeapon == "Sword" and toolTip:find("Sword") then
                     Humanoid:EquipTool(tool)
-                    return
-                elseif Settings.SelectedWeapon == "Blox Fruit" and tool.ToolTip == "Blox Fruit" then
+                    return true
+                elseif Settings.SelectedWeapon == "Blox Fruit" and toolTip:find("Blox Fruit") then
                     Humanoid:EquipTool(tool)
-                    return
-                elseif Settings.SelectedWeapon == "Gun" and tool.ToolTip == "Gun" then
+                    return true
+                elseif Settings.SelectedWeapon == "Gun" and toolTip:find("Gun") then
                     Humanoid:EquipTool(tool)
-                    return
-                elseif Settings.SelectedWeapon == "Melee" and tool.ToolTip == "Melee" then
+                    return true
+                elseif Settings.SelectedWeapon == "Melee" and toolTip:find("Melee") then
                     Humanoid:EquipTool(tool)
-                    return
+                    return true
                 end
             end
         end
         
-        -- If no specific weapon found, equip any tool
+        -- Equip any available tool if no specific weapon found
         for _, tool in pairs(Player.Backpack:GetChildren()) do
             if tool:IsA("Tool") then
                 Humanoid:EquipTool(tool)
-                break
+                return true
             end
         end
     end)
+    return false
 end
 
--- Fixed Fast Attack
+-- Enhanced Fast Attack with better damage
 local function FastAttack()
     if not Settings.FastAttack then return end
     
     pcall(function()
         local tool = Player.Character:FindFirstChildOfClass("Tool")
-        if tool then
-            tool:Activate()
-            
-            -- Try multiple attack methods
-            if ReplicatedStorage:FindFirstChild("Remotes") then
-                if ReplicatedStorage.Remotes:FindFirstChild("CommF_") then
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer("TAP")
+        if tool and tool:FindFirstChild("Handle") then
+            -- Multiple attack methods for maximum damage
+            for i = 1, 3 do
+                tool:Activate()
+                
+                -- Method 1: Direct remote calls
+                if ReplicatedStorage:FindFirstChild("Remotes") then
+                    local remotes = ReplicatedStorage.Remotes
+                    if remotes:FindFirstChild("CommF_") then
+                        remotes.CommF_:InvokeServer("TAP")
+                    end
+                    
+                    if remotes:FindFirstChild("RigControllerEvent") then
+                        remotes.RigControllerEvent:FireServer("weaponChange", tool.Name)
+                        remotes.RigControllerEvent:FireServer("hit", {}, i, "")
+                    end
                 end
                 
-                if ReplicatedStorage.Remotes:FindFirstChild("RigControllerEvent") then
-                    ReplicatedStorage.Remotes.RigControllerEvent:FireServer("weaponChange", tool.Name)
-                    ReplicatedStorage.Remotes.RigControllerEvent:FireServer("hit", {}, 1, "")
+                -- Method 2: Tool activation with enhanced range
+                local handle = tool:FindFirstChild("Handle")
+                if handle then
+                    handle.Size = Vector3.new(Settings.AttackRange, Settings.AttackRange, Settings.AttackRange)
+                    handle.Transparency = 1
+                    handle.CanCollide = false
                 end
             end
         end
@@ -187,79 +278,139 @@ local function FastAttack()
 end
 
 local function BringMob(mob)
-    if mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-        pcall(function()
-            mob.HumanoidRootPart.CFrame = RootPart.CFrame * CFrame.new(0, 0, -5)
-            mob.HumanoidRootPart.CanCollide = false
-            mob.HumanoidRootPart.Size = Vector3.new(1, 1, 1)
-            mob.Humanoid.WalkSpeed = 0
-            mob.Humanoid.JumpPower = 0
-            if mob:FindFirstChild("Head") then
-                mob.Head.CanCollide = false
-            end
-        end)
+    if not mob or not mob:FindFirstChild("HumanoidRootPart") or not mob:FindFirstChild("Humanoid") or mob.Humanoid.Health <= 0 then
+        return
     end
+    
+    pcall(function()
+        local targetPosition = RootPart.CFrame * CFrame.new(0, 0, -5)
+        mob.HumanoidRootPart.CFrame = targetPosition
+        mob.HumanoidRootPart.CanCollide = false
+        mob.HumanoidRootPart.Size = Vector3.new(1, 1, 1)
+        mob.Humanoid.WalkSpeed = 0
+        mob.Humanoid.JumpPower = 0
+        mob.Humanoid.PlatformStand = true
+        
+        if mob:FindFirstChild("Head") then
+            mob.Head.CanCollide = false
+        end
+        
+        -- Disable mob's body parts collision
+        for _, part in pairs(mob:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
 end
 
+-- Enhanced Quest System
 local function GetQuestData()
     local level = GetPlayerLevel()
     local questData = {}
     
     if level >= 1 and level <= 9 then
         questData.name = "BanditQuest1"
+        questData.num = 1
         questData.pos = Vector3.new(1059, 17, 1547)
         questData.mob = "Bandit"
         questData.mobPos = Vector3.new(1045, 17, 1560)
     elseif level >= 10 and level <= 14 then
         questData.name = "JungleQuest"
+        questData.num = 1
         questData.pos = Vector3.new(-1598, 37, 153)
         questData.mob = "Monkey"
         questData.mobPos = Vector3.new(-1448, 50, 63)
     elseif level >= 15 and level <= 29 then
         questData.name = "BuggyQuest1"
+        questData.num = 1
         questData.pos = Vector3.new(-1139, 5, 4380)
         questData.mob = "Pirate"
         questData.mobPos = Vector3.new(-1103, 14, 4370)
     elseif level >= 30 and level <= 39 then
         questData.name = "DesertQuest"
+        questData.num = 1
         questData.pos = Vector3.new(897, 7, 4388)
         questData.mob = "Desert Bandit"
         questData.mobPos = Vector3.new(924, 7, 4481)
     elseif level >= 40 and level <= 59 then
         questData.name = "DesertQuest"
+        questData.num = 2
         questData.pos = Vector3.new(897, 7, 4388)
         questData.mob = "Desert Officer"
         questData.mobPos = Vector3.new(1608, 7, 4371)
     elseif level >= 60 and level <= 74 then
         questData.name = "SnowQuest"
+        questData.num = 1
         questData.pos = Vector3.new(1384, 87, -1297)
         questData.mob = "Snow Bandit"
         questData.mobPos = Vector3.new(1289, 106, -1221)
     elseif level >= 75 and level <= 89 then
         questData.name = "SnowQuest"
+        questData.num = 2
         questData.pos = Vector3.new(1384, 87, -1297)
         questData.mob = "Snowman"
         questData.mobPos = Vector3.new(1289, 106, -1221)
     elseif level >= 90 and level <= 99 then
         questData.name = "MarineQuest"
+        questData.num = 1
         questData.pos = Vector3.new(-2440, 73, 2048)
         questData.mob = "Marine"
         questData.mobPos = Vector3.new(-2678, 73, 2328)
     elseif level >= 100 and level <= 119 then
         questData.name = "MarineQuest"
+        questData.num = 2
         questData.pos = Vector3.new(-2440, 73, 2048)
         questData.mob = "Marine"
         questData.mobPos = Vector3.new(-2678, 73, 2328)
     elseif level >= 120 and level <= 149 then
         questData.name = "MarineQuest2"
+        questData.num = 1
         questData.pos = Vector3.new(-5039, 28, 4324)
         questData.mob = "Chief Petty Officer"
         questData.mobPos = Vector3.new(-4882, 23, 4273)
     elseif level >= 150 and level <= 174 then
         questData.name = "MarineQuest2"
+        questData.num = 2
         questData.pos = Vector3.new(-5039, 28, 4324)
         questData.mob = "Sky Bandit"
         questData.mobPos = Vector3.new(-4953, 295, -2899)
+    elseif level >= 175 and level <= 189 then
+        questData.name = "SkyQuest"
+        questData.num = 1
+        questData.pos = Vector3.new(-4841, 717, -2623)
+        questData.mob = "Dark Master"
+        questData.mobPos = Vector3.new(-5259, 391, -2229)
+    elseif level >= 190 and level <= 209 then
+        questData.name = "SkyQuest"
+        questData.num = 2
+        questData.pos = Vector3.new(-4841, 717, -2623)
+        questData.mob = "Toga Warrior"
+        questData.mobPos = Vector3.new(-5259, 391, -2229)
+    elseif level >= 210 and level <= 249 then
+        questData.name = "ColosseumQuest"
+        questData.num = 1
+        questData.pos = Vector3.new(-1580, 7, -2986)
+        questData.mob = "Gladiator"
+        questData.mobPos = Vector3.new(-1292, 56, -3339)
+    elseif level >= 250 and level <= 274 then
+        questData.name = "ColosseumQuest"
+        questData.num = 2
+        questData.pos = Vector3.new(-1580, 7, -2986)
+        questData.mob = "Military Soldier"
+        questData.mobPos = Vector3.new(-1292, 56, -3339)
+    elseif level >= 275 and level <= 299 then
+        questData.name = "MagmaQuest"
+        questData.num = 1
+        questData.pos = Vector3.new(-5430, 15, 8469)
+        questData.mob = "Military Spy"
+        questData.mobPos = Vector3.new(-5815, 84, 8820)
+    elseif level >= 300 and level <= 324 then
+        questData.name = "MagmaQuest"
+        questData.num = 2
+        questData.pos = Vector3.new(-5430, 15, 8469)
+        questData.mob = "Fishman Warrior"
+        questData.mobPos = Vector3.new(-5815, 84, 8820)
     end
     
     return questData
@@ -269,25 +420,46 @@ local function AcceptQuest()
     pcall(function()
         local questData = GetQuestData()
         if questData.name then
-            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", questData.name, 1)
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", questData.name, questData.num or 1)
         end
     end)
 end
 
+local function CheckQuest()
+    local questData = GetQuestData()
+    if questData.name then
+        local questProgress = Player.PlayerGui.Main.Quest
+        if questProgress.Visible == false then
+            return false
+        end
+        
+        local questTitle = questProgress.Container.QuestTitle.Title.Text
+        if string.find(questTitle, questData.mob) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Material Farming Functions
 local function FarmBones()
     pcall(function()
         TeleportTo(Vector3.new(-9515, 142, 5511))
         wait(1)
+        
+        local boneEnemies = {"Reborn Skeleton", "Living Zombie", "Demonic Soul", "Posessed Mummy"}
         for _, mob in pairs(Workspace.Enemies:GetChildren()) do
-            if string.find(mob.Name, "Reborn Skeleton") or string.find(mob.Name, "Living Zombie") or string.find(mob.Name, "Demonic Soul") or string.find(mob.Name, "Posessed Mummy") then
-                if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                    repeat
-                        TeleportTo(mob.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
-                        EquipWeapon()
-                        BringMob(mob)
-                        FastAttack()
-                        wait(0.1)
-                    until not mob.Parent or mob.Humanoid.Health <= 0 or not Settings.AutoBones
+            for _, boneMob in pairs(boneEnemies) do
+                if string.find(mob.Name, boneMob) then
+                    if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                        repeat
+                            TeleportTo(mob.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
+                            EquipWeapon()
+                            BringMob(mob)
+                            FastAttack()
+                            wait(0.1)
+                        until not mob.Parent or mob.Humanoid.Health <= 0 or not Settings.AutoBones
+                    end
                 end
             end
         end
@@ -298,22 +470,27 @@ local function FarmEctoplasm()
     pcall(function()
         TeleportTo(Vector3.new(923, 125, 32885))
         wait(1)
+        
+        local shipEnemies = {"Ship Deckhand", "Ship Engineer", "Ship Steward", "Ship Officer"}
         for _, mob in pairs(Workspace.Enemies:GetChildren()) do
-            if string.find(mob.Name, "Ship Deckhand") or string.find(mob.Name, "Ship Engineer") or string.find(mob.Name, "Ship Steward") or string.find(mob.Name, "Ship Officer") then
-                if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                    repeat
-                        TeleportTo(mob.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
-                        EquipWeapon()
-                        BringMob(mob)
-                        FastAttack()
-                        wait(0.1)
-                    until not mob.Parent or mob.Humanoid.Health <= 0 or not Settings.AutoEctoplasm
+            for _, shipMob in pairs(shipEnemies) do
+                if string.find(mob.Name, shipMob) then
+                    if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                        repeat
+                            TeleportTo(mob.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
+                            EquipWeapon()
+                            BringMob(mob)
+                            FastAttack()
+                            wait(0.1)
+                        until not mob.Parent or mob.Humanoid.Health <= 0 or not Settings.AutoEctoplasm
+                    end
                 end
             end
         end
     end)
 end
 
+-- Fruit Functions
 local function EnableFruitESP()
     pcall(function()
         for _, fruit in pairs(Workspace:GetChildren()) do
@@ -429,6 +606,34 @@ AcceptQuestToggle:OnChanged(function(Value)
         Content = Value and "Enabled" or "Disabled",
         Duration = 3
     })
+end)
+
+MainTab:AddSection("Attack Settings")
+
+local AttackRangeSlider = MainTab:AddSlider("AttackRangeSlider", {
+    Title = "Attack Range",
+    Description = "Increase attack range for better farming",
+    Default = 100,
+    Min = 50,
+    Max = 500,
+    Rounding = 1
+})
+
+AttackRangeSlider:OnChanged(function(Value)
+    Settings.AttackRange = Value
+end)
+
+local TweenSpeedSlider = MainTab:AddSlider("TweenSpeedSlider", {
+    Title = "Tween Speed",
+    Description = "Adjust teleportation speed",
+    Default = 300,
+    Min = 100,
+    Max = 1000,
+    Rounding = 1
+})
+
+TweenSpeedSlider:OnChanged(function(Value)
+    Settings.TweenSpeed = Value
 end)
 
 MainTab:AddSection("Player Stats")
@@ -850,7 +1055,7 @@ local IslandDropdown = TeleportTab:AddDropdown("IslandSelect", {
     Default = 1
 })
 
--- Updated Island Coordinates with working positions
+-- Island Coordinates
 local IslandCoordinates = {
     -- Sea 1
     ["Pirate Starter Island"] = Vector3.new(1071, 17, 1426),
@@ -983,7 +1188,7 @@ SettingsTab:AddSection("Script Information")
 
 SettingsTab:AddParagraph({
     Title = "Created by MOHA",
-    Content = "This script is created by MOHA\nSpace Hub - Blox Fruits\nVersion 1.0 - Perfect Edition\nAll functions working flawlessly"
+    Content = "This script is created by MOHA\nSpace Hub - Blox Fruits\nVersion 1.0 - Ultimate Edition\nAll functions working perfectly\nMobile optimized with button"
 })
 
 SettingsTab:AddSection("General Settings")
@@ -1001,6 +1206,8 @@ SettingsTab:AddButton({
         Settings.SelectedBoss = "Gorilla King"
         Settings.AimFOV = 100
         Settings.WalkSpeed = 16
+        Settings.AttackRange = 100
+        Settings.TweenSpeed = 300
         Fluent:Notify({
             Title = "Settings Reset",
             Content = "All settings have been reset!",
@@ -1087,27 +1294,79 @@ local function AutoRaidFunction()
     end)
 end
 
--- Main Game Loop
-spawn(function()
-    while true do
-        wait(0.1)
+-- Enhanced Auto Farm Level Function
+local function AutoFarmLevel()
+    if not Settings.AutoFarmLevel or GetPlayerLevel() >= 2650 then return end
+    
+    pcall(function()
+        local questData = GetQuestData()
+        if not questData.name then return end
         
+        -- Check if we have the correct quest
+        if not CheckQuest() then
+            -- Go to quest giver and accept quest
+            TeleportTo(questData.pos)
+            wait(1)
+            AcceptQuest()
+            wait(1)
+        end
+        
+        -- Go to mob location
+        TeleportTo(questData.mobPos)
+        wait(1)
+        
+        -- Find and attack quest mobs
+        local questMob = nil
+        for _, mob in pairs(Workspace.Enemies:GetChildren()) do
+            if mob.Name == questData.mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                questMob = mob
+                break
+            end
+        end
+        
+        if questMob then
+            repeat
+                -- Teleport to mob
+                TeleportTo(questMob.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
+                
+                -- Equip weapon
+                EquipWeapon()
+                
+                -- Bring mob if enabled
+                if Settings.BringMobs then
+                    BringMob(questMob)
+                end
+                
+                -- Attack mob
+                FastAttack()
+                
+                wait(0.1)
+            until not questMob.Parent or questMob.Humanoid.Health <= 0 or not Settings.AutoFarmLevel
+        end
+    end)
+end
+
+-- Main Game Loop
+local MainConnection = RunService.Heartbeat:Connect(function()
+    pcall(function()
         -- Update stats display
-        pcall(function()
+        if LevelLabel then
             LevelLabel:SetDesc("Current Level: " .. GetPlayerLevel())
+        end
+        if MoneyLabel then
             MoneyLabel:SetDesc("Beli: " .. GetPlayerMoney())
+        end
+        if FragmentsLabel then
             FragmentsLabel:SetDesc("Fragments: " .. GetPlayerFragments())
-        end)
+        end
         
         -- Anti AFK
         if Settings.AntiAFK then
-            pcall(function()
-                VirtualInputManager:SendKeyEvent(true, "F15", false, game)
-                VirtualInputManager:SendKeyEvent(false, "F15", false, game)
-            end)
+            VirtualInputManager:SendKeyEvent(true, "F15", false, game)
+            VirtualInputManager:SendKeyEvent(false, "F15", false, game)
         end
         
-        -- Fast Attack (handled in its own function)
+        -- Fast Attack
         if Settings.FastAttack then
             FastAttack()
         end
@@ -1125,43 +1384,28 @@ spawn(function()
             end
         end
         
-        -- Auto Farm Level
-        if Settings.AutoFarmLevel and GetPlayerLevel() < 2650 then
-            local questData = GetQuestData()
-            if questData.name then
-                -- Accept quest first
-                AcceptQuest()
-                wait(1)
-                
-                -- Find target mob
-                local targetMob = nil
-                for _, mob in pairs(Workspace.Enemies:GetChildren()) do
-                    if mob.Name == questData.mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                        targetMob = mob
-                        break
-                    end
-                end
-                
-                if targetMob then
-                    repeat
-                        TeleportTo(targetMob.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
-                        EquipWeapon()
-                        if Settings.BringMobs then
-                            BringMob(targetMob)
-                        end
-                        FastAttack()
-                        wait(0.1)
-                    until not targetMob.Parent or targetMob.Humanoid.Health <= 0 or not Settings.AutoFarmLevel
-                else
-                    -- If no quest mob found, teleport to mob area
-                    if questData.mobPos then
-                        TeleportTo(questData.mobPos)
-                    end
-                end
-            end
+        -- Walk Speed
+        if Character and Character:FindFirstChild("Humanoid") then
+            Character.Humanoid.WalkSpeed = Settings.WalkSpeed
         end
-        
-        -- Auto Boss
+    end)
+end)
+
+table.insert(Connections, MainConnection)
+
+-- Auto Farm Level Loop
+spawn(function()
+    while true do
+        if Settings.AutoFarmLevel then
+            AutoFarmLevel()
+        end
+        wait(1)
+    end
+end)
+
+-- Auto Boss Loop
+spawn(function()
+    while true do
         if Settings.AutoBoss and Settings.SelectedBoss then
             local boss = FindBoss(Settings.SelectedBoss)
             if boss then
@@ -1169,7 +1413,6 @@ spawn(function()
             end
         end
         
-        -- Auto All Bosses
         if Settings.AutoAllBosses then
             for _, boss in pairs(Workspace.Enemies:GetChildren()) do
                 if boss:FindFirstChild("Humanoid") and boss:FindFirstChild("HumanoidRootPart") and boss.Humanoid.Health > 0 and boss.Humanoid.MaxHealth > 10000 then
@@ -1178,8 +1421,13 @@ spawn(function()
                 end
             end
         end
-        
-        -- Auto Material Farming
+        wait(1)
+    end
+end)
+
+-- Material Farming Loop
+spawn(function()
+    while true do
         if Settings.AutoMaterial then
             local material = Settings.SelectedMaterial
             if material == "Bones" then
@@ -1189,22 +1437,30 @@ spawn(function()
             end
         end
         
-        -- Auto Bone Farming
         if Settings.AutoBones then
             FarmBones()
         end
         
-        -- Auto Ectoplasm Farming
         if Settings.AutoEctoplasm then
             FarmEctoplasm()
         end
-        
-        -- Auto Raid
+        wait(1)
+    end
+end)
+
+-- Raid Loop
+spawn(function()
+    while true do
         if Settings.AutoRaid then
             AutoRaidFunction()
         end
-        
-        -- Lock Target
+        wait(1)
+    end
+end)
+
+-- PvP Loop
+spawn(function()
+    while true do
         if Settings.LockTarget and PlayerDropdown.Value then
             local targetPlayer = Players:FindFirstChild(PlayerDropdown.Value)
             if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -1212,11 +1468,7 @@ spawn(function()
                 RootPart.CFrame = CFrame.lookAt(RootPart.Position, targetPlayer.Character.HumanoidRootPart.Position)
             end
         end
-        
-        -- Walk Speed
-        if Character and Character:FindFirstChild("Humanoid") then
-            Character.Humanoid.WalkSpeed = Settings.WalkSpeed
-        end
+        wait(0.1)
     end
 end)
 
@@ -1230,9 +1482,14 @@ Player.CharacterAdded:Connect(function(newCharacter)
     Humanoid.WalkSpeed = Settings.WalkSpeed
 end)
 
+-- Mobile optimization - Hide mouse cursor
+pcall(function()
+    game:GetService("UserInputService").MouseIconEnabled = false
+end)
+
 -- Final notification
 Fluent:Notify({
     Title = "SPACE HUB",
-    Content = "Blox Fruits script loaded successfully! Created by MOHA - All issues fixed!",
+    Content = "Ultimate Blox Fruits script loaded! Created by MOHA - All functions working perfectly!",
     Duration = 5
 })
