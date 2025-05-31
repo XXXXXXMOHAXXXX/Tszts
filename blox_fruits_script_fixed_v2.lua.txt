@@ -1,42 +1,6 @@
-
 local Show_Button = true
 local Button_Icon = "rbxassetid://135671141026630"
 local Button_Transparency = 0.1
-
--- Create Premium UI Button
-local ScreenGui = Instance.new("ScreenGui")
-local ImageButton = Instance.new("ImageButton")
-local UICorner = Instance.new("UICorner")
-local UIStroke = Instance.new("UIStroke")
-local UIGradient = Instance.new("UIGradient")
-
-ScreenGui.Name = "SpaceHubButton"
-ScreenGui.Parent = game.CoreGui
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-ImageButton.Parent = ScreenGui
-ImageButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-ImageButton.BackgroundTransparency = Button_Transparency
-ImageButton.BorderSizePixel = 0
-ImageButton.Position = UDim2.new(0.05, 0, 0.1, 0)
-ImageButton.Size = UDim2.new(0, 70, 0, 70)
-ImageButton.Image = Button_Icon
-ImageButton.Draggable = true
-
-UICorner.CornerRadius = UDim.new(0, 20)
-UICorner.Parent = ImageButton
-
-UIStroke.Parent = ImageButton
-UIStroke.Color = Color3.fromRGB(0, 150, 255)
-UIStroke.Thickness = 4
-
-UIGradient.Parent = ImageButton
-UIGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(240, 248, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 230, 255))
-}
-
--- Hide/Show functionality
 local isHidden = false
 ImageButton.MouseButton1Click:Connect(function()
     if isHidden then
@@ -56,18 +20,18 @@ ImageButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Load Fluent UI
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
 local Window = Fluent:CreateWindow({
     Title = "SPACE HUB COMPLETE - BLOX FRUIT",
     SubTitle = "by MOHA - v4.0 Complete Edition",
-    TabWidth = 180,
+    TabWidth = 125,
     Size = UDim2.fromOffset(720, 580),
     Acrylic = true,
-    Theme = "Light",
+    Theme = "Dark",
     MinimizeKey = Enum.KeyCode.LeftControl
 })
+
 
 -- Services
 local Players = game:GetService("Players")
@@ -86,9 +50,9 @@ local Character = Player.Character or Player.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local RootPart = Character:WaitForChild("HumanoidRootPart")
 
--- Complete Settings
+-- Complete 
 local Settings = {
-    -- Combat
+  
     FastAttack = false,
     BringMobs = false,
     AutoFarmLevel = false,
@@ -101,24 +65,24 @@ local Settings = {
     HitboxMultiplier = 30,
     AutoEquipWeapon = true,
     
-    -- Quest & Progression
+   
     AutoQuest = false,
     AutoSaber = false,
     Auto2ndSea = false,
     Auto3rdSea = false,
     
-    -- Fruit & Stock
+    
     AutoStoreFruit = false,
     AutoCollectFruit = false,
     
-    -- Misc
+   
     WalkSpeed = 16,
     JumpPower = 50,
     NoClip = false,
     InfiniteJump = false,
     AntiAFK = true,
     
-    -- Advanced
+   
     StablePosition = true,
     FarmHeight = 25
 }
@@ -132,7 +96,7 @@ local TeleportTab = Window:AddTab({Title = "Teleport", Icon = "map-pin"})
 local SeaTab = Window:AddTab({Title = "Sea", Icon = "anchor"})
 local SettingsTab = Window:AddTab({Title = "Settings", Icon = "settings"})
 
--- Utility Functions
+- Utility Functions
 local function GetPlayerLevel()
     return Player.Data.Level.Value or 1
 end
@@ -754,10 +718,10 @@ local SeaLabel = MainTab:AddParagraph({
 })
 
 -- AUTO FARM TAB
-AutoFarmTab:AddSection("Level Farming (FIXED - No Twerking)")
+AutoFarmTab:AddSection("Level Farming")
 
 local AutoFarmLevelToggle = AutoFarmTab:AddToggle("AutoFarmLevelToggle", {
-    Title = "Auto Farm Level (Up to 2650)",
+    Title = "Auto Farm Level",
     Default = false
 })
 
@@ -765,7 +729,7 @@ AutoFarmLevelToggle:OnChanged(function(Value)
     Settings.AutoFarmLevel = Value
     Fluent:Notify({
         Title = "Auto Farm Level",
-        Content = Value and "FIXED Auto Farm Started!" or "Stopped!",
+        Content = Value and "Started level farming!" or "Stopped level farming!",
         Duration = 3
     })
 end)
@@ -779,37 +743,281 @@ AutoQuestToggle:OnChanged(function(Value)
     Settings.AutoQuest = Value
 end)
 
-local StablePositionToggle = AutoFarmTab:AddToggle("StablePositionToggle", {
-    Title = "Stable Position (No Twerking)",
-    Default = true
+AutoFarmTab:AddSection("Boss Farming")
+
+local BossDropdown = AutoFarmTab:AddDropdown("BossSelect", {
+    Title = "Select Boss",
+    Values = {"Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg", "Ice Admiral", "Greybeard", "Diamond", "Jeremy", "Fajita", "Don Swan", "Smoke Admiral", "Cursed Captain", "Darkbeard", "Order", "Awakened Ice Admiral", "Tide Keeper", "rip_indra True Form", "Longma", "Soul Reaper"},
+    Multi = false,
+    Default = 1
 })
 
-StablePositionToggle:OnChanged(function(Value)
-    Settings.StablePosition = Value
+BossDropdown:OnChanged(function(Value)
+    Settings.SelectedBoss = Value
 end)
 
-local FarmHeightSlider = AutoFarmTab:AddSlider("FarmHeightSlider", {
-    Title = "Farm Height",
-    Description = "Height above mob for stable farming",
-    Default = 25,
-    Min = 10,
-    Max = 100,
-    Rounding = 1
+local AutoBossToggle = AutoFarmTab:AddToggle("AutoBossToggle", {
+    Title = "Auto Kill Selected Boss",
+    Default = false
 })
 
-FarmHeightSlider:OnChanged(function(Value)
-    Settings.FarmHeight = Value
+AutoBossToggle:OnChanged(function(Value)
+    Settings.AutoBoss = Value
 end)
+
+-- RAID TAB
+RaidTab:AddSection("Raid Settings")
+
+local ChipDropdown = RaidTab:AddDropdown("ChipSelect", {
+    Title = "Choose Chip",
+    Values = {"Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Sand", "Magma", "Rumble", "Buddha", "Dough", "Phoenix"},
+    Multi = false,
+    Default = 1
+})
+
+ChipDropdown:OnChanged(function(Value)
+    Settings.SelectedChip = Value
+end)
+
+RaidTab:AddButton({
+    Title = "Start Raid",
+    Description = "Start the selected raid",
+    Callback = function()
+        pcall(function()
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidsNpc", "Select", Settings.SelectedChip)
+        end)
+        Fluent:Notify({
+            Title = "Raid Started",
+            Content = "Starting " .. Settings.SelectedChip .. " raid!",
+            Duration = 3
+        })
+    end
+})
+
+local AutoRaidToggle = RaidTab:AddToggle("AutoRaidToggle", {
+    Title = "Auto Raid (Kill All + Next Island)",
+    Default = false
+})
+
+AutoRaidToggle:OnChanged(function(Value)
+    Settings.AutoRaid = Value
+end)
+
+local AutoAwakenToggle = RaidTab:AddToggle("AutoAwakenToggle", {
+    Title = "Auto Awaken Fruit",
+    Default = false
+})
+
+AutoAwakenToggle:OnChanged(function(Value)
+    Settings.AutoAwaken = Value
+end)
+
+-- PVP TAB
+PvPTab:AddSection("PvP Settings")
+
+local PlayerDropdown = PvPTab:AddDropdown("PlayerSelect", {
+    Title = "Select Player",
+    Values = {},
+    Multi = false,
+    Default = 1
+})
+
+-- Update player list
+spawn(function()
+    while true do
+        local playerNames = {}
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= Player then
+                table.insert(playerNames, player.Name)
+            end
+        end
+        if #playerNames > 0 then
+            PlayerDropdown:SetValues(playerNames)
+        end
+        wait(5)
+    end
+end)
+
+local KillAuraToggle = PvPTab:AddToggle("KillAuraToggle", {
+    Title = "Kill Aura",
+    Default = false
+})
+
+KillAuraToggle:OnChanged(function(Value)
+    Settings.KillAura = Value
+end)
+
+local LockTargetToggle = PvPTab:AddToggle("LockTargetToggle", {
+    Title = "Lock Target",
+    Default = false
+})
+
+LockTargetToggle:OnChanged(function(Value)
+    Settings.LockTarget = Value
+end)
+
+PvPTab:AddButton({
+    Title = "Teleport to Player",
+    Description = "Teleport to selected player",
+    Callback = function()
+        if PlayerDropdown.Value then
+            local targetPlayer = Players:FindFirstChild(PlayerDropdown.Value)
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                TeleportTo(targetPlayer.Character.HumanoidRootPart.Position)
+            end
+        end
+    end
+})
+
+-- SEA TAB
+SeaTab:AddSection("Sea Events")
+
+local AutoSeaEventToggle = SeaTab:AddToggle("AutoSeaEventToggle", {
+    Title = "Auto Sea Event",
+    Default = false
+})
+
+AutoSeaEventToggle:OnChanged(function(Value)
+    Settings.AutoSeaEvent = Value
+end)
+
+local AutoLeviathanToggle = SeaTab:AddToggle("AutoLeviathanToggle", {
+    Title = "Auto Leviathan",
+    Default = false
+})
+
+AutoLeviathanToggle:OnChanged(function(Value)
+    Settings.AutoLeviathan = Value
+end)
+
+local AutoKitsuneToggle = SeaTab:AddToggle("AutoKitsuneToggle", {
+    Title = "Auto Kitsune Island",
+    Default = false
+})
+
+AutoKitsuneToggle:OnChanged(function(Value)
+    Settings.AutoKitsune = Value
+end)
+
+local AutoTerrorsharkToggle = SeaTab:AddToggle("AutoTerrorsharkToggle", {
+    Title = "Auto Terrorshark",
+    Default = false
+})
+
+AutoTerrorsharkToggle:OnChanged(function(Value)
+    Settings.AutoTerrorshark = Value
+end)
+
+-- TELEPORT TAB
+TeleportTab:AddSection("Island Teleportation")
+
+local function GetCurrentSea()
+    local placeId = game.PlaceId
+    if placeId == 2753915549 then
+        return 1
+    elseif placeId == 4442272183 then
+        return 2
+    elseif placeId == 7449423635 then
+        return 3
+    end
+    return 1
+end
+
+local currentSea = GetCurrentSea()
+local islandList = {}
+
+if currentSea == 1 then
+    islandList = {"Pirate Starter Island", "Marine Starter Island", "Middle Town", "Jungle", "Pirate Village", "Desert", "Frozen Village", "Marine Fortress", "Skylands", "Prison", "Colosseum", "Magma Village", "Under Water Island", "Fountain City", "Shank Room", "Mob Island"}
+elseif currentSea == 2 then
+    islandList = {"The Cafe", "Fajita Island", "Green Zone", "Factory", "Colossseum", "Zombie Island", "Two Snow Mountain", "Punk Hazard", "Cursed Ship", "Ice Castle", "Forgotten Island", "Ussop Island", "Mini Sky Island"}
+else
+    islandList = {"Mansion", "Port Town", "Great Tree", "Castle On The Sea", "MiniSky", "Hydra Island", "Floating Turtle", "Haunted Castle", "Ice Cream Island", "Peanut Island", "Cake Island", "Candy Cane Island", "Tiki Outpost"}
+end
+
+local IslandDropdown = TeleportTab:AddDropdown("IslandSelect", {
+    Title = "Select Island (Sea " .. currentSea .. ")",
+    Values = islandList,
+    Multi = false,
+    Default = 1
+})
+
+-- Island Coordinates
+local IslandCoordinates = {
+    -- Sea 1
+    ["Pirate Starter Island"] = Vector3.new(1071, 17, 1426),
+    ["Marine Starter Island"] = Vector3.new(-2662, 7, 2048),
+    ["Middle Town"] = Vector3.new(-655, 15, 1511),
+    ["Jungle"] = Vector3.new(-1612, 37, 149),
+    ["Pirate Village"] = Vector3.new(-1181, 5, 3803),
+    ["Desert"] = Vector3.new(944, 21, 4373),
+    ["Frozen Village"] = Vector3.new(1347, 104, -1319),
+    ["Marine Fortress"] = Vector3.new(-2994, 21, 2409),
+    ["Skylands"] = Vector3.new(-4969, 718, -2917),
+    ["Prison"] = Vector3.new(4875, 6, 734),
+    ["Colosseum"] = Vector3.new(-1427, 8, -2673),
+    ["Magma Village"] = Vector3.new(-5247, 9, 8504),
+    ["Under Water Island"] = Vector3.new(61124, 19, 1569),
+    ["Fountain City"] = Vector3.new(5127, 60, 4105),
+    ["Shank Room"] = Vector3.new(-1442, 30, -12),
+    ["Mob Island"] = Vector3.new(-2850, 7, -11),
+    
+    -- Sea 2
+    ["The Cafe"] = Vector3.new(-380, 73, 297),
+    ["Fajita Island"] = Vector3.new(-2085, 73, -4208),
+    ["Green Zone"] = Vector3.new(-2448, 73, -3262),
+    ["Factory"] = Vector3.new(424, 200, -427),
+    ["Colossseum"] = Vector3.new(-1503, 219, 1369),
+    ["Zombie Island"] = Vector3.new(-5622, 492, -781),
+    ["Two Snow Mountain"] = Vector3.new(753, 408, -5274),
+    ["Punk Hazard"] = Vector3.new(-6127, 16, -5040),
+    ["Cursed Ship"] = Vector3.new(923, 125, 32885),
+    ["Ice Castle"] = Vector3.new(5249, 42, -6550),
+    ["Forgotten Island"] = Vector3.new(-3032, 317, -10075),
+    ["Ussop Island"] = Vector3.new(4816, 8, 2863),
+    ["Mini Sky Island"] = Vector3.new(-288, 306, -2394),
+    
+    -- Sea 3
+    ["Mansion"] = Vector3.new(-12471, 374, -7551),
+    ["Port Town"] = Vector3.new(-290, 7, 5343),
+    ["Great Tree"] = Vector3.new(2681, 1682, -7190),
+    ["Castle On The Sea"] = Vector3.new(-5085, 316, -3156),
+    ["MiniSky"] = Vector3.new(-260, 1925, -2532),
+    ["Hydra Island"] = Vector3.new(5228, 604, -345),
+    ["Floating Turtle"] = Vector3.new(-13274, 332, -7906),
+    ["Haunted Castle"] = Vector3.new(-9515, 142, 5511),
+    ["Ice Cream Island"] = Vector3.new(-902, 79, -10988),
+    ["Peanut Island"] = Vector3.new(-2062, 50, -10232),
+    ["Cake Island"] = Vector3.new(-1884, 19, -11666),
+    ["Candy Cane Island"] = Vector3.new(-1103, 9, -14297),
+    ["Tiki Outpost"] = Vector3.new(-16542, 55, 1051)
+}
+
+TeleportTab:AddButton({
+    Title = "Teleport to Island",
+    Description = "Teleport to selected island",
+    Callback = function()
+        local islandName = IslandDropdown.Value or islandList[1]
+        local coordinates = IslandCoordinates[islandName]
+        if coordinates then
+            TeleportTo(coordinates)
+            Fluent:Notify({
+                Title = "Teleport",
+                Content = "Teleporting to " .. islandName .. "!",
+                Duration = 3
+            })
+        end
+    end
+})
 
 -- SETTINGS TAB
-SettingsTab:AddSection("Script Information")
+SettingsTab:AddSection("Ultimate Settings")
 
 SettingsTab:AddParagraph({
-    Title = "SPACE HUB COMPLETE",
-    Content = "Created by MOHA\nVersion 4.0 - Complete Edition\nMax Level: 2650\nFast Attack: FIXED\nAuto Farm: FIXED (No Twerking)\nFruit Stock: FIXED\nAuto Saber: Working\nAuto 2nd Sea: Working\nAll bugs resolved!"
+    Title = "SPACE HUB ULTIMATE",
+    Content = "Created by MOHA\nVersion 3.0 - Ultimate OP Edition\nWith MASSIVE hitbox (25x multiplier)\nEnhanced combat system\nAll features optimized\nMobile UI perfected"
 })
 
-SettingsTab:AddSection("Combat Settings")
+SettingsTab:AddSection("Combat Enhancement")
 
 local AttackRangeSlider = SettingsTab:AddSlider("AttackRangeSlider", {
     Title = "Attack Range",
@@ -826,8 +1034,8 @@ end)
 
 local HitboxMultiplierSlider = SettingsTab:AddSlider("HitboxMultiplierSlider", {
     Title = "Hitbox Multiplier",
-    Description = "Hitbox size multiplier",
-    Default = 30,
+    Description = "MASSIVE hitbox increase",
+    Default = 25,
     Min = 1,
     Max = 100,
     Rounding = 1
@@ -837,12 +1045,140 @@ HitboxMultiplierSlider:OnChanged(function(Value)
     Settings.HitboxMultiplier = Value
 end)
 
--- Main Game Loop
-RunService.Heartbeat:Connect(function()
+local AttackDelaySlider = SettingsTab:AddSlider("AttackDelaySlider", {
+    Title = "Attack Delay",
+    Description = "Lower = Faster attacks",
+    Default = 0.02,
+    Min = 0.01,
+    Max = 0.5,
+    Rounding = 2
+})
+
+AttackDelaySlider:OnChanged(function(Value)
+    Settings.AttackDelay = Value
+end)
+
+SettingsTab:AddSection("Movement Settings")
+
+local WalkSpeedSlider = SettingsTab:AddSlider("WalkSpeedSlider", {
+    Title = "Walk Speed",
+    Description = "Character movement speed",
+    Default = 16,
+    Min = 16,
+    Max = 1000,
+    Rounding = 1
+})
+
+WalkSpeedSlider:OnChanged(function(Value)
+    Settings.WalkSpeed = Value
+    if Character and Character:FindFirstChild("Humanoid") then
+        Character.Humanoid.WalkSpeed = Value
+    end
+end)
+
+local JumpPowerSlider = SettingsTab:AddSlider("JumpPowerSlider", {
+    Title = "Jump Power",
+    Description = "Character jump height",
+    Default = 50,
+    Min = 50,
+    Max = 1000,
+    Rounding = 1
+})
+
+JumpPowerSlider:OnChanged(function(Value)
+    Settings.JumpPower = Value
+    if Character and Character:FindFirstChild("Humanoid") then
+        Character.Humanoid.JumpPower = Value
+    end
+end)
+
+SettingsTab:AddToggle("NoClipToggle", {
+    Title = "No Clip",
+    Default = false
+}):OnChanged(function(Value)
+    Settings.NoClip = Value
+end)
+
+SettingsTab:AddToggle("InfiniteJumpToggle", {
+    Title = "Infinite Jump",
+    Default = false
+}):OnChanged(function(Value)
+    Settings.InfiniteJump = Value
+end)
+
+SettingsTab:AddToggle("AntiAFKToggle", {
+    Title = "Anti AFK",
+    Default = true
+}):OnChanged(function(Value)
+    Settings.AntiAFK = Value
+end)
+
+-- Enhanced Boss Fighting Function
+local function FindBoss(bossName)
+    for _, boss in pairs(Workspace.Enemies:GetChildren()) do
+        if boss.Name == bossName and boss:FindFirstChild("Humanoid") and boss:FindFirstChild("HumanoidRootPart") and boss.Humanoid.Health > 0 then
+            return boss
+        end
+    end
+    return nil
+end
+
+local function FightBoss(boss)
+    if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+        repeat
+            TeleportTo(boss.HumanoidRootPart.Position + Vector3.new(0, 15, 0))
+            if Settings.AutoEquipWeapon then
+                EquipWeapon()
+            end
+            if Settings.BringMobs then
+                BringMob(boss)
+            end
+            if Settings.FastAttack then
+                FastAttack()
+            end
+            wait(0.1)
+        until not boss.Parent or boss.Humanoid.Health <= 0 or not Settings.AutoBoss
+    end
+end
+
+-- Enhanced Raid Function
+local function AutoRaidFunction()
     pcall(function()
-        -- Update stats
+        for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+            if enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") and enemy.Humanoid.Health > 0 then
+                local distance = (RootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+                if distance < 2000 then
+                    repeat
+                        TeleportTo(enemy.HumanoidRootPart.Position + Vector3.new(0, 15, 0))
+                        if Settings.AutoEquipWeapon then
+                            EquipWeapon()
+                        end
+                        BringMob(enemy)
+                        if Settings.FastAttack then
+                            FastAttack()
+                        end
+                        wait(0.1)
+                    until not enemy.Parent or enemy.Humanoid.Health <= 0 or not Settings.AutoRaid
+                end
+            end
+        end
+        
+        -- Auto next island
+        if Settings.AutoNextIsland then
+            local nextButton = Player.PlayerGui:FindFirstChild("RaidGUI")
+            if nextButton and nextButton:FindFirstChild("NextButton") then
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidNextButton")
+            end
+        end
+    end)
+end
+
+-- Main Game Loop
+local MainConnection = RunService.Heartbeat:Connect(function()
+    pcall(function()
+        -- Update enhanced stats display
         if LevelLabel then
-            LevelLabel:SetDesc("Current Level: " .. GetPlayerLevel() .. " / 2650")
+            LevelLabel:SetDesc("Current Level: " .. GetPlayerLevel())
         end
         if MoneyLabel then
             MoneyLabel:SetDesc("Beli: " .. string.format("%s", GetPlayerMoney()))
@@ -856,8 +1192,8 @@ RunService.Heartbeat:Connect(function()
         if BountyLabel then
             BountyLabel:SetDesc("Bounty: " .. string.format("%s", GetPlayerBounty()))
         end
-        if SeaLabel then
-            SeaLabel:SetDesc("Sea: " .. GetCurrentSea() .. " / 3")
+        if HonorLabel then
+            HonorLabel:SetDesc("Honor: " .. string.format("%s", GetPlayerHonor()))
         end
         
         -- Anti AFK
@@ -866,7 +1202,7 @@ RunService.Heartbeat:Connect(function()
             VirtualInputManager:SendKeyEvent(false, "F15", false, game)
         end
         
-        -- Movement settings
+        -- Enhanced Movement
         if Character and Character:FindFirstChild("Humanoid") then
             Character.Humanoid.WalkSpeed = Settings.WalkSpeed
             Character.Humanoid.JumpPower = Settings.JumpPower
@@ -880,8 +1216,15 @@ RunService.Heartbeat:Connect(function()
                 end
             end
         end
+        
+        -- Auto Equip Weapon
+        if Settings.AutoEquipWeapon and Settings.FastAttack then
+            EquipWeapon()
+        end
     end)
 end)
+
+table.insert(Connections, MainConnection)
 
 -- Auto Farm Level Loop
 spawn(function()
@@ -889,37 +1232,67 @@ spawn(function()
         if Settings.AutoFarmLevel then
             AutoFarmLevel()
         end
-        wait(0.5)
+        wait(1)
     end
 end)
 
--- Fast Attack Loop
+-- Auto Boss Loop
 spawn(function()
     while true do
-        if Settings.FastAttack then
-            FastAttack()
+        if Settings.AutoBoss and Settings.SelectedBoss then
+            local boss = FindBoss(Settings.SelectedBoss)
+            if boss then
+                FightBoss(boss)
+            end
         end
-        wait(0.05)
+        wait(1)
     end
 end)
 
--- Auto Saber Loop
+-- Raid Loop
 spawn(function()
     while true do
-        if Settings.AutoSaber then
-            AutoSaber()
+        if Settings.AutoRaid then
+            AutoRaidFunction()
         end
-        wait(2)
+        wait(1)
     end
 end)
 
--- Auto 2nd Sea Loop
+-- PvP Loop
 spawn(function()
     while true do
-        if Settings.Auto2ndSea then
-            Auto2ndSea()
+        if Settings.KillAura then
+            for _, targetPlayer in pairs(Players:GetPlayers()) do
+                if targetPlayer ~= Player and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    local distance = (RootPart.Position - targetPlayer.Character.HumanoidRootPart.Position).Magnitude
+                    if distance < Settings.PvPRange then
+                        if Settings.AutoEquipWeapon then
+                            EquipWeapon()
+                        end
+                        if Settings.FastAttack then
+                            FastAttack()
+                        end
+                    end
+                end
+            end
         end
-        wait(3)
+        
+        if Settings.LockTarget and PlayerDropdown.Value then
+            local targetPlayer = Players:FindFirstChild(PlayerDropdown.Value)
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local direction = (targetPlayer.Character.HumanoidRootPart.Position - RootPart.Position).Unit
+                RootPart.CFrame = CFrame.lookAt(RootPart.Position, targetPlayer.Character.HumanoidRootPart.Position)
+            end
+        end
+        wait(0.1)
+    end
+end)
+
+-- Infinite Jump
+UserInputService.JumpRequest:Connect(function()
+    if Settings.InfiniteJump and Character and Character:FindFirstChild("Humanoid") then
+        Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
 
@@ -928,22 +1301,15 @@ Player.CharacterAdded:Connect(function(newCharacter)
     Character = newCharacter
     Humanoid = Character:WaitForChild("Humanoid")
     RootPart = Character:WaitForChild("HumanoidRootPart")
+    
+    -- Apply settings
     Humanoid.WalkSpeed = Settings.WalkSpeed
     Humanoid.JumpPower = Settings.JumpPower
 end)
 
--- Success notification
+-- Ultimate notification
 Fluent:Notify({
-    Title = "SPACE HUB COMPLETE",
-    Content = "v4.0 Complete Edition Loaded!\nMax Level: 2650\nAll Issues Fixed!\nAuto Saber: Working\nAuto 2nd Sea: Working\nFruit Stock: FIXED\nNo More Twerking!\nCreated by MOHA",
-    Duration = 12
+    Title = "SPACE HUB ULTIMATE",
+    Content = "v3.0 Ultimate OP Edition loaded!\nMASSIVE hitbox (25x multiplier)\nEnhanced level farming logic\nAll features optimized\nCreated by MOHA",
+    Duration = 8
 })
-
-print("SPACE HUB COMPLETE v4.0 - All issues resolved!")
-print("Max Level: 2650")
-print("Auto Farm: FIXED (No Twerking)")
-print("Fast Attack: FIXED")
-print("Fruit Stock: FIXED")
-print("Auto Saber: Working")
-print("Auto 2nd Sea: Working")
-print("All functions operational!")
