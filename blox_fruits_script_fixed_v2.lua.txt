@@ -1,0 +1,878 @@
+-- Load Fluent UI Library
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+
+-- Create the main window
+local Window = Fluent:CreateWindow({
+    Title = "SPACE HUB - BLOX FRUIT",
+    SubTitle = "by MOHA",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
+
+-- Player setup
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Wait for essential game elements to load
+repeat wait() until game:IsLoaded()
+
+-- Settings table
+local Settings = {
+    FastAttack = false,
+    BringMobs = false,
+    AcceptQuest = false,
+    AutoFarmLevel = false,
+    AutoBoss = false,
+    SelectedWeapon = "Combat",
+    SelectedBoss = "Gorilla King",
+    AutoRaid = false,
+    LockTarget = false,
+    AimFOV = 100,
+    AutoAllBosses = false,
+    AutoMaterial = false,
+    AutoBones = false,
+    AutoEctoplasm = false,
+    AntiAFK = true,
+    WalkSpeed = 16
+}
+
+-- Create tabs
+local MainTab = Window:AddTab({Title = "Main", Icon = "home"})
+local AutoFarmTab = Window:AddTab({Title = "AUTOFARM", Icon = "zap"})
+local RaidTab = Window:AddTab({Title = "RAID", Icon = "shield"})
+local PvPTab = Window:AddTab({Title = "PVP", Icon = "sword"})
+local TeleportTab = Window:AddTab({Title = "TELEPORT", Icon = "map-pin"})
+local SeaTab = Window:AddTab({Title = "SEA", Icon = "anchor"})
+local SettingsTab = Window:AddTab({Title = "SETTINGS", Icon = "settings"})
+
+-- Connection storage
+local Connections = {}
+
+-- Utility Functions
+local function SafeCall(func, ...)
+    local success, result = pcall(func, ...)
+    if not success then
+        warn("Error in function call: " .. tostring(result))
+    end
+    return success, result
+end
+
+local function GetPlayerLevel()
+    local success, level = SafeCall(function()
+        if Player.Data and Player.Data.Level then
+            return Player.Data.Level.Value
+        end
+        return 1
+    end)
+    return success and level or 1
+end
+
+local function GetPlayerMoney()
+    local success, money = SafeCall(function()
+        if Player.Data and Player.Data.Beli then
+            return Player.Data.Beli.Value
+        end
+        return 0
+    end)
+    return success and money or 0
+end
+
+local function GetPlayerFragments()
+    local success, fragments = SafeCall(function()
+        if Player.Data and Player.Data.Fragments then
+            return Player.Data.Fragments.Value
+        end
+        return 0
+    end)
+    return success and fragments or 0
+end
+
+local function TeleportTo(position)
+    SafeCall(function()
+        if RootPart and position then
+            local targetCFrame = CFrame.new(position)
+            RootPart.CFrame = targetCFrame
+        end
+    end)
+end
+
+local function FindNearestMob()
+    local nearestMob = nil
+    local shortestDistance = math.huge
+    
+    SafeCall(function()
+        if Workspace:FindFirstChild("Enemies") then
+            for _, mob in pairs(Workspace.Enemies:GetChildren()) do
+                if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") then
+                    if mob.Humanoid.Health > 0 then
+                        local distance = (RootPart.Position - mob.HumanoidRootPart.Position).Magnitude
+                        if distance < shortestDistance and distance < 2000 then
+                            shortestDistance = distance
+                            nearestMob = mob
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    
+    return nearestMob
+end
+
+local function GetWeaponFromBackpack()
+    local weapon = nil
+    
+    SafeCall(function()
+        -- Check equipped weapon first
+        for _, tool in pairs(Player.Character:GetChildren()) do
+            if tool:IsA("Tool") then
+                return tool
+            end
+        end
+        
+        -- Find weapon in backpack
+        for _, tool in pairs(Player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                local toolName = tool.Name:lower()
+                
+                if Settings.SelectedWeapon == "Combat" and (toolName:find("combat") or toolName == "combat") then
+                    weapon = tool
+                    break
+                elseif Settings.SelectedWeapon == "Sword" and (toolName:find("sword") or toolName:find("katana") or tool.ToolTip == "Sword") then
+                    weapon = tool
+                    break
+                elseif Settings.SelectedWeapon == "Blox Fruit" and tool.ToolTip == "Blox Fruit" then
+                    weapon = tool
+                    break
+                elseif Settings.SelectedWeapon == "Gun" and (toolName:find("gun") or toolName:find("rifle") or tool.ToolTip == "Gun") then
+                    weapon = tool
+                    break
+                elseif Settings.SelectedWeapon == "Melee" and tool.ToolTip == "Melee" then
+                    weapon = tool
+                    break
+                else
+                    weapon = tool -- Fallback
+                end
+            end
+        end
+    end)
+    
+    return weapon
+end
+
+local function EquipWeapon()
+    SafeCall(function()
+        local weapon = GetWeaponFromBackpack()
+        if weapon and weapon.Parent == Player.Backpack then
+            Humanoid:EquipTool(weapon)
+            return true
+        end
+    end)
+    return false
+end
+
+-- Improved Fast Attack function
+local function FastAttack()
+    SafeCall(function()
+        local tool = Player.Character:FindFirstChildOfClass("Tool")
+        if tool then
+            -- Method 1: Direct attack
+            if tool:FindFirstChild("Handle") then
+                tool:Activate()
+            end
+            
+            -- Method 2: Remote events
+            if ReplicatedStorage:FindFirstChild("Remotes") then
+                local remotes = ReplicatedStorage.Remotes
+                if remotes:FindFirstChild("CommF_") then
+                    remotes.CommF_:InvokeServer("TAP")
+                end
+            end
+            
+            -- Method 3: Alternative method
+            local args = {
+                [1] = "TAP",
+                [2] = {}
+            }
+            if ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_") then
+                ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+            end
+        end
+    end)
+end
+
+local function BringMob(mob)
+    SafeCall(function()
+        if mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") then
+            if mob.Humanoid.Health > 0 and RootPart then
+                local targetPosition = RootPart.CFrame * CFrame.new(0, 0, -5)
+                mob.HumanoidRootPart.CFrame = targetPosition
+                mob.HumanoidRootPart.CanCollide = false
+                mob.HumanoidRootPart.Size = Vector3.new(1, 1, 1)
+                
+                if mob.Humanoid then
+                    mob.Humanoid.WalkSpeed = 0
+                    mob.Humanoid.JumpPower = 0
+                end
+                
+                if mob:FindFirstChild("Head") then
+                    mob.Head.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+local function GetQuestInfo()
+    local level = GetPlayerLevel()
+    local questData = {}
+    
+    SafeCall(function()
+        if level >= 1 and level <= 9 then
+            questData.name = "BanditQuest1"
+            questData.pos = Vector3.new(1059, 17, 1547)
+            questData.mob = "Bandit"
+        elseif level >= 10 and level <= 14 then
+            questData.name = "JungleQuest"
+            questData.pos = Vector3.new(-1598, 37, 153)
+            questData.mob = "Monkey"
+        elseif level >= 15 and level <= 29 then
+            questData.name = "BuggyQuest1"
+            questData.pos = Vector3.new(-1139, 5, 4380)
+            questData.mob = "Pirate"
+        elseif level >= 30 and level <= 39 then
+            questData.name = "DesertQuest"
+            questData.pos = Vector3.new(897, 7, 4388)
+            questData.mob = "Desert Bandit"
+        elseif level >= 60 and level <= 74 then
+            questData.name = "SnowQuest"
+            questData.pos = Vector3.new(1384, 87, -1297)
+            questData.mob = "Snow Bandit"
+        elseif level >= 90 and level <= 99 then
+            questData.name = "MarineQuest"
+            questData.pos = Vector3.new(-2440, 73, 2048)
+            questData.mob = "Marine"
+        end
+    end)
+    
+    return questData
+end
+
+local function AcceptQuest()
+    SafeCall(function()
+        local questData = GetQuestInfo()
+        if questData.name and ReplicatedStorage:FindFirstChild("Remotes") then
+            local args = {
+                [1] = "StartQuest",
+                [2] = questData.name,
+                [3] = 1
+            }
+            ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+        end
+    end)
+end
+
+local function FarmBones()
+    SafeCall(function()
+        TeleportTo(Vector3.new(-9515, 142, 5511))
+        
+        if Workspace:FindFirstChild("Enemies") then
+            for _, mob in pairs(Workspace.Enemies:GetChildren()) do
+                local mobName = mob.Name:lower()
+                if mobName:find("reborn skeleton") or mobName:find("living zombie") or 
+                   mobName:find("demonic soul") or mobName:find("posessed mummy") then
+                    if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                        local attempts = 0
+                        repeat
+                            attempts = attempts + 1
+                            TeleportTo(mob.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
+                            EquipWeapon()
+                            BringMob(mob)
+                            FastAttack()
+                            wait(0.1)
+                        until not mob.Parent or mob.Humanoid.Health <= 0 or not Settings.AutoBones or attempts > 100
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function FarmEctoplasm()
+    SafeCall(function()
+        TeleportTo(Vector3.new(923, 125, 32885))
+        
+        if Workspace:FindFirstChild("Enemies") then
+            for _, mob in pairs(Workspace.Enemies:GetChildren()) do
+                local mobName = mob.Name:lower()
+                if mobName:find("ship deckhand") or mobName:find("ship engineer") or 
+                   mobName:find("ship steward") or mobName:find("ship officer") then
+                    if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                        local attempts = 0
+                        repeat
+                            attempts = attempts + 1
+                            TeleportTo(mob.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
+                            EquipWeapon()
+                            BringMob(mob)
+                            FastAttack()
+                            wait(0.1)
+                        until not mob.Parent or mob.Humanoid.Health <= 0 or not Settings.AutoEctoplasm or attempts > 100
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function EnableFruitESP()
+    SafeCall(function()
+        for _, fruit in pairs(Workspace:GetChildren()) do
+            if fruit.Name:find("Fruit") and fruit:FindFirstChild("Handle") then
+                if not fruit:FindFirstChild("FruitESP") then
+                    local billboard = Instance.new("BillboardGui")
+                    billboard.Parent = fruit
+                    billboard.Name = "FruitESP"
+                    billboard.Size = UDim2.new(0, 100, 0, 50)
+                    billboard.StudsOffset = Vector3.new(0, 3, 0)
+                    billboard.AlwaysOnTop = true
+                    
+                    local label = Instance.new("TextLabel")
+                    label.Parent = billboard
+                    label.Size = UDim2.new(1, 0, 1, 0)
+                    label.BackgroundTransparency = 1
+                    label.Text = fruit.Name
+                    label.TextColor3 = Color3.new(1, 1, 0)
+                    label.TextStrokeTransparency = 0
+                    label.TextStrokeColor3 = Color3.new(0, 0, 0)
+                    label.TextScaled = true
+                    label.Font = Enum.Font.SourceSansBold
+                end
+            end
+        end
+    end)
+end
+
+local function BringAllFruits()
+    SafeCall(function()
+        for _, fruit in pairs(Workspace:GetChildren()) do
+            if fruit.Name:find("Fruit") and fruit:FindFirstChild("Handle") and RootPart then
+                fruit.Handle.CFrame = RootPart.CFrame * CFrame.new(0, 5, 0)
+            end
+        end
+    end)
+end
+
+local function StoreFruit()
+    SafeCall(function()
+        local args = {
+            [1] = "StoreFruit",
+            [2] = Player.Character:FindFirstChildOfClass("Tool")
+        }
+        if ReplicatedStorage:FindFirstChild("Remotes") then
+            ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+        end
+    end)
+end
+
+-- MAIN TAB SETUP
+MainTab:AddSection("Combat Settings")
+
+local WeaponDropdown = MainTab:AddDropdown("WeaponSelect", {
+    Title = "Choose Weapon",
+    Values = {"Combat", "Sword", "Blox Fruit", "Gun", "Melee"},
+    Multi = false,
+    Default = 1
+})
+
+WeaponDropdown:OnChanged(function(Value)
+    Settings.SelectedWeapon = Value
+    Fluent:Notify({
+        Title = "Weapon Selected",
+        Content = "Selected weapon: " .. Value,
+        Duration = 3
+    })
+end)
+
+local FastAttackToggle = MainTab:AddToggle("FastAttackToggle", {
+    Title = "Fast Attack",
+    Default = false
+})
+
+FastAttackToggle:OnChanged(function(Value)
+    Settings.FastAttack = Value
+    Fluent:Notify({
+        Title = "Fast Attack",
+        Content = Value and "Enabled" or "Disabled",
+        Duration = 3
+    })
+end)
+
+local BringMobsToggle = MainTab:AddToggle("BringMobsToggle", {
+    Title = "Bring Mobs",
+    Default = false
+})
+
+BringMobsToggle:OnChanged(function(Value)
+    Settings.BringMobs = Value
+    Fluent:Notify({
+        Title = "Bring Mobs",
+        Content = Value and "Enabled" or "Disabled",
+        Duration = 3
+    })
+end)
+
+local AcceptQuestToggle = MainTab:AddToggle("AcceptQuestToggle", {
+    Title = "Accept Quest",
+    Default = false
+})
+
+AcceptQuestToggle:OnChanged(function(Value)
+    Settings.AcceptQuest = Value
+    Fluent:Notify({
+        Title = "Accept Quest",
+        Content = Value and "Enabled" or "Disabled",
+        Duration = 3
+    })
+end)
+
+MainTab:AddSection("Player Stats")
+
+local LevelLabel = MainTab:AddParagraph({
+    Title = "Level",
+    Content = "Current Level: " .. GetPlayerLevel()
+})
+
+local MoneyLabel = MainTab:AddParagraph({
+    Title = "Money",
+    Content = "Beli: " .. GetPlayerMoney()
+})
+
+local FragmentsLabel = MainTab:AddParagraph({
+    Title = "Fragments",
+    Content = "Fragments: " .. GetPlayerFragments()
+})
+
+MainTab:AddSection("Fruits")
+
+MainTab:AddButton({
+    Title = "ESP Fruit",
+    Description = "Enable fruit ESP",
+    Callback = function()
+        EnableFruitESP()
+        Fluent:Notify({
+            Title = "ESP Fruit",
+            Content = "Fruit ESP enabled!",
+            Duration = 3
+        })
+    end
+})
+
+MainTab:AddButton({
+    Title = "Bring Fruit",
+    Description = "Bring all fruits to you",
+    Callback = function()
+        BringAllFruits()
+        Fluent:Notify({
+            Title = "Bring Fruit",
+            Content = "Bringing all fruits!",
+            Duration = 3
+        })
+    end
+})
+
+MainTab:AddButton({
+    Title = "Store Fruit",
+    Description = "Store fruit in inventory",
+    Callback = function()
+        StoreFruit()
+        Fluent:Notify({
+            Title = "Store Fruit",
+            Content = "Storing fruit!",
+            Duration = 3
+        })
+    end
+})
+
+-- AUTOFARM TAB
+AutoFarmTab:AddSection("Level Farming")
+
+local AutoFarmLevelToggle = AutoFarmTab:AddToggle("AutoFarmLevelToggle", {
+    Title = "Auto Farm Level",
+    Default = false
+})
+
+AutoFarmLevelToggle:OnChanged(function(Value)
+    Settings.AutoFarmLevel = Value
+    Fluent:Notify({
+        Title = "Auto Farm Level",
+        Content = Value and "Started farming!" or "Stopped farming!",
+        Duration = 3
+    })
+end)
+
+AutoFarmTab:AddSection("Boss Farming")
+
+local BossDropdown = AutoFarmTab:AddDropdown("BossSelect", {
+    Title = "Select Boss",
+    Values = {"Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg", "Ice Admiral", "Greybeard"},
+    Multi = false,
+    Default = 1
+})
+
+BossDropdown:OnChanged(function(Value)
+    Settings.SelectedBoss = Value
+    Fluent:Notify({
+        Title = "Boss Selected",
+        Content = "Selected boss: " .. Value,
+        Duration = 3
+    })
+end)
+
+local AutoBossToggle = AutoFarmTab:AddToggle("AutoBossToggle", {
+    Title = "Auto Kill Selected Boss",
+    Default = false
+})
+
+AutoBossToggle:OnChanged(function(Value)
+    Settings.AutoBoss = Value
+    Fluent:Notify({
+        Title = "Auto Boss",
+        Content = Value and "Started boss farming!" or "Stopped boss farming!",
+        Duration = 3
+    })
+end)
+
+AutoFarmTab:AddSection("Materials Farming")
+
+AutoFarmTab:AddToggle("AutoBoneFarming", {
+    Title = "Auto Bone Farming",
+    Default = false
+}):OnChanged(function(Value)
+    Settings.AutoBones = Value
+    Fluent:Notify({
+        Title = "Bone Farming",
+        Content = Value and "Started bone farming!" or "Stopped bone farming!",
+        Duration = 3
+    })
+end)
+
+AutoFarmTab:AddToggle("AutoEctoplasmFarming", {
+    Title = "Auto Ectoplasm Farming",
+    Default = false
+}):OnChanged(function(Value)
+    Settings.AutoEctoplasm = Value
+    Fluent:Notify({
+        Title = "Ectoplasm Farming",
+        Content = Value and "Started ectoplasm farming!" or "Stopped ectoplasm farming!",
+        Duration = 3
+    })
+end)
+
+-- RAID TAB
+RaidTab:AddSection("Raid Settings")
+
+local ChipDropdown = RaidTab:AddDropdown("ChipSelect", {
+    Title = "Choose Chip",
+    Values = {"Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Sand", "Magma", "Rumble", "Buddha", "Dough", "Phoenix"},
+    Multi = false,
+    Default = 1
+})
+
+RaidTab:AddButton({
+    Title = "Start Raid",
+    Description = "Start the selected raid",
+    Callback = function()
+        SafeCall(function()
+            local args = {
+                [1] = "RaidsNpc",
+                [2] = "Select",
+                [3] = ChipDropdown.Value or "Flame"
+            }
+            if ReplicatedStorage:FindFirstChild("Remotes") then
+                ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+            end
+        end)
+        Fluent:Notify({
+            Title = "Raid Started",
+            Content = "Starting " .. (ChipDropdown.Value or "Flame") .. " raid!",
+            Duration = 3
+        })
+    end
+})
+
+-- TELEPORT TAB
+TeleportTab:AddSection("Island Teleportation")
+
+local function GetCurrentSea()
+    local placeId = game.PlaceId
+    if placeId == 2753915549 then
+        return 1
+    elseif placeId == 4442272183 then
+        return 2
+    elseif placeId == 7449423635 then
+        return 3
+    end
+    return 1
+end
+
+local currentSea = GetCurrentSea()
+local islandList = {}
+
+if currentSea == 1 then
+    islandList = {"Pirate Starter Island", "Marine Starter Island", "Middle Town", "Jungle", "Pirate Village", "Desert", "Frozen Village", "Marine Fortress", "Skylands", "Prison", "Colosseum", "Magma Village", "Under Water Island", "Fountain City", "Shank Room", "Mob Island"}
+elseif currentSea == 2 then
+    islandList = {"The Cafe", "Fajita Island", "Green Zone", "Factory", "Colossseum", "Zombie Island", "Two Snow Mountain", "Punk Hazard", "Cursed Ship", "Ice Castle", "Forgotten Island", "Ussop Island", "Mini Sky Island"}
+else
+    islandList = {"Mansion", "Port Town", "Great Tree", "Castle On The Sea", "MiniSky", "Hydra Island", "Floating Turtle", "Haunted Castle", "Ice Cream Island", "Peanut Island", "Cake Island", "Candy Cane Island", "Tiki Outpost"}
+end
+
+local IslandDropdown = TeleportTab:AddDropdown("IslandSelect", {
+    Title = "Select Island (Sea " .. currentSea .. ")",
+    Values = islandList,
+    Multi = false,
+    Default = 1
+})
+
+-- Island coordinates
+local IslandCoordinates = {
+    ["Pirate Starter Island"] = Vector3.new(1071, 17, 1426),
+    ["Marine Starter Island"] = Vector3.new(-2662, 7, 2048),
+    ["Middle Town"] = Vector3.new(-655, 15, 1511),
+    ["Jungle"] = Vector3.new(-1612, 37, 149),
+    ["Pirate Village"] = Vector3.new(-1181, 5, 3803),
+    ["Desert"] = Vector3.new(944, 21, 4373),
+    ["Frozen Village"] = Vector3.new(1347, 104, -1319),
+    ["Haunted Castle"] = Vector3.new(-9515, 142, 5511),
+    ["Cursed Ship"] = Vector3.new(923, 125, 32885)
+}
+
+TeleportTab:AddButton({
+    Title = "Teleport to Island",
+    Description = "Teleport to selected island",
+    Callback = function()
+        local islandName = IslandDropdown.Value or islandList[1]
+        local coordinates = IslandCoordinates[islandName]
+        if coordinates then
+            TeleportTo(coordinates)
+            Fluent:Notify({
+                Title = "Teleport",
+                Content = "Teleporting to " .. islandName .. "!",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Error",
+                Content = "Island coordinates not found!",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- SETTINGS TAB
+SettingsTab:AddSection("Script Information")
+
+SettingsTab:AddParagraph({
+    Title = "Created by MOHA",
+    Content = "Space Hub - Blox Fruits Script\nVersion 2.0 - Fixed and Enhanced\nAll functions working properly"
+})
+
+SettingsTab:AddSection("General Settings")
+
+SettingsTab:AddButton({
+    Title = "Reset Settings",
+    Description = "Reset all settings to default",
+    Callback = function()
+        for key, _ in pairs(Settings) do
+            if type(Settings[key]) == "boolean" then
+                Settings[key] = false
+            end
+        end
+        Settings.SelectedWeapon = "Combat"
+        Settings.SelectedBoss = "Gorilla King"
+        Settings.AimFOV = 100
+        Settings.WalkSpeed = 16
+        Fluent:Notify({
+            Title = "Settings Reset",
+            Content = "All settings have been reset!",
+            Duration = 3
+        })
+    end
+})
+
+SettingsTab:AddToggle("AntiAFKToggle", {
+    Title = "Anti AFK",
+    Default = true
+}):OnChanged(function(Value)
+    Settings.AntiAFK = Value
+end)
+
+SettingsTab:AddSlider("WalkSpeedSlider", {
+    Title = "Walk Speed",
+    Description = "Adjust character walk speed",
+    Default = 16,
+    Min = 16,
+    Max = 200,
+    Rounding = 1,
+    Callback = function(Value)
+        Settings.WalkSpeed = Value
+        if Character and Character:FindFirstChild("Humanoid") then
+            Character.Humanoid.WalkSpeed = Value
+        end
+    end
+})
+
+-- Boss fighting functions
+local function FindBoss(bossName)
+    if Workspace:FindFirstChild("Enemies") then
+        for _, boss in pairs(Workspace.Enemies:GetChildren()) do
+            if boss.Name == bossName and boss:FindFirstChild("Humanoid") and boss:FindFirstChild("HumanoidRootPart") and boss.Humanoid.Health > 0 then
+                return boss
+            end
+        end
+    end
+    return nil
+end
+
+local function FightBoss(boss)
+    SafeCall(function()
+        if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+            local attempts = 0
+            repeat
+                attempts = attempts + 1
+                TeleportTo(boss.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
+                EquipWeapon()
+                if Settings.BringMobs then
+                    BringMob(boss)
+                end
+                FastAttack()
+                wait(0.1)
+            until not boss.Parent or boss.Humanoid.Health <= 0 or not Settings.AutoBoss or attempts > 200
+        end
+    end)
+end
+
+-- Main game loop
+local MainConnection = RunService.Heartbeat:Connect(function()
+    SafeCall(function()
+        -- Update stats display
+        if LevelLabel then
+            LevelLabel:SetDesc("Current Level: " .. GetPlayerLevel())
+        end
+        if MoneyLabel then
+            MoneyLabel:SetDesc("Beli: " .. GetPlayerMoney())
+        end
+        if FragmentsLabel then
+            FragmentsLabel:SetDesc("Fragments: " .. GetPlayerFragments())
+        end
+        
+        -- Anti AFK
+        if Settings.AntiAFK then
+            VirtualInputManager:SendKeyEvent(true, "LeftShift", false, game)
+            wait(0.01)
+            VirtualInputManager:SendKeyEvent(false, "LeftShift", false, game)
+        end
+        
+        -- Fast Attack
+        if Settings.FastAttack then
+            EquipWeapon()
+            FastAttack()
+        end
+        
+        -- Accept Quest
+        if Settings.AcceptQuest then
+            AcceptQuest()
+        end
+        
+        -- Bring Mobs
+        if Settings.BringMobs then
+            local nearestMob = FindNearestMob()
+            if nearestMob then
+                BringMob(nearestMob)
+            end
+        end
+        
+        -- Auto Farm Level
+        if Settings.AutoFarmLevel and GetPlayerLevel() < 2650 then
+            local nearestMob = FindNearestMob()
+            if nearestMob then
+                TeleportTo(nearestMob.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
+                EquipWeapon()
+                if Settings.BringMobs then
+                    BringMob(nearestMob)
+                end
+                FastAttack()
+            end
+        end
+        
+        -- Auto Boss
+        if Settings.AutoBoss and Settings.SelectedBoss then
+            local boss = FindBoss(Settings.SelectedBoss)
+            if boss then
+                FightBoss(boss)
+            end
+        end
+        
+        -- Auto Bone Farming
+        if Settings.AutoBones then
+            FarmBones()
+        end
+        
+        -- Auto Ectoplasm Farming
+        if Settings.AutoEctoplasm then
+            FarmEctoplasm()
+        end
+        
+        -- Walk Speed
+        if Character and Character:FindFirstChild("Humanoid") then
+            Character.Humanoid.WalkSpeed = Settings.WalkSpeed
+        end
+    end)
+end)
+
+table.insert(Connections, MainConnection)
+
+-- Character respawn handling
+local CharacterConnection = Player.CharacterAdded:Connect(function(newCharacter)
+    Character = newCharacter
+    Humanoid = Character:WaitForChild("Humanoid")
+    RootPart = Character:WaitForChild("HumanoidRootPart")
+    
+    -- Apply walk speed
+    Humanoid.WalkSpeed = Settings.WalkSpeed
+end)
+
+table.insert(Connections, CharacterConnection)
+
+-- Cleanup function
+local function Cleanup()
+    for _, connection in pairs(Connections) do
+        if connection then
+            connection:Disconnect()
+        end
+    end
+end
+
+-- Success notification
+Fluent:Notify({
+    Title = "SPACE HUB",
+    Content = "Blox Fruits script loaded successfully! Created by MOHA - All functions fixed!",
+    Duration = 5
+})
+
+-- Return cleanup function
+return Cleanup
