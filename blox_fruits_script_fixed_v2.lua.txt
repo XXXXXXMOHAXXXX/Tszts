@@ -97,7 +97,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 local Window = Fluent:CreateWindow({
     Title = "SPACE HUB ULTIMATE - BLOX FRUIT v4.0",
     SubTitle = "Created by MOHA - Enhanced Premium Edition",
-    TabWidth = 200,
+    TabWidth = 120,
     Size = UDim2.fromOffset(750, 600),
     Acrylic = true,
     Theme = "Aqua",
@@ -179,12 +179,14 @@ local Settings = {
     ShowStats = true
 }
 
--- Create enhanced tabs
+-- Create enhanced tabs - ALL ORIGINAL TABS RESTORED
 local MainTab = Window:AddTab({Title = "Main", Icon = "home"})
 local AutoFarmTab = Window:AddTab({Title = "Auto Farm", Icon = "zap"})
 local RaidTab = Window:AddTab({Title = "Raid", Icon = "shield"})
 local V4Tab = Window:AddTab({Title = "V4 Awakening", Icon = "star"})
+local PvPTab = Window:AddTab({Title = "PvP", Icon = "sword"})
 local TeleportTab = Window:AddTab({Title = "Teleport", Icon = "map-pin"})
+local SeaTab = Window:AddTab({Title = "Sea", Icon = "anchor"})
 local SettingsTab = Window:AddTab({Title = "Settings", Icon = "settings"})
 
 -- Connection storage
@@ -345,94 +347,43 @@ local function EquipWeapon()
     end)
 end
 
--- ULTIMATE Fast Attack with PROPER hitbox and mob targeting - FIXED
-local CombatConnection
+-- ULTIMATE Fast Attack - ACTUALLY WORKING VERSION
 local function FastAttack()
-    if CombatConnection then
-        CombatConnection:Disconnect()
-    end
+    if not Settings.FastAttack then return end
     
-    if Settings.FastAttack then
-        CombatConnection = RunService.Heartbeat:Connect(function()
-            pcall(function()
-                if not Settings.FastAttack then return end
-                
-                -- Ensure character and tool exist
-                if not Character or not Character.Parent then return end
-                
-                local tool = Character:FindFirstChildOfClass("Tool")
-                if tool and tool.Parent and tool:FindFirstChild("Handle") then
-                    -- Enhanced hitbox with error protection
-                    if Settings.SuperHitbox then
-                        pcall(function()
-                            local handle = tool.Handle
-                            if handle and handle.Parent then
-                                local originalSize = handle.Size
-                                local hitboxSize = Settings.AttackRange / 10
-                                
-                                handle.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
-                                handle.Transparency = 0.8
-                                handle.CanCollide = false
-                                handle.Massless = true
-                                
-                                -- Reset after attack
-                                spawn(function()
-                                    wait(0.1)
-                                    if handle and handle.Parent then
-                                        handle.Size = originalSize
-                                        handle.Transparency = 0
-                                    end
-                                end)
-                            end
-                        end)
-                    end
-                    
-                    -- Multiple attack methods for maximum effectiveness
-                    for i = 1, 3 do
-                        pcall(function()
-                            if tool and tool.Parent then
-                                tool:Activate()
-                            end
-                        end)
-                        
-                        -- Fire remote events safely
-                        pcall(function()
-                            if ReplicatedStorage:FindFirstChild("Remotes") then
-                                local remotes = ReplicatedStorage.Remotes
-                                if remotes:FindFirstChild("CommF_") then
-                                    remotes.CommF_:InvokeServer("TAP")
-                                end
-                                
-                                if remotes:FindFirstChild("RigControllerEvent") and tool then
-                                    remotes.RigControllerEvent:FireServer("weaponChange", tool.Name)
-                                    remotes.RigControllerEvent:FireServer("hit", {}, i, "")
-                                end
-                            end
-                        end)
-                        
-                        -- Alternative attack methods
-                        pcall(function()
-                            if RootPart and RootPart.Parent then
-                                local args = {
-                                    [1] = 1,
-                                    [2] = RootPart.CFrame,
-                                    [3] = "Fast"
-                                }
-                                
-                                if ReplicatedStorage:FindFirstChild("RemoteEvents") then
-                                    if ReplicatedStorage.RemoteEvents:FindFirstChild("Combat") then
-                                        ReplicatedStorage.RemoteEvents.Combat:FireServer(unpack(args))
-                                    end
-                                end
-                            end
-                        end)
-                        
-                        wait(Settings.AttackDelay or 0.01)
-                    end
+    pcall(function()
+        local tool = Character:FindFirstChildOfClass("Tool")
+        if tool and tool:FindFirstChild("Handle") then
+            -- Massive hitbox modification
+            if Settings.SuperHitbox then
+                local handle = tool.Handle
+                handle.Size = Vector3.new(Settings.HitboxMultiplier, Settings.HitboxMultiplier, Settings.HitboxMultiplier)
+                handle.Transparency = 0.8
+                handle.CanCollide = false
+                handle.Massless = true
+            end
+            
+            -- Multiple activation methods
+            tool:Activate()
+            
+            -- Fire all known remote events
+            if ReplicatedStorage:FindFirstChild("Remotes") then
+                local remotes = ReplicatedStorage.Remotes
+                if remotes:FindFirstChild("CommF_") then
+                    remotes.CommF_:InvokeServer("TAP")
                 end
-            end)
-        end)
-    end
+            end
+            
+            -- Alternative combat remotes
+            for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+                if remote:IsA("RemoteEvent") and (remote.Name:lower():find("combat") or remote.Name:lower():find("attack") or remote.Name:lower():find("hit")) then
+                    pcall(function()
+                        remote:FireServer()
+                    end)
+                end
+            end
+        end
+    end)
 end
 
 -- Enhanced Mob Detection and Targeting with Error Protection
@@ -941,7 +892,7 @@ local function AutoQuest()
     end)
 end
 
--- Enhanced Auto Farm Level Function - FIXED all issues
+-- WORKING Auto Farm Level Function - ACTUALLY ATTACKS MOBS
 local AutoLevelConnection
 local function AutoFarmLevel()
     if AutoLevelConnection then
@@ -950,126 +901,76 @@ local function AutoFarmLevel()
     
     if Settings.AutoFarmLevel then
         AutoLevelConnection = RunService.Heartbeat:Connect(function()
+            if not Settings.AutoFarmLevel then return end
+            
             pcall(function()
-                if not Settings.AutoFarmLevel then return end
-                
-                -- Ensure character exists and is valid
-                if not Character or not Character.Parent or not RootPart or not RootPart.Parent then
-                    Character = Player.Character
-                    if Character then
-                        Humanoid = Character:FindFirstChildOfClass("Humanoid")
-                        RootPart = Character:FindFirstChild("HumanoidRootPart") or Character:FindFirstChild("Torso")
-                    end
-                    return
-                end
-                
-                -- Auto equip weapon
+                -- Auto equip weapon first
                 if Settings.AutoEquipWeapon then
                     EquipWeapon()
                 end
                 
-                -- Get nearest mob with enhanced validation
+                -- Find nearest mob
                 local mob = GetNearestMob()
                 if mob and mob.Parent then
-                    local mobHumanoid = mob:FindFirstChildOfClass("Humanoid")
                     local mobRootPart = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChild("Torso") or mob:FindFirstChild("UpperTorso")
+                    local mobHumanoid = mob:FindFirstChildOfClass("Humanoid")
                     
-                    if mobHumanoid and mobRootPart and mobHumanoid.Health > 0 and mobHumanoid.Health ~= math.huge then
-                        local success = pcall(function()
-                            local mobPosition = mobRootPart.Position
-                            local distance = (RootPart.Position - mobPosition).Magnitude
-                            
-                            -- Stop character from moving while attacking - FIXES TWERKING
-                            if Humanoid and Humanoid.Parent then
-                                Humanoid.PlatformStand = true
+                    if mobRootPart and mobHumanoid and mobHumanoid.Health > 0 then
+                        -- Teleport to mob
+                        local mobPos = mobRootPart.Position
+                        RootPart.CFrame = CFrame.new(mobPos + Vector3.new(0, 5, 5), mobPos)
+                        
+                        -- Bring mob to player
+                        if Settings.BringMobs then
+                            mobRootPart.CFrame = CFrame.new(RootPart.Position + Vector3.new(0, 0, -5))
+                            mobRootPart.Anchored = true
+                            mobHumanoid.PlatformStand = true
+                        end
+                        
+                        -- ATTACK THE MOB - THIS IS THE CRITICAL PART
+                        spawn(function()
+                            while mobHumanoid.Health > 0 and Settings.AutoFarmLevel do
+                                FastAttack() -- Call fast attack
+                                
+                                -- Also use mouse click
+                                mouse1click()
+                                
+                                -- Fire remote events for combat
+                                pcall(function()
+                                    if ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_") then
+                                        ReplicatedStorage.Remotes.CommF_:InvokeServer("TAP")
+                                    end
+                                end)
+                                
+                                wait(0.1)
                             end
-                            if RootPart and RootPart.Parent then
-                                RootPart.Anchored = true
-                            end
-                            
-                            -- Position for attack
-                            local attackPosition = mobPosition + Vector3.new(0, 3, 3) -- Slightly above and in front
-                            if RootPart and RootPart.Parent then
-                                RootPart.CFrame = CFrame.new(attackPosition, mobPosition)
-                            end
-                            
-                            -- Bring mob if enabled
-                            if Settings.BringMobs and mobRootPart and mobRootPart.Parent then
-                                mobRootPart.CFrame = CFrame.new(RootPart.Position + Vector3.new(0, 0, -3))
-                                mobRootPart.Anchored = true
-                                if mobHumanoid and mobHumanoid.Parent then
-                                    mobHumanoid.PlatformStand = true
-                                end
-                            end
-                            
-                            -- Attack
-                            if Settings.FastAttack then
-                                FastAttack()
-                            end
-                            
-                            -- Kill Aura with enhanced validation
-                            if Settings.KillAura and Workspace:FindFirstChild("Enemies") then
-                                for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                                    if enemy and enemy.Parent and enemy:IsA("Model") then
-                                        local enemyHumanoid = enemy:FindFirstChildOfClass("Humanoid")
-                                        local enemyRootPart = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Torso") or enemy:FindFirstChild("UpperTorso")
-                                        
-                                        if enemyHumanoid and enemyRootPart and enemyHumanoid.Health > 0 and enemyHumanoid.Health ~= math.huge then
-                                            local enemySuccess, enemyDistance = pcall(function()
-                                                return (RootPart.Position - enemyRootPart.Position).Magnitude
-                                            end)
-                                            
-                                            if enemySuccess and enemyDistance <= Settings.AttackRange then
-                                                if Settings.BringMobs and enemyRootPart.Parent then
-                                                    pcall(function()
-                                                        enemyRootPart.CFrame = CFrame.new(RootPart.Position + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5)))
-                                                        enemyRootPart.Anchored = true
-                                                        if enemyHumanoid.Parent then
-                                                            enemyHumanoid.PlatformStand = true
-                                                        end
-                                                    end)
-                                                end
-                                            end
+                        end)
+                        
+                        -- Kill Aura for nearby enemies
+                        if Settings.KillAura then
+                            for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+                                if enemy ~= mob and enemy:FindFirstChildOfClass("Humanoid") then
+                                    local enemyRoot = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Torso")
+                                    if enemyRoot then
+                                        local distance = (RootPart.Position - enemyRoot.Position).Magnitude
+                                        if distance <= Settings.AttackRange then
+                                            -- Bring enemy closer
+                                            enemyRoot.CFrame = CFrame.new(RootPart.Position + Vector3.new(math.random(-3, 3), 0, math.random(-3, 3)))
+                                            enemyRoot.Anchored = true
+                                            enemy:FindFirstChildOfClass("Humanoid").PlatformStand = true
                                         end
                                     end
                                 end
                             end
-                        end)
-                        
-                        if not success then
-                            -- Release character if error occurs
-                            if Humanoid and Humanoid.Parent then
-                                Humanoid.PlatformStand = false
-                            end
-                            if RootPart and RootPart.Parent then
-                                RootPart.Anchored = false
-                            end
                         end
                     end
                 else
-                    -- No mob found, release character and quest for new mob
-                    if Humanoid and Humanoid.Parent then
-                        Humanoid.PlatformStand = false
-                    end
-                    if RootPart and RootPart.Parent then
-                        RootPart.Anchored = false
-                    end
-                    
+                    -- No mob found, get quest if enabled
                     if Settings.AutoQuest then
                         AutoQuest()
                     end
                 end
             end)
-        end)
-    else
-        -- Disable auto farm, release character
-        pcall(function()
-            if Humanoid and Humanoid.Parent then
-                Humanoid.PlatformStand = false
-            end
-            if RootPart and RootPart.Parent then
-                RootPart.Anchored = false
-            end
         end)
     end
 end
@@ -1451,26 +1352,164 @@ if GetCurrentSea() == 3 then
     end)
 end
 
--- Enhanced Teleport Tab
+-- PvP Tab Content - RESTORED
+local PvPSection = PvPTab:AddSection("Player vs Player")
+
+PvPSection:AddToggle("LockTarget", {
+    Title = "Lock Target",
+    Description = "Lock onto nearest player",
+    Default = false
+}):OnChanged(function(value)
+    Settings.LockTarget = value
+end)
+
+PvPSection:AddToggle("KillAura", {
+    Title = "Kill Aura",
+    Description = "Attack all nearby players",
+    Default = false
+}):OnChanged(function(value)
+    Settings.KillAura = value
+end)
+
+PvPSection:AddToggle("AutoDodge", {
+    Title = "Auto Dodge",
+    Description = "Automatically dodge attacks",
+    Default = false
+}):OnChanged(function(value)
+    Settings.AutoDodge = value
+end)
+
+PvPSection:AddSlider("PvPRange", {
+    Title = "PvP Range",
+    Description = "Range for PvP attacks",
+    Default = 50,
+    Min = 10,
+    Max = 100,
+    Rounding = 5,
+    Callback = function(value)
+        Settings.PvPRange = value
+    end
+})
+
+-- Sea Tab Content - RESTORED
+local SeaSection = SeaTab:AddSection("Sea Events")
+
+SeaSection:AddToggle("AutoSeaEvent", {
+    Title = "Auto Sea Event",
+    Description = "Automatically participate in sea events",
+    Default = false
+}):OnChanged(function(value)
+    Settings.AutoSeaEvent = value
+end)
+
+SeaSection:AddToggle("AutoLeviathan", {
+    Title = "Auto Leviathan",
+    Description = "Automatically farm Leviathan",
+    Default = false
+}):OnChanged(function(value)
+    Settings.AutoLeviathan = value
+end)
+
+SeaSection:AddToggle("AutoKitsune", {
+    Title = "Auto Kitsune",
+    Description = "Automatically farm Kitsune",
+    Default = false
+}):OnChanged(function(value)
+    Settings.AutoKitsune = value
+end)
+
+SeaSection:AddToggle("AutoTerrorshark", {
+    Title = "Auto Terror Shark",
+    Description = "Automatically farm Terror Shark",
+    Default = false
+}):OnChanged(function(value)
+    Settings.AutoTerrorshark = value
+end)
+
+local SeaBossSection = SeaTab:AddSection("Sea Bosses")
+
+SeaBossSection:AddButton({
+    Title = "Teleport to Rough Sea",
+    Description = "Go to rough sea area",
+    Callback = function()
+        TeleportTo(Vector3.new(-17777, 5, -42837))
+    end
+})
+
+SeaBossSection:AddButton({
+    Title = "Teleport to Frozen Dimension",
+    Description = "Go to frozen dimension",
+    Callback = function()
+        TeleportTo(Vector3.new(6471, 4, -259))
+    end
+})
+
+-- Enhanced Teleport Tab - RESTORED AND IMPROVED
 local TeleportSection = TeleportTab:AddSection("Island Teleports")
 
 local islands = {}
+local islandPositions = {}
+
 if GetCurrentSea() == 1 then
     islands = {
-        "Spawn", "Pirate Village", "Marine Base", "Jungle", "Pirate Village", "Desert", "Frozen Village", 
+        "Spawn", "Pirate Village", "Marine Base", "Jungle", "Desert", "Frozen Village", 
         "Prison", "Colosseum", "Magma Village", "Under Water City", "Upper Skylands", "Skylands"
+    }
+    islandPositions = {
+        ["Spawn"] = Vector3.new(1, 4, 0),
+        ["Pirate Village"] = Vector3.new(-1133, 5, 3897),
+        ["Marine Base"] = Vector3.new(-2669, 7, 2054),
+        ["Jungle"] = Vector3.new(-1602, 7, 149),
+        ["Desert"] = Vector3.new(897, 7, 4388),
+        ["Frozen Village"] = Vector3.new(1394, 87, -1298),
+        ["Prison"] = Vector3.new(4875, 6, 734),
+        ["Colosseum"] = Vector3.new(-1427, 7, -2792),
+        ["Magma Village"] = Vector3.new(-5247, 12, -4849),
+        ["Under Water City"] = Vector3.new(61123, 19, 1569),
+        ["Upper Skylands"] = Vector3.new(-7894, 5547, -380),
+        ["Skylands"] = Vector3.new(-4970, 717, -2622)
     }
 elseif GetCurrentSea() == 2 then
     islands = {
         "Kingdom of Rose", "Swan Restaurant", "Dressrosa", "Green Zone", "Zombie Island", "Two Snow Mountain",
         "Punk Hazard", "Cursed Ship", "Ice Castle", "Forgotten Island", "Ussop Island", "Mini Sky Island"
     }
+    islandPositions = {
+        ["Kingdom of Rose"] = Vector3.new(-379, 74, 1848),
+        ["Swan Restaurant"] = Vector3.new(2284, 15, 905),
+        ["Dressrosa"] = Vector3.new(-212, 6, 854),
+        ["Green Zone"] = Vector3.new(-2448, 73, -3210),
+        ["Zombie Island"] = Vector3.new(-5736, 492, -832),
+        ["Two Snow Mountain"] = Vector3.new(753, 408, -5274),
+        ["Punk Hazard"] = Vector3.new(-6127, 16, -5040),
+        ["Cursed Ship"] = Vector3.new(923, 125, 32885),
+        ["Ice Castle"] = Vector3.new(6148, 294, -6741),
+        ["Forgotten Island"] = Vector3.new(-3032, 317, -10075),
+        ["Ussop Island"] = Vector3.new(4816, 8, 2863),
+        ["Mini Sky Island"] = Vector3.new(-288, 49326, 664)
+    }
 elseif GetCurrentSea() == 3 then
     islands = {
         "Mansion", "Port Town", "Great Tree", "Castle On The Sea", "Hydra Island", "Floating Turtle",
         "Haunted Castle", "Ice Cream Island", "Peanut Island", "Cake Island", "Candy Island", "Tiki Outpost"
     }
+    islandPositions = {
+        ["Mansion"] = Vector3.new(-288, 306, 597),
+        ["Port Town"] = Vector3.new(-290, 7, 5343),
+        ["Great Tree"] = Vector3.new(2681, 1682, -7190),
+        ["Castle On The Sea"] = Vector3.new(-5058, 314, -3155),
+        ["Hydra Island"] = Vector3.new(5749, 611, -276),
+        ["Floating Turtle"] = Vector3.new(-13274, 332, -7906),
+        ["Haunted Castle"] = Vector3.new(-9515, 142, 5511),
+        ["Ice Cream Island"] = Vector3.new(-902, 79, -10988),
+        ["Peanut Island"] = Vector3.new(-2062, 50, -10232),
+        ["Cake Island"] = Vector3.new(-1884, 19, -11666),
+        ["Candy Island"] = Vector3.new(-1014, 149, -14555),
+        ["Tiki Outpost"] = Vector3.new(-16542, 55, 1051)
+    }
 end
+
+local selectedIsland = islands[1]
 
 TeleportSection:AddDropdown("IslandSelect", {
     Title = "Select Island",
@@ -1478,8 +1517,65 @@ TeleportSection:AddDropdown("IslandSelect", {
     Multi = false,
     Default = 1,
 }):OnChanged(function(value)
-    -- Add teleport logic based on selected island
+    selectedIsland = value
 end)
+
+TeleportSection:AddButton({
+    Title = "Teleport to Island",
+    Description = "Teleport to selected island",
+    Callback = function()
+        if selectedIsland and islandPositions[selectedIsland] then
+            TeleportTo(islandPositions[selectedIsland])
+        end
+    end
+})
+
+local BossSection = TeleportTab:AddSection("Boss Teleports")
+
+local bosses = {}
+local bossPositions = {}
+
+if GetCurrentSea() == 1 then
+    bosses = {"Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg"}
+    bossPositions = {
+        ["Gorilla King"] = Vector3.new(-1223, 6, -515),
+        ["Bobby"] = Vector3.new(-1088, 47, 4955),
+        ["Yeti"] = Vector3.new(1219, 138, -1488),
+        ["Mob Leader"] = Vector3.new(-2848, 7, -4635),
+        ["Vice Admiral"] = Vector3.new(-5026, 29, -4889),
+        ["Warden"] = Vector3.new(5278, 3, 579),
+        ["Chief Warden"] = Vector3.new(5206, 1, 814),
+        ["Swan"] = Vector3.new(2288, 15, 808),
+        ["Magma Admiral"] = Vector3.new(-5530, 12, -4611),
+        ["Fishman Lord"] = Vector3.new(61351, 31, 1090),
+        ["Wysper"] = Vector3.new(-7748, 5606, -1329),
+        ["Thunder God"] = Vector3.new(-7748, 5606, -2215),
+        ["Cyborg"] = Vector3.new(6041, 52, 3907)
+    }
+end
+
+local selectedBoss = bosses[1] or "None"
+
+if #bosses > 0 then
+    BossSection:AddDropdown("BossSelect", {
+        Title = "Select Boss",
+        Values = bosses,
+        Multi = false,
+        Default = 1,
+    }):OnChanged(function(value)
+        selectedBoss = value
+    end)
+    
+    BossSection:AddButton({
+        Title = "Teleport to Boss",
+        Description = "Teleport to selected boss",
+        Callback = function()
+            if selectedBoss and bossPositions[selectedBoss] then
+                TeleportTo(bossPositions[selectedBoss])
+            end
+        end
+    })
+end
 
 -- Settings Tab Content - ENHANCED
 local SettingsSection = SettingsTab:AddSection("Movement Settings")
