@@ -1,4 +1,3 @@
-
 local Show_Button = true
 local Button_Icon = "rbxassetid://135671141026630"
 local Button_Transparency = 0.1
@@ -346,7 +345,7 @@ local function EquipWeapon()
     end)
 end
 
--- ULTIMATE Fast Attack with PROPER hitbox and mob targeting
+-- ULTIMATE Fast Attack with PROPER hitbox and mob targeting - FIXED
 local CombatConnection
 local function FastAttack()
     if CombatConnection then
@@ -358,58 +357,77 @@ local function FastAttack()
             pcall(function()
                 if not Settings.FastAttack then return end
                 
-                local tool = Player.Character:FindFirstChildOfClass("Tool")
-                if tool and tool:FindFirstChild("Handle") then
-                    -- Enhanced hitbox
+                -- Ensure character and tool exist
+                if not Character or not Character.Parent then return end
+                
+                local tool = Character:FindFirstChildOfClass("Tool")
+                if tool and tool.Parent and tool:FindFirstChild("Handle") then
+                    -- Enhanced hitbox with error protection
                     if Settings.SuperHitbox then
-                        local handle = tool.Handle
-                        local originalSize = handle.Size
-                        local hitboxSize = Settings.AttackRange / 10
-                        
-                        handle.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
-                        handle.Transparency = 0.8
-                        handle.CanCollide = false
-                        handle.Massless = true
-                        
-                        -- Reset after attack
-                        spawn(function()
-                            wait(0.1)
+                        pcall(function()
+                            local handle = tool.Handle
                             if handle and handle.Parent then
-                                handle.Size = originalSize
-                                handle.Transparency = 0
+                                local originalSize = handle.Size
+                                local hitboxSize = Settings.AttackRange / 10
+                                
+                                handle.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+                                handle.Transparency = 0.8
+                                handle.CanCollide = false
+                                handle.Massless = true
+                                
+                                -- Reset after attack
+                                spawn(function()
+                                    wait(0.1)
+                                    if handle and handle.Parent then
+                                        handle.Size = originalSize
+                                        handle.Transparency = 0
+                                    end
+                                end)
                             end
                         end)
                     end
                     
                     -- Multiple attack methods for maximum effectiveness
                     for i = 1, 3 do
-                        tool:Activate()
+                        pcall(function()
+                            if tool and tool.Parent then
+                                tool:Activate()
+                            end
+                        end)
                         
-                        -- Fire remote events
-                        if ReplicatedStorage:FindFirstChild("Remotes") then
-                            local remotes = ReplicatedStorage.Remotes
-                            if remotes:FindFirstChild("CommF_") then
-                                remotes.CommF_:InvokeServer("TAP")
+                        -- Fire remote events safely
+                        pcall(function()
+                            if ReplicatedStorage:FindFirstChild("Remotes") then
+                                local remotes = ReplicatedStorage.Remotes
+                                if remotes:FindFirstChild("CommF_") then
+                                    remotes.CommF_:InvokeServer("TAP")
+                                end
+                                
+                                if remotes:FindFirstChild("RigControllerEvent") and tool then
+                                    remotes.RigControllerEvent:FireServer("weaponChange", tool.Name)
+                                    remotes.RigControllerEvent:FireServer("hit", {}, i, "")
+                                end
                             end
-                            
-                            if remotes:FindFirstChild("RigControllerEvent") then
-                                remotes.RigControllerEvent:FireServer("weaponChange", tool.Name)
-                                remotes.RigControllerEvent:FireServer("hit", {}, i, "")
-                            end
-                        end
+                        end)
                         
                         -- Alternative attack methods
-                        local args = {
-                            [1] = 1,
-                            [2] = RootPart.CFrame,
-                            [3] = "Fast"
-                        }
-                        
-                        if game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvents") then
-                            if game:GetService("ReplicatedStorage").RemoteEvents:FindFirstChild("Combat") then
-                                game:GetService("ReplicatedStorage").RemoteEvents.Combat:FireServer(unpack(args))
+                        pcall(function()
+                            if RootPart and RootPart.Parent then
+                                local args = {
+                                    [1] = 1,
+                                    [2] = RootPart.CFrame,
+                                    [3] = "Fast"
+                                }
+                                
+                                if ReplicatedStorage:FindFirstChild("RemoteEvents") then
+                                    if ReplicatedStorage.RemoteEvents:FindFirstChild("Combat") then
+                                        ReplicatedStorage.RemoteEvents.Combat:FireServer(unpack(args))
+                                    end
+                                end
                             end
-                        end
+                        end)
+                        
+                        wait(Settings.AttackDelay or 0.01)
                     end
                 end
             end)
@@ -417,33 +435,53 @@ local function FastAttack()
     end
 end
 
--- Enhanced Mob Detection and Targeting
+-- Enhanced Mob Detection and Targeting with Error Protection
 local function GetNearestMob()
     local nearestMob = nil
     local shortestDistance = Settings.AttackRange
     
-    for _, v in pairs(Workspace.Enemies:GetChildren()) do
-        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-            local distance = (RootPart.Position - v.HumanoidRootPart.Position).Magnitude
-            if distance < shortestDistance then
-                nearestMob = v
-                shortestDistance = distance
-            end
-        end
-    end
-    
-    -- Also check NPCs folder
-    if not nearestMob and Workspace:FindFirstChild("NPCs") then
-        for _, v in pairs(Workspace.NPCs:GetChildren()) do
-            if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-                local distance = (RootPart.Position - v.HumanoidRootPart.Position).Magnitude
-                if distance < shortestDistance then
-                    nearestMob = v
-                    shortestDistance = distance
+    pcall(function()
+        if Workspace:FindFirstChild("Enemies") then
+            for _, v in pairs(Workspace.Enemies:GetChildren()) do
+                if v and v.Parent and v:IsA("Model") then
+                    local humanoid = v:FindFirstChildOfClass("Humanoid")
+                    local rootPart = v:FindFirstChild("HumanoidRootPart") or v:FindFirstChild("Torso") or v:FindFirstChild("UpperTorso")
+                    
+                    if humanoid and rootPart and humanoid.Health > 0 and humanoid.Health ~= math.huge then
+                        local success, distance = pcall(function()
+                            return (RootPart.Position - rootPart.Position).Magnitude
+                        end)
+                        
+                        if success and distance < shortestDistance then
+                            nearestMob = v
+                            shortestDistance = distance
+                        end
+                    end
                 end
             end
         end
-    end
+        
+        -- Also check NPCs folder safely
+        if not nearestMob and Workspace:FindFirstChild("NPCs") then
+            for _, v in pairs(Workspace.NPCs:GetChildren()) do
+                if v and v.Parent and v:IsA("Model") then
+                    local humanoid = v:FindFirstChildOfClass("Humanoid")
+                    local rootPart = v:FindFirstChild("HumanoidRootPart") or v:FindFirstChild("Torso") or v:FindFirstChild("UpperTorso")
+                    
+                    if humanoid and rootPart and humanoid.Health > 0 and humanoid.Health ~= math.huge then
+                        local success, distance = pcall(function()
+                            return (RootPart.Position - rootPart.Position).Magnitude
+                        end)
+                        
+                        if success and distance < shortestDistance then
+                            nearestMob = v
+                            shortestDistance = distance
+                        end
+                    end
+                end
+            end
+        end
+    end)
     
     return nearestMob
 end
@@ -903,7 +941,7 @@ local function AutoQuest()
     end)
 end
 
--- Enhanced Auto Farm Level Function - FIXED twerking issue
+-- Enhanced Auto Farm Level Function - FIXED all issues
 local AutoLevelConnection
 local function AutoFarmLevel()
     if AutoLevelConnection then
@@ -915,56 +953,107 @@ local function AutoFarmLevel()
             pcall(function()
                 if not Settings.AutoFarmLevel then return end
                 
+                -- Ensure character exists and is valid
+                if not Character or not Character.Parent or not RootPart or not RootPart.Parent then
+                    Character = Player.Character
+                    if Character then
+                        Humanoid = Character:FindFirstChildOfClass("Humanoid")
+                        RootPart = Character:FindFirstChild("HumanoidRootPart") or Character:FindFirstChild("Torso")
+                    end
+                    return
+                end
+                
                 -- Auto equip weapon
                 if Settings.AutoEquipWeapon then
                     EquipWeapon()
                 end
                 
-                -- Get nearest mob
+                -- Get nearest mob with enhanced validation
                 local mob = GetNearestMob()
-                if mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                    local mobPosition = mob.HumanoidRootPart.Position
-                    local distance = (RootPart.Position - mobPosition).Magnitude
+                if mob and mob.Parent then
+                    local mobHumanoid = mob:FindFirstChildOfClass("Humanoid")
+                    local mobRootPart = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChild("Torso") or mob:FindFirstChild("UpperTorso")
                     
-                    -- Stop character from moving while attacking - FIXES TWERKING
-                    Humanoid.PlatformStand = true
-                    RootPart.Anchored = true
-                    
-                    -- Position for attack
-                    local attackPosition = mobPosition + Vector3.new(0, 3, 3) -- Slightly above and in front
-                    RootPart.CFrame = CFrame.new(attackPosition, mobPosition)
-                    
-                    -- Bring mob if enabled
-                    if Settings.BringMobs then
-                        mob.HumanoidRootPart.CFrame = CFrame.new(RootPart.Position + Vector3.new(0, 0, -3))
-                        mob.HumanoidRootPart.Anchored = true
-                        mob.Humanoid.PlatformStand = true
-                    end
-                    
-                    -- Attack
-                    if Settings.FastAttack then
-                        FastAttack()
-                    end
-                    
-                    -- Kill Aura
-                    if Settings.KillAura then
-                        for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                            if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                                local enemyDistance = (RootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
-                                if enemyDistance <= Settings.AttackRange then
-                                    if Settings.BringMobs then
-                                        enemy.HumanoidRootPart.CFrame = CFrame.new(RootPart.Position + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5)))
-                                        enemy.HumanoidRootPart.Anchored = true
-                                        enemy.Humanoid.PlatformStand = true
+                    if mobHumanoid and mobRootPart and mobHumanoid.Health > 0 and mobHumanoid.Health ~= math.huge then
+                        local success = pcall(function()
+                            local mobPosition = mobRootPart.Position
+                            local distance = (RootPart.Position - mobPosition).Magnitude
+                            
+                            -- Stop character from moving while attacking - FIXES TWERKING
+                            if Humanoid and Humanoid.Parent then
+                                Humanoid.PlatformStand = true
+                            end
+                            if RootPart and RootPart.Parent then
+                                RootPart.Anchored = true
+                            end
+                            
+                            -- Position for attack
+                            local attackPosition = mobPosition + Vector3.new(0, 3, 3) -- Slightly above and in front
+                            if RootPart and RootPart.Parent then
+                                RootPart.CFrame = CFrame.new(attackPosition, mobPosition)
+                            end
+                            
+                            -- Bring mob if enabled
+                            if Settings.BringMobs and mobRootPart and mobRootPart.Parent then
+                                mobRootPart.CFrame = CFrame.new(RootPart.Position + Vector3.new(0, 0, -3))
+                                mobRootPart.Anchored = true
+                                if mobHumanoid and mobHumanoid.Parent then
+                                    mobHumanoid.PlatformStand = true
+                                end
+                            end
+                            
+                            -- Attack
+                            if Settings.FastAttack then
+                                FastAttack()
+                            end
+                            
+                            -- Kill Aura with enhanced validation
+                            if Settings.KillAura and Workspace:FindFirstChild("Enemies") then
+                                for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+                                    if enemy and enemy.Parent and enemy:IsA("Model") then
+                                        local enemyHumanoid = enemy:FindFirstChildOfClass("Humanoid")
+                                        local enemyRootPart = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Torso") or enemy:FindFirstChild("UpperTorso")
+                                        
+                                        if enemyHumanoid and enemyRootPart and enemyHumanoid.Health > 0 and enemyHumanoid.Health ~= math.huge then
+                                            local enemySuccess, enemyDistance = pcall(function()
+                                                return (RootPart.Position - enemyRootPart.Position).Magnitude
+                                            end)
+                                            
+                                            if enemySuccess and enemyDistance <= Settings.AttackRange then
+                                                if Settings.BringMobs and enemyRootPart.Parent then
+                                                    pcall(function()
+                                                        enemyRootPart.CFrame = CFrame.new(RootPart.Position + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5)))
+                                                        enemyRootPart.Anchored = true
+                                                        if enemyHumanoid.Parent then
+                                                            enemyHumanoid.PlatformStand = true
+                                                        end
+                                                    end)
+                                                end
+                                            end
+                                        end
                                     end
                                 end
+                            end
+                        end)
+                        
+                        if not success then
+                            -- Release character if error occurs
+                            if Humanoid and Humanoid.Parent then
+                                Humanoid.PlatformStand = false
+                            end
+                            if RootPart and RootPart.Parent then
+                                RootPart.Anchored = false
                             end
                         end
                     end
                 else
                     -- No mob found, release character and quest for new mob
-                    Humanoid.PlatformStand = false
-                    RootPart.Anchored = false
+                    if Humanoid and Humanoid.Parent then
+                        Humanoid.PlatformStand = false
+                    end
+                    if RootPart and RootPart.Parent then
+                        RootPart.Anchored = false
+                    end
                     
                     if Settings.AutoQuest then
                         AutoQuest()
@@ -974,8 +1063,14 @@ local function AutoFarmLevel()
         end)
     else
         -- Disable auto farm, release character
-        Humanoid.PlatformStand = false
-        RootPart.Anchored = false
+        pcall(function()
+            if Humanoid and Humanoid.Parent then
+                Humanoid.PlatformStand = false
+            end
+            if RootPart and RootPart.Parent then
+                RootPart.Anchored = false
+            end
+        end)
     end
 end
 
