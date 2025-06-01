@@ -63,28 +63,6 @@ local function animateButton()
     end)
 end
 
--- Hide/Show 
-local isHidden = false
-ImageButton.MouseButton1Click:Connect(function()
-    animateButton()
-    wait(0.2)
-    if isHidden then
-        for _, gui in pairs(game.CoreGui:GetChildren()) do
-            if gui.Name == "ScreenGui" and gui:FindFirstChild("Frame") then
-                gui.Enabled = true
-            end
-        end
-        isHidden = false
-    else
-        for _, gui in pairs(game.CoreGui:GetChildren()) do
-            if gui.Name == "ScreenGui" and gui:FindFirstChild("Frame") then
-                gui.Enabled = false
-            end
-        end
-        isHidden = true
-    end
-end)
-
 wait(3)
 
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
@@ -134,7 +112,7 @@ local RootPart = Character:WaitForChild("HumanoidRootPart")
 _G.AutoFarm = false
 _G.FastAttack = false
 _G.BringMobs = false
-_G.AutoQuest = false
+_G.AutoQuest = true
 _G.AutoSaber = false
 _G.AutoSecondSea = false
 _G.AutoRaceV2 = false
@@ -165,9 +143,6 @@ _G.AutoKillPlayer = false
 _G.BringFruit = false
 _G.StoreFruit = false
 _G.AutoNearestMobs = false
-_G.AutoLaw = false
-_G.AutoObservation = false
-_G.AutoEnhancement = false
 
 -- Combat Variables
 _G.SelectedWeapon = "Melee"
@@ -183,41 +158,45 @@ _G.QuestName = ""
 _G.QuestMob = ""
 _G.QuestPosition = Vector3.new(0, 0, 0)
 
-local function GetCurrentSea()
+-- Attack Variables
+local LatestAttackTime = 0
+local AttackCooldown = 0.2
+
+function GetCurrentSea()
     local placeId = game.PlaceId
     if placeId == 2753915549 then
-        return 1 -- First Sea
+        return 1
     elseif placeId == 4442272183 then
-        return 2 -- Second Sea
+        return 2
     elseif placeId == 7449423635 then
-        return 3 -- Third Sea
+        return 3
     end
     return 1
 end
 
-local function GetPlayerLevel()
+function GetPlayerLevel()
     return Player.Data and Player.Data.Level and Player.Data.Level.Value or 1
 end
 
-local function GetPlayerMoney()
+function GetPlayerMoney()
     return Player.Data and Player.Data.Beli and Player.Data.Beli.Value or 0
 end
 
-local function GetPlayerRace()
+function GetPlayerRace()
     return Player.Data and Player.Data.Race and Player.Data.Race.Value or "Human"
 end
 
-local function GetPlayerBounty()
+function GetPlayerBounty()
     return Player.leaderstats and Player.leaderstats["Bounty/Honor"] and Player.leaderstats["Bounty/Honor"].Value or 0
 end
 
-local function GetPlayerFragments()
+function GetPlayerFragments()
     return Player.Data and Player.Data.Fragments and Player.Data.Fragments.Value or 0
 end
 
-local function TweenToPosition(position, speed)
+function TweenToPosition(position, speed)
     if not position then return end
-    speed = speed or 300
+    speed = speed or 350
     local distance = (RootPart.Position - position).Magnitude
     
     if distance <= 10 then
@@ -235,17 +214,17 @@ local function TweenToPosition(position, speed)
     return tween
 end
 
-local function GetNearestMob(mobName)
+function GetNearestMob(mobName)
     local nearestMob = nil
     local shortestDistance = math.huge
     
-    for _, mob in pairs(Workspace.Enemies:GetChildren()) do
-        if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
-            if not mobName or mob.Name == mobName then
-                local distance = (RootPart.Position - mob.HumanoidRootPart.Position).Magnitude
+    for i, v in pairs(Workspace.Enemies:GetChildren()) do
+        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+            if not mobName or v.Name == mobName then
+                local distance = (RootPart.Position - v.HumanoidRootPart.Position).Magnitude
                 if distance < shortestDistance then
                     shortestDistance = distance
-                    nearestMob = mob
+                    nearestMob = v
                 end
             end
         end
@@ -254,253 +233,203 @@ local function GetNearestMob(mobName)
     return nearestMob
 end
 
-local function GetNearestPlayer()
-    local nearestPlayer = nil
-    local shortestDistance = math.huge
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= Player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local distance = (RootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
-            if distance < shortestDistance then
-                shortestDistance = distance
-                nearestPlayer = player
+function EquipWeapon(weaponName)
+    for i, v in pairs(Player.Backpack:GetChildren()) do
+        if v:IsA("Tool") then
+            if weaponName == "Melee" and v.ToolTip == "Combat" then
+                Humanoid:EquipTool(v)
+                return
+            elseif weaponName == "Sword" and v.ToolTip == "Sword" then
+                Humanoid:EquipTool(v)
+                return
+            elseif weaponName == "Gun" and v.ToolTip == "Gun" then
+                Humanoid:EquipTool(v)
+                return
+            elseif weaponName == "Fruit" and v.ToolTip == "Blox Fruit" then
+                Humanoid:EquipTool(v)
+                return
             end
         end
     end
-    
-    return nearestPlayer
 end
 
--- Enhanced Weapon Equip
-local function EquipWeapon(weaponName)
-    for _, tool in pairs(Player.Backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            if weaponName == "Melee" and (tool.ToolTip == "Combat" or string.find(tool.Name:lower(), "combat")) then
-                Humanoid:EquipTool(tool)
-                return true
-            elseif weaponName == "Sword" and (tool.ToolTip == "Sword" or string.find(tool.Name:lower(), "sword") or string.find(tool.Name:lower(), "cutlass") or string.find(tool.Name:lower(), "katana")) then
-                Humanoid:EquipTool(tool)
-                return true
-            elseif weaponName == "Gun" and (tool.ToolTip == "Gun" or string.find(tool.Name:lower(), "gun") or string.find(tool.Name:lower(), "rifle") or string.find(tool.Name:lower(), "flintlock")) then
-                Humanoid:EquipTool(tool)
-                return true
-            elseif weaponName == "Fruit" and (tool.ToolTip == "Blox Fruit" or string.find(tool.Name:lower(), "fruit")) then
-                Humanoid:EquipTool(tool)
-                return true
-            end
-        end
-    end
-    
-    for _, tool in pairs(Player.Character:GetChildren()) do
-        if tool:IsA("Tool") then
-            if weaponName == "Melee" and (tool.ToolTip == "Combat" or string.find(tool.Name:lower(), "combat")) then
-                return true
-            elseif weaponName == "Sword" and (tool.ToolTip == "Sword" or string.find(tool.Name:lower(), "sword") or string.find(tool.Name:lower(), "cutlass") or string.find(tool.Name:lower(), "katana")) then
-                return true
-            elseif weaponName == "Gun" and (tool.ToolTip == "Gun" or string.find(tool.Name:lower(), "gun") or string.find(tool.Name:lower(), "rifle") or string.find(tool.Name:lower(), "flintlock")) then
-                return true
-            elseif weaponName == "Fruit" and (tool.ToolTip == "Blox Fruit" or string.find(tool.Name:lower(), "fruit")) then
-                return true
-            end
-        end
-    end
-    return false
-end
-
--- Quest System
-local QuestData = {
+-- Quest Data
+QuestTable = {
     [1] = { -- First Sea
-        [1] = {name = "Bandit", questName = "BanditQuest1", questMob = "Bandit", questNum = 1, pos = Vector3.new(1060, 17, 1545)},
-        [15] = {name = "Monkey", questName = "JungleQuest", questMob = "Monkey", questNum = 1, pos = Vector3.new(-1602, 37, 152)},
-        [30] = {name = "Gorilla", questName = "JungleQuest", questMob = "Gorilla", questNum = 2, pos = Vector3.new(-1602, 37, 152)},
-        [60] = {name = "Pirate", questName = "Area1Quest", questMob = "Pirate", questNum = 1, pos = Vector3.new(-429, 73, 1835)},
-        [75] = {name = "Brute", questName = "Area1Quest", questMob = "Brute", questNum = 2, pos = Vector3.new(-429, 73, 1835)},
-        [90] = {name = "Desert Bandit", questName = "DesertQuest", questMob = "Desert Bandit", questNum = 1, pos = Vector3.new(897, 7, 4388)},
-        [100] = {name = "Desert Officer", questName = "DesertQuest", questMob = "Desert Officer", questNum = 2, pos = Vector3.new(897, 7, 4388)},
-        [120] = {name = "Snow Bandit", questName = "SnowQuest", questMob = "Snow Bandit", questNum = 1, pos = Vector3.new(1389, 88, -1298)},
-        [150] = {name = "Snowman", questName = "SnowQuest", questMob = "Snowman", questNum = 2, pos = Vector3.new(1389, 88, -1298)},
-        [175] = {name = "Chief Petty Officer", questName = "MarineQuest2", questMob = "Chief Petty Officer", questNum = 1, pos = Vector3.new(-5040, 29, 4326)},
-        [200] = {name = "Sky Bandit", questName = "SkyQuest", questMob = "Sky Bandit", questNum = 1, pos = Vector3.new(-4842, 718, -2623)},
-        [300] = {name = "Dark Master", questName = "SkyQuest", questMob = "Dark Master", questNum = 2, pos = Vector3.new(-4842, 718, -2623)},
-        [325] = {name = "Prisoner", questName = "PrisonerQuest", questMob = "Prisoner", questNum = 1, pos = Vector3.new(5308, 1, 474)},
-        [375] = {name = "Dangerous Prisoner", questName = "PrisonerQuest", questMob = "Dangerous Prisoner", questNum = 2, pos = Vector3.new(5308, 1, 474)},
-        [400] = {name = "Toga Warrior", questName = "ColosseumQuest", questMob = "Toga Warrior", questNum = 1, pos = Vector3.new(-1581, 7, -2986)},
-        [450] = {name = "Gladiator", questName = "ColosseumQuest", questMob = "Gladiator", questNum = 2, pos = Vector3.new(-1581, 7, -2986)},
-        [475] = {name = "Military Soldier", questName = "MagmaQuest", questMob = "Military Soldier", questNum = 1, pos = Vector3.new(-5316, 12, 8515)},
-        [525] = {name = "Military Spy", questName = "MagmaQuest", questMob = "Military Spy", questNum = 2, pos = Vector3.new(-5316, 12, 8515)},
-        [550] = {name = "Fishman Warrior", questName = "FishmanQuest", questMob = "Fishman Warrior", questNum = 1, pos = Vector3.new(61123, 19, 1569)},
-        [575] = {name = "Fishman Commando", questName = "FishmanQuest", questMob = "Fishman Commando", questNum = 2, pos = Vector3.new(61123, 19, 1569)},
-        [700] = {name = "God's Guard", questName = "SkyExp1Quest", questMob = "God's Guard", questNum = 1, pos = Vector3.new(-4722, 845, -1954)}
+        [1] = {questName = "BanditQuest1", questNum = 1, mobName = "Bandit", pos = Vector3.new(1060, 17, 1545)},
+        [15] = {questName = "JungleQuest", questNum = 1, mobName = "Monkey", pos = Vector3.new(-1602, 37, 152)},
+        [30] = {questName = "JungleQuest", questNum = 2, mobName = "Gorilla", pos = Vector3.new(-1602, 37, 152)},
+        [60] = {questName = "Area1Quest", questNum = 1, mobName = "Pirate", pos = Vector3.new(-429, 73, 1835)},
+        [75] = {questName = "Area1Quest", questNum = 2, mobName = "Brute", pos = Vector3.new(-429, 73, 1835)},
+        [90] = {questName = "DesertQuest", questNum = 1, mobName = "Desert Bandit", pos = Vector3.new(897, 7, 4388)},
+        [100] = {questName = "DesertQuest", questNum = 2, mobName = "Desert Officer", pos = Vector3.new(897, 7, 4388)},
+        [120] = {questName = "SnowQuest", questNum = 1, mobName = "Snow Bandit", pos = Vector3.new(1389, 88, -1298)},
+        [150] = {questName = "SnowQuest", questNum = 2, mobName = "Snowman", pos = Vector3.new(1389, 88, -1298)},
+        [175] = {questName = "MarineQuest2", questNum = 1, mobName = "Chief Petty Officer", pos = Vector3.new(-5040, 29, 4326)},
+        [200] = {questName = "SkyQuest", questNum = 1, mobName = "Sky Bandit", pos = Vector3.new(-4842, 718, -2623)},
+        [300] = {questName = "SkyQuest", questNum = 2, mobName = "Dark Master", pos = Vector3.new(-4842, 718, -2623)},
+        [325] = {questName = "PrisonerQuest", questNum = 1, mobName = "Prisoner", pos = Vector3.new(5308, 1, 474)},
+        [375] = {questName = "PrisonerQuest", questNum = 2, mobName = "Dangerous Prisoner", pos = Vector3.new(5308, 1, 474)},
+        [400] = {questName = "ColosseumQuest", questNum = 1, mobName = "Toga Warrior", pos = Vector3.new(-1581, 7, -2986)},
+        [450] = {questName = "ColosseumQuest", questNum = 2, mobName = "Gladiator", pos = Vector3.new(-1581, 7, -2986)},
+        [475] = {questName = "MagmaQuest", questNum = 1, mobName = "Military Soldier", pos = Vector3.new(-5316, 12, 8515)},
+        [525] = {questName = "MagmaQuest", questNum = 2, mobName = "Military Spy", pos = Vector3.new(-5316, 12, 8515)},
+        [550] = {questName = "FishmanQuest", questNum = 1, mobName = "Fishman Warrior", pos = Vector3.new(61123, 19, 1569)},
+        [575] = {questName = "FishmanQuest", questNum = 2, mobName = "Fishman Commando", pos = Vector3.new(61123, 19, 1569)},
+        [700] = {questName = "SkyExp1Quest", questNum = 1, mobName = "God's Guard", pos = Vector3.new(-4722, 845, -1954)}
     },
     [2] = { -- Second Sea
-        [700] = {name = "Raider", questName = "Area1Quest", questMob = "Raider", questNum = 1, pos = Vector3.new(-429, 73, 1835)},
-        [875] = {name = "Mercenary", questName = "Area1Quest", questMob = "Mercenary", questNum = 2, pos = Vector3.new(-429, 73, 1835)},
-        [900] = {name = "Swan Pirate", questName = "Area2Quest", questMob = "Swan Pirate", questNum = 1, pos = Vector3.new(638, 73, 918)},
-        [950] = {name = "Factory Staff", questName = "Area2Quest", questMob = "Factory Staff", questNum = 2, pos = Vector3.new(638, 73, 918)},
-        [1000] = {name = "Marine Lieutenant", questName = "MarineQuest3", questMob = "Marine Lieutenant", questNum = 1, pos = Vector3.new(-2441, 73, -3219)},
-        [1050] = {name = "Marine Captain", questName = "MarineQuest3", questMob = "Marine Captain", questNum = 2, pos = Vector3.new(-2441, 73, -3219)},
-        [1100] = {name = "Zombie", questName = "ZombieQuest", questMob = "Zombie", questNum = 1, pos = Vector3.new(-5494, 49, -795)},
-        [1125] = {name = "Vampire", questName = "ZombieQuest", questMob = "Vampire", questNum = 2, pos = Vector3.new(-5494, 49, -795)},
-        [1150] = {name = "Snow Trooper", questName = "SnowMountainQuest", questMob = "Snow Trooper", questNum = 1, pos = Vector3.new(609, 401, -5371)},
-        [1175] = {name = "Winter Warrior", questName = "SnowMountainQuest", questMob = "Winter Warrior", questNum = 2, pos = Vector3.new(609, 401, -5371)},
-        [1200] = {name = "Lab Subordinate", questName = "IceSideQuest", questMob = "Lab Subordinate", questNum = 1, pos = Vector3.new(-6062, 16, -4902)},
-        [1250] = {name = "Horned Warrior", questName = "IceSideQuest", questMob = "Horned Warrior", questNum = 2, pos = Vector3.new(-6062, 16, -4902)},
-        [1275] = {name = "Magma Ninja", questName = "FireSideQuest", questMob = "Magma Ninja", questNum = 1, pos = Vector3.new(-5429, 16, -5297)},
-        [1300] = {name = "Lava Pirate", questName = "FireSideQuest", questMob = "Lava Pirate", questNum = 2, pos = Vector3.new(-5429, 16, -5297)},
-        [1325] = {name = "Ship Deckhand", questName = "ShipQuest1", questMob = "Ship Deckhand", questNum = 1, pos = Vector3.new(1038, 125, 32911)},
-        [1350] = {name = "Ship Engineer", questName = "ShipQuest1", questMob = "Ship Engineer", questNum = 2, pos = Vector3.new(1038, 125, 32911)},
-        [1375] = {name = "Ship Steward", questName = "ShipQuest2", questMob = "Ship Steward", questNum = 1, pos = Vector3.new(969, 125, 33245)},
-        [1400] = {name = "Ship Officer", questName = "ShipQuest2", questMob = "Ship Officer", questNum = 2, pos = Vector3.new(969, 125, 33245)},
-        [1425] = {name = "Arctic Warrior", questName = "FrostQuest", questMob = "Arctic Warrior", questNum = 1, pos = Vector3.new(5669, 28, -6482)},
-        [1450] = {name = "Snow Lurker", questName = "FrostQuest", questMob = "Snow Lurker", questNum = 2, pos = Vector3.new(5669, 28, -6482)},
-        [1475] = {name = "Sea Soldier", questName = "ForgottenQuest", questMob = "Sea Soldier", questNum = 1, pos = Vector3.new(-3054, 237, -10148)},
-        [1500] = {name = "Water Fighter", questName = "ForgottenQuest", questMob = "Water Fighter", questNum = 2, pos = Vector3.new(-3054, 237, -10148)}
+        [700] = {questName = "Area1Quest", questNum = 1, mobName = "Raider", pos = Vector3.new(-429, 73, 1835)},
+        [875] = {questName = "Area1Quest", questNum = 2, mobName = "Mercenary", pos = Vector3.new(-429, 73, 1835)},
+        [900] = {questName = "Area2Quest", questNum = 1, mobName = "Swan Pirate", pos = Vector3.new(638, 73, 918)},
+        [950] = {questName = "Area2Quest", questNum = 2, mobName = "Factory Staff", pos = Vector3.new(638, 73, 918)},
+        [1000] = {questName = "MarineQuest3", questNum = 1, mobName = "Marine Lieutenant", pos = Vector3.new(-2441, 73, -3219)},
+        [1050] = {questName = "MarineQuest3", questNum = 2, mobName = "Marine Captain", pos = Vector3.new(-2441, 73, -3219)},
+        [1100] = {questName = "ZombieQuest", questNum = 1, mobName = "Zombie", pos = Vector3.new(-5494, 49, -795)},
+        [1125] = {questName = "ZombieQuest", questNum = 2, mobName = "Vampire", pos = Vector3.new(-5494, 49, -795)},
+        [1150] = {questName = "SnowMountainQuest", questNum = 1, mobName = "Snow Trooper", pos = Vector3.new(609, 401, -5371)},
+        [1175] = {questName = "SnowMountainQuest", questNum = 2, mobName = "Winter Warrior", pos = Vector3.new(609, 401, -5371)},
+        [1200] = {questName = "IceSideQuest", questNum = 1, mobName = "Lab Subordinate", pos = Vector3.new(-6062, 16, -4902)},
+        [1250] = {questName = "IceSideQuest", questNum = 2, mobName = "Horned Warrior", pos = Vector3.new(-6062, 16, -4902)},
+        [1275] = {questName = "FireSideQuest", questNum = 1, mobName = "Magma Ninja", pos = Vector3.new(-5429, 16, -5297)},
+        [1300] = {questName = "FireSideQuest", questNum = 2, mobName = "Lava Pirate", pos = Vector3.new(-5429, 16, -5297)},
+        [1325] = {questName = "ShipQuest1", questNum = 1, mobName = "Ship Deckhand", pos = Vector3.new(1038, 125, 32911)},
+        [1350] = {questName = "ShipQuest1", questNum = 2, mobName = "Ship Engineer", pos = Vector3.new(1038, 125, 32911)},
+        [1375] = {questName = "ShipQuest2", questNum = 1, mobName = "Ship Steward", pos = Vector3.new(969, 125, 33245)},
+        [1400] = {questName = "ShipQuest2", questNum = 2, mobName = "Ship Officer", pos = Vector3.new(969, 125, 33245)},
+        [1425] = {questName = "FrostQuest", questNum = 1, mobName = "Arctic Warrior", pos = Vector3.new(5669, 28, -6482)},
+        [1450] = {questName = "FrostQuest", questNum = 2, mobName = "Snow Lurker", pos = Vector3.new(5669, 28, -6482)},
+        [1475] = {questName = "ForgottenQuest", questNum = 1, mobName = "Sea Soldier", pos = Vector3.new(-3054, 237, -10148)},
+        [1500] = {questName = "ForgottenQuest", questNum = 2, mobName = "Water Fighter", pos = Vector3.new(-3054, 237, -10148)}
     },
     [3] = { -- Third Sea
-        [1500] = {name = "Pirate Millionaire", questName = "PiratePortQuest", questMob = "Pirate Millionaire", questNum = 1, pos = Vector3.new(-290, 44, 5581)},
-        [1525] = {name = "Pistol Billionaire", questName = "PiratePortQuest", questMob = "Pistol Billionaire", questNum = 2, pos = Vector3.new(-290, 44, 5581)},
-        [1575] = {name = "Dragon Crew Warrior", questName = "AmazonQuest", questMob = "Dragon Crew Warrior", questNum = 1, pos = Vector3.new(5832, 52, -1636)},
-        [1600] = {name = "Dragon Crew Archer", questName = "AmazonQuest", questMob = "Dragon Crew Archer", questNum = 2, pos = Vector3.new(5832, 52, -1636)},
-        [1625] = {name = "Female Islander", questName = "AmazonQuest2", questMob = "Female Islander", questNum = 1, pos = Vector3.new(5448, 602, 751)},
-        [1675] = {name = "Giant Islander", questName = "AmazonQuest2", questMob = "Giant Islander", questNum = 2, pos = Vector3.new(5448, 602, 751)},
-        [1700] = {name = "Marine Commodore", questName = "MarineTreeIsland", questMob = "Marine Commodore", questNum = 1, pos = Vector3.new(2180, 29, -6737)},
-        [1725] = {name = "Marine Rear Admiral", questName = "MarineTreeIsland", questMob = "Marine Rear Admiral", questNum = 2, pos = Vector3.new(2180, 29, -6737)},
-        [1775] = {name = "Fishman Raider", questName = "DeepForestIsland3", questMob = "Fishman Raider", questNum = 1, pos = Vector3.new(-13234, 333, -7625)},
-        [1800] = {name = "Fishman Captain", questName = "DeepForestIsland", questMob = "Fishman Captain", questNum = 1, pos = Vector3.new(-13234, 333, -7625)},
-        [1825] = {name = "Forest Pirate", questName = "DeepForestIsland", questMob = "Forest Pirate", questNum = 2, pos = Vector3.new(-13234, 333, -7625)},
-        [1850] = {name = "Mythological Pirate", questName = "DeepForestIsland2", questMob = "Mythological Pirate", questNum = 1, pos = Vector3.new(-13234, 333, -7625)},
-        [1900] = {name = "Jungle Pirate", questName = "DeepForestIsland2", questMob = "Jungle Pirate", questNum = 2, pos = Vector3.new(-12680, 390, -9902)},
-        [1950] = {name = "Musketeer Pirate", questName = "DeepForestIsland2", questMob = "Musketeer Pirate", questNum = 3, pos = Vector3.new(-12680, 390, -9902)},
-        [2000] = {name = "Reborn Skeleton", questName = "HauntedQuest1", questMob = "Reborn Skeleton", questNum = 1, pos = Vector3.new(-9482, 142, 5566)},
-        [2025] = {name = "Living Zombie", questName = "HauntedQuest1", questMob = "Living Zombie", questNum = 2, pos = Vector3.new(-9482, 142, 5566)},
-        [2050] = {name = "Demonic Soul", questName = "HauntedQuest2", questMob = "Demonic Soul", questNum = 1, pos = Vector3.new(-9515, 172, 6078)},
-        [2075] = {name = "Posessed Mummy", questName = "HauntedQuest2", questMob = "Posessed Mummy", questNum = 2, pos = Vector3.new(-9515, 172, 6078)},
-        [2100] = {name = "Peanut Scout", questName = "NutsIslandQuest", questMob = "Peanut Scout", questNum = 1, pos = Vector3.new(-2104, 38, -10192)},
-        [2125] = {name = "Peanut President", questName = "NutsIslandQuest", questMob = "Peanut President", questNum = 2, pos = Vector3.new(-2104, 38, -10192)},
-        [2150] = {name = "Ice Cream Chef", questName = "IceCreamIslandQuest", questMob = "Ice Cream Chef", questNum = 1, pos = Vector3.new(-821, 66, -10965)},
-        [2175] = {name = "Ice Cream Commander", questName = "IceCreamIslandQuest", questMob = "Ice Cream Commander", questNum = 2, pos = Vector3.new(-821, 66, -10965)},
-        [2200] = {name = "Cookie Crafter", questName = "CakeQuest1", questMob = "Cookie Crafter", questNum = 1, pos = Vector3.new(-2021, 38, -12028)},
-        [2225] = {name = "Cake Guard", questName = "CakeQuest1", questMob = "Cake Guard", questNum = 2, pos = Vector3.new(-2021, 38, -12028)},
-        [2250] = {name = "Baking Staff", questName = "CakeQuest2", questMob = "Baking Staff", questNum = 1, pos = Vector3.new(-1928, 38, -12842)},
-        [2275] = {name = "Head Baker", questName = "CakeQuest2", questMob = "Head Baker", questNum = 2, pos = Vector3.new(-1928, 38, -12842)},
-        [2300] = {name = "Cocoa Warrior", questName = "ChocQuest1", questMob = "Cocoa Warrior", questNum = 1, pos = Vector3.new(233, 25, -12201)},
-        [2325] = {name = "Chocolate Bar Battler", questName = "ChocQuest1", questMob = "Chocolate Bar Battler", questNum = 2, pos = Vector3.new(233, 25, -12201)},
-        [2350] = {name = "Sweet Thief", questName = "ChocQuest2", questMob = "Sweet Thief", questNum = 1, pos = Vector3.new(150, 25, -12774)},
-        [2375] = {name = "Candy Rebel", questName = "ChocQuest2", questMob = "Candy Rebel", questNum = 2, pos = Vector3.new(150, 25, -12774)},
-        [2400] = {name = "Candy Pirate", questName = "CandyQuest1", questMob = "Candy Pirate", questNum = 1, pos = Vector3.new(-1150, 21, -14298)},
-        [2425] = {name = "Snow Demon", questName = "CandyQuest1", questMob = "Snow Demon", questNum = 2, pos = Vector3.new(-1150, 21, -14298)},
-        [2450] = {name = "Isle Outlaw", questName = "TikiQuest1", questMob = "Isle Outlaw", questNum = 1, pos = Vector3.new(-16547, 8, 448)},
-        [2475] = {name = "Island Boy", questName = "TikiQuest1", questMob = "Island Boy", questNum = 2, pos = Vector3.new(-16547, 8, 448)},
-        [2500] = {name = "Sun-kissed Warrior", questName = "TikiQuest2", questMob = "Sun-kissed Warrior", questNum = 1, pos = Vector3.new(-16539, 56, 1051)},
-        [2525] = {name = "Isle Champion", questName = "TikiQuest2", questMob = "Isle Champion", questNum = 2, pos = Vector3.new(-16539, 56, 1051)}
+        [1500] = {questName = "PiratePortQuest", questNum = 1, mobName = "Pirate Millionaire", pos = Vector3.new(-290, 44, 5581)},
+        [1525] = {questName = "PiratePortQuest", questNum = 2, mobName = "Pistol Billionaire", pos = Vector3.new(-290, 44, 5581)},
+        [1575] = {questName = "AmazonQuest", questNum = 1, mobName = "Dragon Crew Warrior", pos = Vector3.new(5832, 52, -1636)},
+        [1600] = {questName = "AmazonQuest", questNum = 2, mobName = "Dragon Crew Archer", pos = Vector3.new(5832, 52, -1636)},
+        [1625] = {questName = "AmazonQuest2", questNum = 1, mobName = "Female Islander", pos = Vector3.new(5448, 602, 751)},
+        [1675] = {questName = "AmazonQuest2", questNum = 2, mobName = "Giant Islander", pos = Vector3.new(5448, 602, 751)},
+        [1700] = {questName = "MarineTreeIsland", questNum = 1, mobName = "Marine Commodore", pos = Vector3.new(2180, 29, -6737)},
+        [1725] = {questName = "MarineTreeIsland", questNum = 2, mobName = "Marine Rear Admiral", pos = Vector3.new(2180, 29, -6737)},
+        [1775] = {questName = "DeepForestIsland3", questNum = 1, mobName = "Fishman Raider", pos = Vector3.new(-13234, 333, -7625)},
+        [1800] = {questName = "DeepForestIsland", questNum = 1, mobName = "Fishman Captain", pos = Vector3.new(-13234, 333, -7625)},
+        [1825] = {questName = "DeepForestIsland", questNum = 2, mobName = "Forest Pirate", pos = Vector3.new(-13234, 333, -7625)},
+        [1850] = {questName = "DeepForestIsland2", questNum = 1, mobName = "Mythological Pirate", pos = Vector3.new(-13234, 333, -7625)},
+        [1900] = {questName = "DeepForestIsland2", questNum = 2, mobName = "Jungle Pirate", pos = Vector3.new(-12680, 390, -9902)},
+        [1950] = {questName = "DeepForestIsland2", questNum = 3, mobName = "Musketeer Pirate", pos = Vector3.new(-12680, 390, -9902)},
+        [2000] = {questName = "HauntedQuest1", questNum = 1, mobName = "Reborn Skeleton", pos = Vector3.new(-9482, 142, 5566)},
+        [2025] = {questName = "HauntedQuest1", questNum = 2, mobName = "Living Zombie", pos = Vector3.new(-9482, 142, 5566)},
+        [2050] = {questName = "HauntedQuest2", questNum = 1, mobName = "Demonic Soul", pos = Vector3.new(-9515, 172, 6078)},
+        [2075] = {questName = "HauntedQuest2", questNum = 2, mobName = "Posessed Mummy", pos = Vector3.new(-9515, 172, 6078)},
+        [2100] = {questName = "NutsIslandQuest", questNum = 1, mobName = "Peanut Scout", pos = Vector3.new(-2104, 38, -10192)},
+        [2125] = {questName = "NutsIslandQuest", questNum = 2, mobName = "Peanut President", pos = Vector3.new(-2104, 38, -10192)},
+        [2150] = {questName = "IceCreamIslandQuest", questNum = 1, mobName = "Ice Cream Chef", pos = Vector3.new(-821, 66, -10965)},
+        [2175] = {questName = "IceCreamIslandQuest", questNum = 2, mobName = "Ice Cream Commander", pos = Vector3.new(-821, 66, -10965)},
+        [2200] = {questName = "CakeQuest1", questNum = 1, mobName = "Cookie Crafter", pos = Vector3.new(-2021, 38, -12028)},
+        [2225] = {questName = "CakeQuest1", questNum = 2, mobName = "Cake Guard", pos = Vector3.new(-2021, 38, -12028)},
+        [2250] = {questName = "CakeQuest2", questNum = 1, mobName = "Baking Staff", pos = Vector3.new(-1928, 38, -12842)},
+        [2275] = {questName = "CakeQuest2", questNum = 2, mobName = "Head Baker", pos = Vector3.new(-1928, 38, -12842)},
+        [2300] = {questName = "ChocQuest1", questNum = 1, mobName = "Cocoa Warrior", pos = Vector3.new(233, 25, -12201)},
+        [2325] = {questName = "ChocQuest1", questNum = 2, mobName = "Chocolate Bar Battler", pos = Vector3.new(233, 25, -12201)},
+        [2350] = {questName = "ChocQuest2", questNum = 1, mobName = "Sweet Thief", pos = Vector3.new(150, 25, -12774)},
+        [2375] = {questName = "ChocQuest2", questNum = 2, mobName = "Candy Rebel", pos = Vector3.new(150, 25, -12774)},
+        [2400] = {questName = "CandyQuest1", questNum = 1, mobName = "Candy Pirate", pos = Vector3.new(-1150, 21, -14298)},
+        [2425] = {questName = "CandyQuest1", questNum = 2, mobName = "Snow Demon", pos = Vector3.new(-1150, 21, -14298)},
+        [2450] = {questName = "TikiQuest1", questNum = 1, mobName = "Isle Outlaw", pos = Vector3.new(-16547, 8, 448)},
+        [2475] = {questName = "TikiQuest1", questNum = 2, mobName = "Island Boy", pos = Vector3.new(-16547, 8, 448)},
+        [2500] = {questName = "TikiQuest2", questNum = 1, mobName = "Sun-kissed Warrior", pos = Vector3.new(-16539, 56, 1051)},
+        [2525] = {questName = "TikiQuest2", questNum = 2, mobName = "Isle Champion", pos = Vector3.new(-16539, 56, 1051)}
     }
 }
 
-local function GetCurrentQuest()
+function GetQuest()
     local level = GetPlayerLevel()
     local sea = GetCurrentSea()
-    local questsForSea = QuestData[sea]
+    local quests = QuestTable[sea]
     
-    if not questsForSea then return nil end
+    if not quests then return nil end
     
-    local bestQuest = nil
-    for questLevel, questData in pairs(questsForSea) do
-        if level >= questLevel then
-            bestQuest = questData
+    local selectedQuest = nil
+    for reqLevel, questData in pairs(quests) do
+        if level >= reqLevel then
+            selectedQuest = questData
         end
     end
     
-    return bestQuest
+    return selectedQuest
 end
 
-local function StartQuest()
-    local questData = GetCurrentQuest()
-    if not questData then return false end
+function StartQuest()
+    local quest = GetQuest()
+    if not quest then return end
     
-    _G.QuestName = questData.questName
-    _G.QuestMob = questData.questMob
-    _G.QuestPosition = questData.pos
+    _G.QuestName = quest.questName
+    _G.QuestMob = quest.mobName  
+    _G.QuestPosition = quest.pos
     
-    TweenToPosition(questData.pos)
-    wait(1)
+    TweenToPosition(quest.pos)
+    wait(2)
     
-    local args = {
-        [1] = "StartQuest",
-        [2] = questData.questName,
-        [3] = questData.questNum
-    }
-    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-    
-    return true
+    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", quest.questName, quest.questNum)
 end
 
-local function CheckQuest()
-    if Player.PlayerGui.Main.Quest.Visible == false then
+function CheckQuest()
+    local questGui = Player.PlayerGui.Main.Quest
+    if not questGui.Visible then
         return false
     end
-    local questTitle = Player.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text
-    local currentQuest = GetCurrentQuest()
-    if currentQuest and questTitle:find(currentQuest.questMob) then
+    
+    local questTitle = questGui.Container.QuestTitle.Title.Text
+    local currentQuest = GetQuest()
+    
+    if currentQuest and string.find(questTitle, currentQuest.mobName) then
         return true
     end
+    
     return false
 end
 
--- Enhanced Fast Attack System
-local function AttackFunction()
-    if _G.FastAttack then
-        pcall(function()
+-- Working Fast Attack
+function FastAttack()
+    if not _G.FastAttack then return end
+    if tick() - LatestAttackTime < AttackCooldown then return end
+    
+    LatestAttackTime = tick()
+    
+    pcall(function()
+        if Player.Character:FindFirstChildOfClass("Tool") then
             local tool = Player.Character:FindFirstChildOfClass("Tool")
-            if tool then
-                if tool.ToolTip == "Combat" then
-                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange", tool.Name)
-                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", 1, Vector3.new(0, 0, 0), 1, tool.Name)
-                elseif tool.ToolTip == "Sword" then
-                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange", tool.Name)
-                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", 1, Vector3.new(0, 0, 0), 1, tool.Name)
-                elseif tool.ToolTip == "Gun" then
-                    local args = {
-                        [1] = tool.Name,
-                        [2] = Vector3.new(0, 0, 0)
-                    }
-                    game:GetService("ReplicatedStorage").RemoteEvents.GunEvents.GunShoot:FireServer(unpack(args))
-                end
-                
-                -- Additional attack methods
-                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("weaponOrbEvent")
-                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-            end
-        end)
-    end
+            game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange", tool.Name)
+            game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", 1, 500, 1, tool.Name)
+        end
+    end)
 end
 
--- Enhanced Bring Mobs Function
-local function BringMobs()
-    if _G.BringMobs then
-        for _, mob in pairs(Workspace.Enemies:GetChildren()) do
-            if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
-                if mob.Name == _G.QuestMob or not _G.QuestMob then
-                    local distance = (RootPart.Position - mob.HumanoidRootPart.Position).Magnitude
-                    if distance <= 400 then
-                        mob.HumanoidRootPart.Size = Vector3.new(50, 50, 50)
-                        mob.HumanoidRootPart.CFrame = RootPart.CFrame * CFrame.new(0, 0, -3)
-                        mob.HumanoidRootPart.CanCollide = false
-                        mob.Humanoid.WalkSpeed = 0
-                        mob.Humanoid.JumpPower = 0
-                        mob.HumanoidRootPart.Transparency = 1
-                        
-                        -- Disable all parts collision
-                        for _, part in pairs(mob:GetDescendants()) do
-                            if part:IsA("Part") or part:IsA("BasePart") then
+-- Working Bring Mobs
+function BringMobs()
+    if not _G.BringMobs then return end
+    
+    for i, v in pairs(Workspace.Enemies:GetChildren()) do
+        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+            if v.Name == _G.QuestMob then
+                local distance = (RootPart.Position - v.HumanoidRootPart.Position).Magnitude
+                if distance <= 350 then
+                    v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
+                    v.HumanoidRootPart.CFrame = RootPart.CFrame * CFrame.new(0, -40, 0)
+                    v.HumanoidRootPart.CanCollide = false
+                    v.Humanoid.WalkSpeed = 0
+                    v.Humanoid.JumpPower = 0
+                    v.HumanoidRootPart.Transparency = 1
+                    
+                    if v:FindFirstChild("Body") then
+                        for _, part in pairs(v.Body:GetChildren()) do
+                            if part:IsA("Part") then
                                 part.CanCollide = false
                             end
                         end
-                        
-                        pcall(function()
-                            sethiddenproperty(mob, "NetworkOwner", Player)
-                        end)
                     end
+                    
+                    sethiddenproperty(v, "NetworkOwner", Player)
                 end
             end
         end
@@ -508,31 +437,33 @@ local function BringMobs()
 end
 
 -- Kill Aura for Raids
-local function KillAura()
-    if _G.KillAura then
-        for _, mob in pairs(Workspace.Enemies:GetChildren()) do
-            if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
-                local distance = (RootPart.Position - mob.HumanoidRootPart.Position).Magnitude
-                if distance <= 300 then
-                    mob.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
-                    mob.HumanoidRootPart.CFrame = RootPart.CFrame * CFrame.new(0, 0, -5)
-                    mob.HumanoidRootPart.CanCollide = false
-                    mob.Humanoid.WalkSpeed = 0
-                    mob.Humanoid.JumpPower = 0
-                    mob.HumanoidRootPart.Transparency = 1
-                    
-                    for _, part in pairs(mob:GetDescendants()) do
-                        if part:IsA("Part") or part:IsA("BasePart") then
-                            part.CanCollide = false
-                        end
+function KillAura()
+    if not _G.KillAura then return end
+    
+    for i, v in pairs(Workspace.Enemies:GetChildren()) do
+        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+            local distance = (RootPart.Position - v.HumanoidRootPart.Position).Magnitude
+            if distance <= 200 then
+                v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
+                v.HumanoidRootPart.CFrame = RootPart.CFrame * CFrame.new(0, -40, 0)
+                v.HumanoidRootPart.CanCollide = false
+                v.Humanoid.WalkSpeed = 0
+                v.Humanoid.JumpPower = 0
+                v.HumanoidRootPart.Transparency = 1
+                
+                for _, part in pairs(v:GetDescendants()) do
+                    if part:IsA("Part") then
+                        part.CanCollide = false
                     end
                 end
+                
+                sethiddenproperty(v, "NetworkOwner", Player)
             end
         end
     end
 end
 
--- Current sea check
+-- Current sea
 local currentSea = GetCurrentSea()
 
 -- Main Tab
@@ -569,7 +500,7 @@ BringMobsToggle:OnChanged(function(Value)
     _G.BringMobs = Value
 end)
 
--- Fruit Management
+-- Fruit section
 local FruitSection = Tabs.Main:AddSection("Fruit Management")
 
 local BringFruitToggle = Tabs.Main:AddToggle("BringFruit", {
@@ -590,7 +521,7 @@ StoreFruitToggle:OnChanged(function(Value)
     _G.StoreFruit = Value
 end)
 
--- Sea-specific quests
+-- Sea quest section
 local QuestSection = Tabs.Main:AddSection("Sea Quests")
 
 if currentSea == 1 then
@@ -669,39 +600,31 @@ elseif currentSea == 3 then
     end)
 end
 
--- Other Settings
-local OtherSection = Tabs.Main:AddSection("Other Settings")
-
-local AutoObservationToggle = Tabs.Main:AddToggle("AutoObservation", {
-    Title = "Auto Observation",
-    Default = false
-})
-
-AutoObservationToggle:OnChanged(function(Value)
-    _G.AutoObservation = Value
-end)
-
-local AutoEnhancementToggle = Tabs.Main:AddToggle("AutoEnhancement", {
-    Title = "Auto Enhancement",
-    Default = false
-})
-
-AutoEnhancementToggle:OnChanged(function(Value)
-    _G.AutoEnhancement = Value
-end)
-
 -- Player Stats
 local StatsSection = Tabs.Main:AddSection("Player Stats")
 
 local StatsLabel = Tabs.Main:AddParagraph({
     Title = "Player Information",
-    Content = "Level: " .. GetPlayerLevel() .. 
-              "\nSea: " .. GetCurrentSea() .. 
-              "\nBeli: " .. GetPlayerMoney() .. 
-              "\nFragments: " .. GetPlayerFragments() ..
-              "\nBounty: " .. GetPlayerBounty() ..
-              "\nRace: " .. GetPlayerRace()
+    Content = "Loading..."
 })
+
+-- Update stats every 5 seconds
+spawn(function()
+    while wait(5) do
+        pcall(function()
+            local content = string.format(
+                "Level: %d\nSea: %d\nBeli: %s\nFragments: %s\nBounty: %s\nRace: %s",
+                GetPlayerLevel(),
+                GetCurrentSea(),
+                tostring(GetPlayerMoney()),
+                tostring(GetPlayerFragments()),
+                tostring(GetPlayerBounty()),
+                GetPlayerRace()
+            )
+            StatsLabel:SetDesc(content)
+        end)
+    end
+end)
 
 -- Auto Farm Tab
 local LevelFarmSection = Tabs.AutoFarm:AddSection("Level Farming")
@@ -829,12 +752,7 @@ if currentSea >= 2 then
         Title = "Buy Selected Chip",
         Description = "Purchase the selected raid chip",
         Callback = function()
-            local args = {
-                [1] = "RaidsNpc",
-                [2] = "Select",
-                [3] = _G.SelectedChip or "Flame"
-            }
-            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidsNpc", "Select", _G.SelectedChip or "Flame")
         end
     })
 
@@ -842,12 +760,7 @@ if currentSea >= 2 then
         Title = "Start Raid",
         Description = "Start the raid with selected chip",
         Callback = function()
-            local args = {
-                [1] = "RaidsNpc",
-                [2] = "StartRaid",
-                [3] = _G.SelectedChip or "Flame"
-            }
-            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidsNpc", "StartRaid", _G.SelectedChip or "Flame")
         end
     })
 
@@ -940,14 +853,6 @@ local SpectateToggle = Tabs.PvP:AddToggle("Spectate", {
 
 SpectateToggle:OnChanged(function(Value)
     _G.SpectatePlayer = Value
-    if Value then
-        local nearestPlayer = GetNearestPlayer()
-        if nearestPlayer then
-            Workspace.CurrentCamera.CameraSubject = nearestPlayer.Character.Humanoid
-        end
-    else
-        Workspace.CurrentCamera.CameraSubject = Player.Character.Humanoid
-    end
 end)
 
 -- Skills Section
@@ -998,7 +903,7 @@ SkillFToggle:OnChanged(function(Value)
     _G.SkillF = Value
 end)
 
--- Fixed Teleport Tab
+-- Teleport Tab
 local TeleportSection = Tabs.Teleport:AddSection("Teleport Locations")
 
 local teleportLocations = {}
@@ -1029,8 +934,7 @@ if currentSea == 1 then
 elseif currentSea == 2 then
     teleportLocations = {
         "Kingdom of Rose", "Cafe", "Mansion", "Graveyard", "Snow Mountain",
-        "Hot and Cold", "Cursed Ship", "Ice Castle", "Forgotten Island",
-        "Desert Kingdom", "Marine Fortress"
+        "Hot and Cold", "Cursed Ship", "Ice Castle", "Forgotten Island"
     }
     teleportPositions = {
         ["Kingdom of Rose"] = Vector3.new(-379, 74, 853),
@@ -1041,15 +945,13 @@ elseif currentSea == 2 then
         ["Hot and Cold"] = Vector3.new(-6062, 16, -4902),
         ["Cursed Ship"] = Vector3.new(923, 125, 32852),
         ["Ice Castle"] = Vector3.new(5669, 28, -6481),
-        ["Forgotten Island"] = Vector3.new(-3054, 237, -10145),
-        ["Desert Kingdom"] = Vector3.new(944, 21, 4481),
-        ["Marine Fortress"] = Vector3.new(-4914, 51, 4101)
+        ["Forgotten Island"] = Vector3.new(-3054, 237, -10145)
     }
 elseif currentSea == 3 then
     teleportLocations = {
         "Port Town", "Hydra Island", "Great Tree", "Castle on the Sea",
         "Floating Turtle", "Haunted Castle", "Ice Cream Island", "Peanut Island",
-        "Cocoa Island", "Candy Island", "Cake Island", "Sea of Treats"
+        "Cocoa Island", "Candy Island", "Cake Island"
     }
     teleportPositions = {
         ["Port Town"] = Vector3.new(-290, 44, 5581),
@@ -1062,8 +964,7 @@ elseif currentSea == 3 then
         ["Peanut Island"] = Vector3.new(-2104, 38, -10192),
         ["Cocoa Island"] = Vector3.new(87, 73, -12297),
         ["Candy Island"] = Vector3.new(-1049, 14, -14445),
-        ["Cake Island"] = Vector3.new(-2021, 32, -11864),
-        ["Sea of Treats"] = Vector3.new(150, 25, -12774)
+        ["Cake Island"] = Vector3.new(-2021, 32, -11864)
     }
 end
 
@@ -1117,7 +1018,7 @@ local TeleportThirdSeaButton = Tabs.Teleport:AddButton({
     end
 })
 
--- Fixed Sea Tab
+-- Sea Tab
 if currentSea == 3 then
     local SeaEventsSection = Tabs.Sea:AddSection("Sea Events")
     
@@ -1165,15 +1066,6 @@ if currentSea == 3 then
     AutoAzureToggle:OnChanged(function(Value)
         _G.AutoAzure = Value
     end)
-    
-    local AutoLawToggle = Tabs.Sea:AddToggle("AutoLaw", {
-        Title = "Auto Law Raid",
-        Default = false
-    })
-
-    AutoLawToggle:OnChanged(function(Value)
-        _G.AutoLaw = Value
-    end)
 else
     local SeaInfo = Tabs.Sea:AddParagraph({
         Title = "Sea Events Unavailable",
@@ -1181,102 +1073,81 @@ else
     })
 end
 
--- Enhanced Settings Tab
+-- Settings Tab
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({})
 InterfaceManager:SetFolder("FluentScriptHub")
 SaveManager:SetFolder("FluentScriptHub/specific-game")
-
--- Additional Settings Section
-local CustomSettingsSection = Tabs.Settings:AddSection("Script Settings")
-
-local AutoQuestToggle = Tabs.Settings:AddToggle("AutoQuest", {
-    Title = "Auto Quest",
-    Default = true
-})
-
-AutoQuestToggle:OnChanged(function(Value)
-    _G.AutoQuest = Value
-end)
-
-local TweenSpeedSlider = Tabs.Settings:AddSlider("TweenSpeed", {
-    Title = "Tween Speed",
-    Description = "Adjust teleport speed",
-    Default = 300,
-    Min = 100,
-    Max = 1000,
-    Rounding = 0,
-    Callback = function(Value)
-        _G.TweenSpeed = Value
-    end
-})
-
--- Original Settings
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 
--- Fixed Auto Farm Logic
+-- Main Loop
 spawn(function()
-    while wait() do
+    while wait(0.1) do
         pcall(function()
+            -- Fast Attack
             if _G.FastAttack then
-                AttackFunction()
+                FastAttack()
             end
+            
+            -- Bring Mobs
             if _G.BringMobs then
                 BringMobs()
             end
+            
+            -- Kill Aura for Raids
             if _G.KillAura then
                 KillAura()
             end
+            
+            -- Auto Farm Level
             if _G.AutoFarm then
                 EquipWeapon(_G.SelectedWeapon)
+                
                 if not CheckQuest() and _G.AutoQuest then
                     StartQuest()
+                    wait(3)
                 else
                     local mob = GetNearestMob(_G.QuestMob)
                     if mob and mob:FindFirstChild("HumanoidRootPart") then
-                        -- Position above the mob for better attack angle
-                        RootPart.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0, 15, 0)
+                        -- Position player above mob for proper attack
+                        RootPart.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0)
                         
                         -- Use skills
                         if _G.SkillZ then
                             VirtualInputManager:SendKeyEvent(true, "Z", false, game)
                             wait(0.1)
-                            VirtualInputManager:SendKeyEvent(false, "Z", false, game)
                         end
                         if _G.SkillX then
                             VirtualInputManager:SendKeyEvent(true, "X", false, game)
                             wait(0.1)
-                            VirtualInputManager:SendKeyEvent(false, "X", false, game)
                         end
                         if _G.SkillC then
                             VirtualInputManager:SendKeyEvent(true, "C", false, game)
                             wait(0.1)
-                            VirtualInputManager:SendKeyEvent(false, "C", false, game)
                         end
                         if _G.SkillV then
                             VirtualInputManager:SendKeyEvent(true, "V", false, game)
                             wait(0.1)
-                            VirtualInputManager:SendKeyEvent(false, "V", false, game)
                         end
                         if _G.SkillF then
                             VirtualInputManager:SendKeyEvent(true, "F", false, game)
                             wait(0.1)
-                            VirtualInputManager:SendKeyEvent(false, "F", false, game)
                         end
                     else
-                        TweenToPosition(_G.QuestPosition, _G.TweenSpeed or 300)
+                        TweenToPosition(_G.QuestPosition)
                     end
                 end
             end
+            
+            -- Auto Farm Nearest Mobs
             if _G.AutoNearestMobs then
                 EquipWeapon(_G.SelectedWeapon)
                 local mob = GetNearestMob()
                 if mob and mob:FindFirstChild("HumanoidRootPart") then
-                    -- Position above the mob
-                    RootPart.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0, 15, 0)
+                    RootPart.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0)
                 end
             end
         end)
@@ -1286,7 +1157,7 @@ end)
 Window:SelectTab(1)
 Fluent:Notify({
     Title = "SPACE HUB",
-    Content = "Script loaded successfully! All features working perfectly.",
+    Content = "Script loaded successfully!",
     Duration = 5
 })
 
