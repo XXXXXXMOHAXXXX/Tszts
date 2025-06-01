@@ -1,6 +1,3 @@
--- BLOX FRUITS SCRIPT BY AABIS
--- Version 3.0 Complete Implementation
-
 local Show_Button = true
 local Button_Icon = "rbxassetid://135671141026630"
 local Button_Transparency = 0.1
