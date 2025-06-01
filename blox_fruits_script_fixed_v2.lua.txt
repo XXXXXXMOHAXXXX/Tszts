@@ -92,17 +92,17 @@ ImageButton.MouseButton1Click:Connect(function()
 end)
 
 -- Wait for proper loading
-wait(2)
+wait(3)
 
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "SPACE HUB ULTIMATE - BLOX FRUIT v4.0",
-    SubTitle = "Created by MOHA - Enhanced Premium Edition",
+    Title = "SPACE HUB | BLOX FRUIT ",
+    SubTitle = "Created by MOHA ",
     TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
+    Size = UDim2.fromOffset(600, 500),
     Acrylic = true,
     Theme = "Dark",
     MinimizeKey = Enum.KeyCode.LeftControl
@@ -139,33 +139,6 @@ local Character = Player.Character
 local Humanoid = Character:WaitForChild("Humanoid")
 local RootPart = Character:WaitForChild("HumanoidRootPart")
 
--- Protect against errors with pcall
-local CombatFramework, CombatFrameworkR, RigController
-pcall(function()
-    CombatFramework = require(ReplicatedStorage.CombatFramework)
-    CombatFrameworkR = getupvalues(CombatFramework)[2]
-    RigController = require(ReplicatedStorage.CombatFramework.RigLib)
-end)
-
--- Anti-Detection
-pcall(function()
-    local mt = getrawmetatable(game)
-    local oldnamecall = mt.__namecall
-    setreadonly(mt, false)
-    mt.__namecall = newcclosure(function(...)
-        local args = {...}
-        if getnamecallmethod() == "FireServer" then
-            if tostring(args[1]) == "RemoteEvent" then
-                if tostring(args[2]) ~= "true" and tostring(args[2]) ~= "false" then
-                    return
-                end
-            end
-        end
-        return oldnamecall(...)
-    end)
-    setreadonly(mt, true)
-end)
-
 -- Global Variables
 _G.AutoFarm = false
 _G.FastAttack = false
@@ -189,8 +162,17 @@ _G.AutoRaid = false
 _G.SoloRaid = false
 _G.AimNearestPlayer = false
 _G.SpectatePlayer = false
+_G.AutoSeaBeast = false
 _G.AutoKitsuneIsland = false
 _G.AutoAzure = false
+_G.AutoGhostShip = false
+_G.AutoPiranha = false
+_G.AutoShark = false
+_G.AutoTerrorshark = false
+_G.AutoV4Trial = false
+_G.AutoKillPlayer = false
+_G.BringFruit = false
+_G.StoreFruit = false
 
 -- Combat Variables
 _G.SelectedWeapon = "Melee"
@@ -200,6 +182,11 @@ _G.SkillX = false
 _G.SkillC = false
 _G.SkillV = false
 _G.SkillF = false
+
+-- Quest Variables
+_G.QuestName = ""
+_G.QuestMob = ""
+_G.QuestPosition = Vector3.new(0, 0, 0)
 
 -- Utility Functions
 local function GetCurrentSea()
@@ -235,15 +222,16 @@ local function GetPlayerFragments()
 end
 
 local function TweenToPosition(position, speed)
-    speed = speed or 500 -- Increased speed for faster farming
+    if not position then return end
+    speed = speed or 300
     local distance = (RootPart.Position - position).Magnitude
-    local time = distance / speed
     
     if distance <= 10 then
         RootPart.CFrame = CFrame.new(position)
         return
     end
     
+    local time = distance / speed
     local tween = TweenService:Create(
         RootPart,
         TweenInfo.new(time, Enum.EasingStyle.Linear),
@@ -253,16 +241,18 @@ local function TweenToPosition(position, speed)
     return tween
 end
 
-local function GetNearestMob()
+local function GetNearestMob(mobName)
     local nearestMob = nil
     local shortestDistance = math.huge
     
     for _, mob in pairs(Workspace.Enemies:GetChildren()) do
         if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
-            local distance = (RootPart.Position - mob.HumanoidRootPart.Position).Magnitude
-            if distance < shortestDistance then
-                shortestDistance = distance
-                nearestMob = mob
+            if not mobName or mob.Name == mobName then
+                local distance = (RootPart.Position - mob.HumanoidRootPart.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    nearestMob = mob
+                end
             end
         end
     end
@@ -288,10 +278,171 @@ local function GetNearestPlayer()
 end
 
 local function EquipWeapon(weaponName)
-    local tool = Player.Backpack:FindFirstChild(weaponName) or Player.Character:FindFirstChild(weaponName)
-    if tool and tool.Parent == Player.Backpack then
-        Humanoid:EquipTool(tool)
+    if weaponName == "Melee" then
+        for _, tool in pairs(Player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.ToolTip == "Combat" then
+                Humanoid:EquipTool(tool)
+                return
+            end
+        end
+    elseif weaponName == "Sword" then
+        for _, tool in pairs(Player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.ToolTip == "Sword" then
+                Humanoid:EquipTool(tool)
+                return
+            end
+        end
+    elseif weaponName == "Gun" then
+        for _, tool in pairs(Player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.ToolTip == "Gun" then
+                Humanoid:EquipTool(tool)
+                return
+            end
+        end
+    elseif weaponName == "Fruit" then
+        for _, tool in pairs(Player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.ToolTip == "Blox Fruit" then
+                Humanoid:EquipTool(tool)
+                return
+            end
+        end
     end
+end
+
+-- Quest System
+local QuestData = {
+    [1] = { -- First Sea
+        [1] = {name = "Bandit", questName = "BanditQuest1", questMob = "Bandit", pos = Vector3.new(1060, 17, 1545)},
+        [15] = {name = "Monkey", questName = "JungleQuest", questMob = "Monkey", pos = Vector3.new(-1602, 37, 152)},
+        [30] = {name = "Gorilla", questName = "JungleQuest2", questMob = "Gorilla", pos = Vector3.new(-1602, 37, 152)},
+        [60] = {name = "Pirate", questName = "Area1Quest", questMob = "Pirate", pos = Vector3.new(-429, 73, 1835)},
+        [75] = {name = "Brute", questName = "Area1Quest", questMob = "Brute", pos = Vector3.new(-429, 73, 1835)},
+        [90] = {name = "Desert Bandit", questName = "DesertQuest", questMob = "Desert Bandit", pos = Vector3.new(897, 7, 4388)},
+        [100] = {name = "Desert Officer", questName = "DesertQuest", questMob = "Desert Officer", pos = Vector3.new(897, 7, 4388)},
+        [120] = {name = "Snow Bandit", questName = "SnowQuest", questMob = "Snow Bandit", pos = Vector3.new(1389, 88, -1298)},
+        [150] = {name = "Snowman", questName = "SnowQuest", questMob = "Snowman", pos = Vector3.new(1389, 88, -1298)},
+        [175] = {name = "Chief Petty Officer", questName = "MarineQuest2", questMob = "Chief Petty Officer", pos = Vector3.new(-5040, 29, 4326)},
+        [200] = {name = "Sky Bandit", questName = "SkyQuest", questMob = "Sky Bandit", pos = Vector3.new(-4842, 718, -2623)},
+        [300] = {name = "Dark Master", questName = "SkyQuest", questMob = "Dark Master", pos = Vector3.new(-4842, 718, -2623)},
+        [325] = {name = "Prisoner", questName = "PrisonerQuest", questMob = "Prisoner", pos = Vector3.new(5308, 1, 474)},
+        [375] = {name = "Dangerous Prisoner", questName = "PrisonerQuest", questMob = "Dangerous Prisoner", pos = Vector3.new(5308, 1, 474)},
+        [400] = {name = "Toga Warrior", questName = "ColosseumQuest", questMob = "Toga Warrior", pos = Vector3.new(-1581, 7, -2986)},
+        [450] = {name = "Gladiator", questName = "ColosseumQuest", questMob = "Gladiator", pos = Vector3.new(-1581, 7, -2986)},
+        [475] = {name = "Military Soldier", questName = "MagmaQuest", questMob = "Military Soldier", pos = Vector3.new(-5316, 12, 8515)},
+        [525] = {name = "Military Spy", questName = "MagmaQuest", questMob = "Military Spy", pos = Vector3.new(-5316, 12, 8515)},
+        [550] = {name = "Fishman Warrior", questName = "FishmanQuest", questMob = "Fishman Warrior", pos = Vector3.new(61123, 19, 1569)},
+        [575] = {name = "Fishman Commando", questName = "FishmanQuest", questMob = "Fishman Commando", pos = Vector3.new(61123, 19, 1569)},
+        [700] = {name = "God's Guard", questName = "SkyExp1Quest", questMob = "God's Guard", pos = Vector3.new(-4722, 845, -1954)}
+    },
+    [2] = { -- Second Sea
+        [700] = {name = "Raider", questName = "Area1Quest", questMob = "Raider", pos = Vector3.new(-429, 73, 1835)},
+        [875] = {name = "Mercenary", questName = "Area1Quest", questMob = "Mercenary", pos = Vector3.new(-429, 73, 1835)},
+        [900] = {name = "Swan Pirate", questName = "Area2Quest", questMob = "Swan Pirate", pos = Vector3.new(638, 73, 918)},
+        [950] = {name = "Factory Staff", questName = "Area2Quest", questMob = "Factory Staff", pos = Vector3.new(638, 73, 918)},
+        [1000] = {name = "Marine Lieutenant", questName = "MarineQuest3", questMob = "Marine Lieutenant", pos = Vector3.new(-2441, 73, -3219)},
+        [1050] = {name = "Marine Captain", questName = "MarineQuest3", questMob = "Marine Captain", pos = Vector3.new(-2441, 73, -3219)},
+        [1100] = {name = "Zombie", questName = "ZombieQuest", questMob = "Zombie", pos = Vector3.new(-5494, 49, -795)},
+        [1125] = {name = "Vampire", questName = "ZombieQuest", questMob = "Vampire", pos = Vector3.new(-5494, 49, -795)},
+        [1150] = {name = "Snow Trooper", questName = "SnowMountainQuest", questMob = "Snow Trooper", pos = Vector3.new(609, 401, -5371)},
+        [1175] = {name = "Winter Warrior", questName = "SnowMountainQuest", questMob = "Winter Warrior", pos = Vector3.new(609, 401, -5371)},
+        [1200] = {name = "Lab Subordinate", questName = "IceSideQuest", questMob = "Lab Subordinate", pos = Vector3.new(-6062, 16, -4902)},
+        [1250] = {name = "Horned Warrior", questName = "IceSideQuest", questMob = "Horned Warrior", pos = Vector3.new(-6062, 16, -4902)},
+        [1275] = {name = "Magma Ninja", questName = "FireSideQuest", questMob = "Magma Ninja", pos = Vector3.new(-5429, 16, -5297)},
+        [1300] = {name = "Lava Pirate", questName = "FireSideQuest", questMob = "Lava Pirate", pos = Vector3.new(-5429, 16, -5297)},
+        [1325] = {name = "Ship Deckhand", questName = "ShipQuest1", questMob = "Ship Deckhand", pos = Vector3.new(1038, 125, 32911)},
+        [1350] = {name = "Ship Engineer", questName = "ShipQuest1", questMob = "Ship Engineer", pos = Vector3.new(1038, 125, 32911)},
+        [1375] = {name = "Ship Steward", questName = "ShipQuest2", questMob = "Ship Steward", pos = Vector3.new(969, 125, 33245)},
+        [1400] = {name = "Ship Officer", questName = "ShipQuest2", questMob = "Ship Officer", pos = Vector3.new(969, 125, 33245)},
+        [1425] = {name = "Arctic Warrior", questName = "FrostQuest", questMob = "Arctic Warrior", pos = Vector3.new(5669, 28, -6482)},
+        [1450] = {name = "Snow Lurker", questName = "FrostQuest", questMob = "Snow Lurker", pos = Vector3.new(5669, 28, -6482)},
+        [1475] = {name = "Sea Soldier", questName = "ForgottenQuest", questMob = "Sea Soldier", pos = Vector3.new(-3054, 237, -10148)},
+        [1500] = {name = "Water Fighter", questName = "ForgottenQuest", questMob = "Water Fighter", pos = Vector3.new(-3054, 237, -10148)}
+    },
+    [3] = { -- Third Sea
+        [1500] = {name = "Pirate Millionaire", questName = "PiratePortQuest", questMob = "Pirate Millionaire", pos = Vector3.new(-290, 44, 5581)},
+        [1525] = {name = "Pistol Billionaire", questName = "PiratePortQuest", questMob = "Pistol Billionaire", pos = Vector3.new(-290, 44, 5581)},
+        [1575] = {name = "Dragon Crew Warrior", questName = "AmazonQuest", questMob = "Dragon Crew Warrior", pos = Vector3.new(5832, 52, -1928)},
+        [1600] = {name = "Dragon Crew Archer", questName = "AmazonQuest", questMob = "Dragon Crew Archer", pos = Vector3.new(5832, 52, -1928)},
+        [1625] = {name = "Female Islander", questName = "AmazonQuest2", questMob = "Female Islander", pos = Vector3.new(5448, 602, 751)},
+        [1675] = {name = "Giant Islander", questName = "AmazonQuest2", questMob = "Giant Islander", pos = Vector3.new(5448, 602, 751)},
+        [1700] = {name = "Marine Commodore", questName = "MarineTreeIsland", questMob = "Marine Commodore", pos = Vector3.new(2180, 29, -6737)},
+        [1725] = {name = "Marine Rear Admiral", questName = "MarineTreeIsland", questMob = "Marine Rear Admiral", pos = Vector3.new(2180, 29, -6737)},
+        [1775] = {name = "Fishman Raider", questName = "DeepForestIsland3", questMob = "Fishman Raider", pos = Vector3.new(-13235, 333, -7625)},
+        [1800] = {name = "Fishman Captain", questName = "DeepForestIsland", questMob = "Fishman Captain", pos = Vector3.new(-13235, 333, -7625)},
+        [1825] = {name = "Forest Pirate", questName = "DeepForestIsland", questMob = "Forest Pirate", pos = Vector3.new(-13235, 333, -7625)},
+        [1850] = {name = "Mythological Pirate", questName = "DeepForestIsland2", questMob = "Mythological Pirate", pos = Vector3.new(-13235, 333, -7625)},
+        [1900] = {name = "Jungle Pirate", questName = "DeepForestIsland2", questMob = "Jungle Pirate", pos = Vector3.new(-12680, 390, -9902)},
+        [1950] = {name = "Musketeer Pirate", questName = "DeepForestIsland2", questMob = "Musketeer Pirate", pos = Vector3.new(-12680, 390, -9902)},
+        [2000] = {name = "Reborn Skeleton", questName = "HauntedQuest1", questMob = "Reborn Skeleton", pos = Vector3.new(-9482, 142, 5566)},
+        [2025] = {name = "Living Zombie", questName = "HauntedQuest1", questMob = "Living Zombie", pos = Vector3.new(-9482, 142, 5566)},
+        [2050] = {name = "Demonic Soul", questName = "HauntedQuest2", questMob = "Demonic Soul", pos = Vector3.new(-9515, 172, 6078)},
+        [2075] = {name = "Posessed Mummy", questName = "HauntedQuest2", questMob = "Posessed Mummy", pos = Vector3.new(-9515, 172, 6078)},
+        [2100] = {name = "Peanut Scout", questName = "NutsIslandQuest", questMob = "Peanut Scout", pos = Vector3.new(-2104, 38, -10192)},
+        [2125] = {name = "Peanut President", questName = "NutsIslandQuest", questMob = "Peanut President", pos = Vector3.new(-2104, 38, -10192)},
+        [2150] = {name = "Ice Cream Chef", questName = "IceCreamIslandQuest", questMob = "Ice Cream Chef", pos = Vector3.new(-821, 66, -10965)},
+        [2175] = {name = "Ice Cream Commander", questName = "IceCreamIslandQuest", questMob = "Ice Cream Commander", pos = Vector3.new(-821, 66, -10965)},
+        [2200] = {name = "Cookie Crafter", questName = "CakeQuest1", questMob = "Cookie Crafter", pos = Vector3.new(-2021, 38, -12028)},
+        [2225] = {name = "Cake Guard", questName = "CakeQuest1", questMob = "Cake Guard", pos = Vector3.new(-2021, 38, -12028)},
+        [2250] = {name = "Baking Staff", questName = "CakeQuest2", questMob = "Baking Staff", pos = Vector3.new(-1928, 38, -12842)},
+        [2275] = {name = "Head Baker", questName = "CakeQuest2", questMob = "Head Baker", pos = Vector3.new(-1928, 38, -12842)},
+        [2300] = {name = "Cocoa Warrior", questName = "ChocQuest1", questMob = "Cocoa Warrior", pos = Vector3.new(233, 25, -12201)},
+        [2325] = {name = "Chocolate Bar Battler", questName = "ChocQuest1", questMob = "Chocolate Bar Battler", pos = Vector3.new(233, 25, -12201)},
+        [2350] = {name = "Sweet Thief", questName = "ChocQuest2", questMob = "Sweet Thief", pos = Vector3.new(150, 25, -12774)},
+        [2375] = {name = "Candy Rebel", questName = "ChocQuest2", questMob = "Candy Rebel", pos = Vector3.new(150, 25, -12774)},
+        [2400] = {name = "Candy Pirate", questName = "CandyQuest1", questMob = "Candy Pirate", pos = Vector3.new(-1150, 21, -14298)},
+        [2425] = {name = "Snow Demon", questName = "CandyQuest1", questMob = "Snow Demon", pos = Vector3.new(-1150, 21, -14298)},
+        [2450] = {name = "Isle Outlaw", questName = "TikiQuest1", questMob = "Isle Outlaw", pos = Vector3.new(-16547, 8, 448)},
+        [2475] = {name = "Island Boy", questName = "TikiQuest1", questMob = "Island Boy", pos = Vector3.new(-16547, 8, 448)},
+        [2500] = {name = "Sun-kissed Warrior", questName = "TikiQuest2", questMob = "Sun-kissed Warrior", pos = Vector3.new(-16539, 56, 1051)},
+        [2525] = {name = "Isle Champion", questName = "TikiQuest2", questMob = "Isle Champion", pos = Vector3.new(-16539, 56, 1051)}
+    }
+}
+
+local function GetCurrentQuest()
+    local level = GetPlayerLevel()
+    local sea = GetCurrentSea()
+    local questsForSea = QuestData[sea]
+    
+    if not questsForSea then return nil end
+    
+    local bestQuest = nil
+    for questLevel, questData in pairs(questsForSea) do
+        if level >= questLevel then
+            bestQuest = questData
+        end
+    end
+    
+    return bestQuest
+end
+
+local function StartQuest()
+    local questData = GetCurrentQuest()
+    if not questData then return false end
+    
+    _G.QuestName = questData.questName
+    _G.QuestMob = questData.questMob
+    _G.QuestPosition = questData.pos
+    
+    -- Teleport to quest giver
+    TweenToPosition(questData.pos)
+    wait(1)
+    
+    -- Start quest
+    local args = {
+        [1] = "StartQuest",
+        [2] = questData.questName,
+        [3] = 1
+    }
+    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+    
+    return true
+end
+
+local function CheckQuest()
+    if Player.PlayerGui.Main.Quest.Visible == false then
+        return false
+    end
+    return true
 end
 
 -- Enhanced Fast Attack Function
@@ -301,27 +452,15 @@ local function AttackFunction()
             if Player.Character:FindFirstChildOfClass("Tool") then
                 local tool = Player.Character:FindFirstChildOfClass("Tool")
                 if tool:FindFirstChild("Handle") then
-                    -- Fast attack method 1
-                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange", tool.Name)
-                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", {
-                        ["Position"] = RootPart.Position,
-                        ["RayObject"] = workspace.CurrentCamera:ScreenPointToRay(math.random(1, 100), math.random(1, 100), 0),
-                        ["Distance"] = 3000,
-                        ["Cframe"] = RootPart.CFrame
-                    }, 4, "")
+                    local args = {
+                        [1] = 1,
+                        [2] = Vector3.new(0, 0, 0),
+                        [3] = 1,
+                        [4] = tool.Name
+                    }
+                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer(unpack(args))
                 end
             end
-        end)
-        
-        -- Alternative fast attack method
-        pcall(function()
-            local CombatFramework = debug.getupvalues(require(Player.PlayerScripts.CombatFramework))
-            local CmrFwLib = debug.getupvalues(CombatFramework[2])
-            local RigEven = debug.getupvalues(CmrFwLib[1])
-            local wea = debug.getupvalues(RigEven[1])
-            local delay = wea[2]
-            wea[2] = 0
-            wea[1][delay] = 0
         end)
     end
 end
@@ -331,16 +470,18 @@ local function BringMobs()
     if _G.BringMobs then
         for _, mob in pairs(Workspace.Enemies:GetChildren()) do
             if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
-                local distance = (RootPart.Position - mob.HumanoidRootPart.Position).Magnitude
-                if distance <= 400 then
-                    mob.HumanoidRootPart.CFrame = RootPart.CFrame * CFrame.new(0, 0, -3)
-                    mob.HumanoidRootPart.CanCollide = false
-                    mob.Humanoid.WalkSpeed = 0
-                    mob.Humanoid.JumpPower = 0
-                    if mob:FindFirstChild("Body") then
-                        for _, part in pairs(mob.Body:GetChildren()) do
-                            if part:IsA("Part") then
-                                part.CanCollide = false
+                if mob.Name == _G.QuestMob or not _G.QuestMob then
+                    local distance = (RootPart.Position - mob.HumanoidRootPart.Position).Magnitude
+                    if distance <= 400 then
+                        mob.HumanoidRootPart.CFrame = RootPart.CFrame * CFrame.new(0, 0, -3)
+                        mob.HumanoidRootPart.CanCollide = false
+                        mob.Humanoid.WalkSpeed = 0
+                        mob.Humanoid.JumpPower = 0
+                        if mob:FindFirstChild("Body") then
+                            for _, part in pairs(mob.Body:GetChildren()) do
+                                if part:IsA("Part") then
+                                    part.CanCollide = false
+                                end
                             end
                         end
                     end
@@ -349,6 +490,9 @@ local function BringMobs()
         end
     end
 end
+
+-- Current Sea Detection
+local currentSea = GetCurrentSea()
 
 -- Main Tab
 local WeaponSection = Tabs.Main:AddSection("Weapon Selection")
@@ -384,10 +528,29 @@ BringMobsToggle:OnChanged(function(Value)
     _G.BringMobs = Value
 end)
 
+-- Fruit Functions
+local FruitSection = Tabs.Main:AddSection("Fruit Management")
+
+local BringFruitToggle = Tabs.Main:AddToggle("BringFruit", {
+    Title = "Bring Fruit",
+    Default = false
+})
+
+BringFruitToggle:OnChanged(function(Value)
+    _G.BringFruit = Value
+end)
+
+local StoreFruitToggle = Tabs.Main:AddToggle("StoreFruit", {
+    Title = "Auto Store Fruit",
+    Default = false
+})
+
+StoreFruitToggle:OnChanged(function(Value)
+    _G.StoreFruit = Value
+end)
+
 -- Sea-based Quests
 local QuestSection = Tabs.Main:AddSection("Sea Quests")
-
-local currentSea = GetCurrentSea()
 
 if currentSea == 1 then
     local AutoSaberToggle = Tabs.Main:AddToggle("AutoSaber", {
@@ -515,9 +678,18 @@ AutoAllBossToggle:OnChanged(function(Value)
     _G.AutoAllBoss = Value
 end)
 
+local BossValues = {}
+if currentSea == 1 then
+    BossValues = {"Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg", "Ice Admiral", "Greybeard"}
+elseif currentSea == 2 then
+    BossValues = {"Diamond", "Jeremy", "Fajita", "Don Swan", "Smoke Admiral", "Cursed Captain", "Darkbeard", "Order", "Awakened Ice Admiral", "Tide Keeper"}
+elseif currentSea == 3 then
+    BossValues = {"Stone", "Island Empress", "Kilo Admiral", "Captain Elephant", "Beautiful Pirate", "rip_indra True Form", "Longma", "Soul Reaper", "Cake Queen"}
+end
+
 local BossDropdown = Tabs.AutoFarm:AddDropdown("BossDropdown", {
     Title = "Select Boss to Farm",
-    Values = {"Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg", "Ice Admiral", "Greybeard"},
+    Values = BossValues,
     Multi = false,
     Default = 1,
 })
@@ -566,42 +738,95 @@ AutoDoughPrinceToggle:OnChanged(function(Value)
 end)
 
 -- Raid Tab
-local RaidSection = Tabs.Raid:AddSection("Raid Controls")
+if currentSea >= 2 then
+    local RaidSection = Tabs.Raid:AddSection("Raid Controls")
 
-local BuyChipButton = Tabs.Raid:AddButton({
-    Title = "Buy Chip",
-    Description = "Purchase raid chip",
-    Callback = function()
-        local args = {
-            [1] = "RaidsNpc",
-            [2] = "Select",
-            [3] = "Flame"
-        }
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-    end
-})
+    local BuyChipButton = Tabs.Raid:AddButton({
+        Title = "Buy Chip",
+        Description = "Purchase raid chip",
+        Callback = function()
+            local args = {
+                [1] = "RaidsNpc",
+                [2] = "Select",
+                [3] = "Flame"
+            }
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        end
+    })
 
-local StartRaidButton = Tabs.Raid:AddButton({
-    Title = "Start Raid",
-    Description = "Start the raid",
-    Callback = function()
-        local args = {
-            [1] = "RaidsNpc",
-            [2] = "StartRaid",
-            [3] = "Flame"
-        }
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-    end
-})
+    local StartRaidButton = Tabs.Raid:AddButton({
+        Title = "Start Raid",
+        Description = "Start the raid",
+        Callback = function()
+            local args = {
+                [1] = "RaidsNpc",
+                [2] = "StartRaid",
+                [3] = "Flame"
+            }
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        end
+    })
 
-local SoloRaidToggle = Tabs.Raid:AddToggle("SoloRaid", {
-    Title = "Solo Raid (Silent Aim)",
-    Default = false
-})
+    local SoloRaidToggle = Tabs.Raid:AddToggle("SoloRaid", {
+        Title = "AUTO RAID ",
+        Default = false
+    })
 
-SoloRaidToggle:OnChanged(function(Value)
-    _G.SoloRaid = Value
-end)
+    SoloRaidToggle:OnChanged(function(Value)
+        _G.SoloRaid = Value
+    end)
+else
+    local RaidInfo = Tabs.Raid:AddParagraph({
+        Title = "Raid Unavailable",
+        Content = "You need to be in Second Sea or Third Sea to access raids. Complete the First Sea and travel to Second Sea to unlock raid features."
+    })
+end
+
+-- V4 Tab
+if currentSea == 3 then
+    local V4Section = Tabs.V4:AddSection("V4 Race Awakening")
+
+    local AutoV4TrialToggle = Tabs.V4:AddToggle("AutoV4Trial", {
+        Title = "Auto Complete V4 Trials",
+        Default = false
+    })
+
+    AutoV4TrialToggle:OnChanged(function(Value)
+        _G.AutoV4Trial = Value
+    end)
+
+    local AutoKillPlayerToggle = Tabs.V4:AddToggle("AutoKillPlayer", {
+        Title = "Auto Kill Player (for trials)",
+        Default = false
+    })
+
+    AutoKillPlayerToggle:OnChanged(function(Value)
+        _G.AutoKillPlayer = Value
+    end)
+
+    local V4TeleportSection = Tabs.V4:AddSection("V4 Teleports")
+
+    local TeleportTempleButton = Tabs.V4:AddButton({
+        Title = "Teleport to Temple",
+        Description = "Teleport to Ancient One",
+        Callback = function()
+            TweenToPosition(Vector3.new(28286, 14895, 102))
+        end
+    })
+
+    local TeleportAcientOneButton = Tabs.V4:AddButton({
+        Title = "Teleport to Ancient One",
+        Description = "Teleport to start V4 trials",
+        Callback = function()
+            TweenToPosition(Vector3.new(28286, 14895, 102))
+        end
+    })
+else
+    local V4Info = Tabs.V4:AddParagraph({
+        Title = "V4 Awakening Unavailable",
+        Content = "You need to be in Third Sea to access V4 Race Awakening features. Complete the Second Sea and travel to Third Sea to unlock V4 awakening."
+    })
+end
 
 -- PvP Tab
 local PvPSection = Tabs.PvP:AddSection("Player Targeting")
@@ -708,6 +933,7 @@ local TeleportSection = Tabs.Teleport:AddSection("Teleport Locations")
 
 -- Sea-specific teleport locations
 local teleportLocations = {}
+local teleportPositions = {}
 
 if currentSea == 1 then
     teleportLocations = {
@@ -715,17 +941,60 @@ if currentSea == 1 then
         "Marine Fortress", "Sky Island", "Prison", "Colosseum", "Magma Village",
         "Under Water City", "Fountain City", "Shells Town"
     }
+    teleportPositions = {
+        ["Spawn"] = Vector3.new(1, 17, 1471),
+        ["Bandit Camp"] = Vector3.new(1045, 17, 1550),
+        ["Jungle"] = Vector3.new(-1612, 37, 149),
+        ["Pirate Village"] = Vector3.new(-1181, 5, 3803),
+        ["Desert"] = Vector3.new(944, 21, 4481),
+        ["Frozen Village"] = Vector3.new(1198, 104, -1297),
+        ["Marine Fortress"] = Vector3.new(-2566, 7, -3038),
+        ["Sky Island"] = Vector3.new(-4607, 873, -1667),
+        ["Prison"] = Vector3.new(4875, 6, 734),
+        ["Colosseum"] = Vector3.new(-1427, 8, -2673),
+        ["Magma Village"] = Vector3.new(-5247, 13, 8504),
+        ["Under Water City"] = Vector3.new(61163, 11, 1819),
+        ["Fountain City"] = Vector3.new(5127, 60, 4105),
+        ["Shells Town"] = Vector3.new(-7865, 6, 5425)
+    }
 elseif currentSea == 2 then
     teleportLocations = {
         "Kingdom of Rose", "Cafe", "Mansion", "Graveyard", "Snow Mountain",
         "Hot and Cold", "Cursed Ship", "Ice Castle", "Forgotten Island",
         "Desert Kingdom", "Marine Fortress"
     }
+    teleportPositions = {
+        ["Kingdom of Rose"] = Vector3.new(-379, 74, 853),
+        ["Cafe"] = Vector3.new(-385, 74, 297),
+        ["Mansion"] = Vector3.new(-12471, 374, -7551),
+        ["Graveyard"] = Vector3.new(-5494, 49, -795),
+        ["Snow Mountain"] = Vector3.new(753, 408, -5274),
+        ["Hot and Cold"] = Vector3.new(-6062, 16, -4902),
+        ["Cursed Ship"] = Vector3.new(923, 125, 32852),
+        ["Ice Castle"] = Vector3.new(5669, 28, -6481),
+        ["Forgotten Island"] = Vector3.new(-3054, 237, -10145),
+        ["Desert Kingdom"] = Vector3.new(944, 21, 4481),
+        ["Marine Fortress"] = Vector3.new(-4914, 51, 4101)
+    }
 elseif currentSea == 3 then
     teleportLocations = {
         "Port Town", "Hydra Island", "Great Tree", "Castle on the Sea",
         "Floating Turtle", "Haunted Castle", "Ice Cream Island", "Peanut Island",
         "Cocoa Island", "Candy Island", "Cake Island", "Sea of Treats"
+    }
+    teleportPositions = {
+        ["Port Town"] = Vector3.new(-290, 44, 5581),
+        ["Hydra Island"] = Vector3.new(5228, 604, -345),
+        ["Great Tree"] = Vector3.new(2681, 1682, -7190),
+        ["Castle on the Sea"] = Vector3.new(-5075, 314, -3152),
+        ["Floating Turtle"] = Vector3.new(-13274, 332, -7620),
+        ["Haunted Castle"] = Vector3.new(-9515, 172, 5567),
+        ["Ice Cream Island"] = Vector3.new(-902, 79, -10988),
+        ["Peanut Island"] = Vector3.new(-2104, 38, -10192),
+        ["Cocoa Island"] = Vector3.new(87, 73, -12297),
+        ["Candy Island"] = Vector3.new(-1049, 14, -14445),
+        ["Cake Island"] = Vector3.new(-2021, 32, -11864),
+        ["Sea of Treats"] = Vector3.new(150, 25, -12774)
     }
 end
 
@@ -741,32 +1010,97 @@ local TeleportButton = Tabs.Teleport:AddButton({
     Description = "Teleport to selected location",
     Callback = function()
         local selectedLocation = TeleportDropdown.Value
-        -- Add teleport logic here based on selected location
+        if teleportPositions[selectedLocation] then
+            TweenToPosition(teleportPositions[selectedLocation])
+        end
     end
 })
 
 -- Sea Tab
-local SeaEventsSection = Tabs.Sea:AddSection("Sea Events")
+if currentSea == 3 then
+    local SeaEventsSection = Tabs.Sea:AddSection("Sea Events")
 
-local AutoKitsuneToggle = Tabs.Sea:AddToggle("AutoKitsune", {
-    Title = "Auto Kitsune Island",
-    Default = false
-})
+    local AutoSeaBeastToggle = Tabs.Sea:AddToggle("AutoSeaBeast", {
+        Title = "Auto Sea Beast",
+        Default = false
+    })
 
-AutoKitsuneToggle:OnChanged(function(Value)
-    _G.AutoKitsuneIsland = Value
-end)
+    AutoSeaBeastToggle:OnChanged(function(Value)
+        _G.AutoSeaBeast = Value
+    end)
 
-local AutoAzureToggle = Tabs.Sea:AddToggle("AutoAzure", {
-    Title = "Auto Azure Ember",
-    Default = false
-})
+    local AutoKitsuneToggle = Tabs.Sea:AddToggle("AutoKitsune", {
+        Title = "Auto Kitsune Island",
+        Default = false
+    })
 
-AutoAzureToggle:OnChanged(function(Value)
-    _G.AutoAzure = Value
-end)
+    AutoKitsuneToggle:OnChanged(function(Value)
+        _G.AutoKitsuneIsland = Value
+    end)
 
--- Settings Tab
+    local AutoAzureToggle = Tabs.Sea:AddToggle("AutoAzure", {
+        Title = "Auto Azure Ember",
+        Default = false
+    })
+
+    AutoAzureToggle:OnChanged(function(Value)
+        _G.AutoAzure = Value
+    end)
+
+    local AutoGhostShipToggle = Tabs.Sea:AddToggle("AutoGhostShip", {
+        Title = "Auto Ghost Ship",
+        Default = false
+    })
+
+    AutoGhostShipToggle:OnChanged(function(Value)
+        _G.AutoGhostShip = Value
+    end)
+
+    local AutoPiranhaToggle = Tabs.Sea:AddToggle("AutoPiranha", {
+        Title = "Auto Piranha",
+        Default = false
+    })
+
+    AutoPiranhaToggle:OnChanged(function(Value)
+        _G.AutoPiranha = Value
+    end)
+
+    local AutoSharkToggle = Tabs.Sea:AddToggle("AutoShark", {
+        Title = "Auto Shark",
+        Default = false
+    })
+
+    AutoSharkToggle:OnChanged(function(Value)
+        _G.AutoShark = Value
+    end)
+
+    local AutoTerrorsharkToggle = Tabs.Sea:AddToggle("AutoTerrorshark", {
+        Title = "Auto Terrorshark",
+        Default = false
+    })
+
+    AutoTerrorsharkToggle:OnChanged(function(Value)
+        _G.AutoTerrorshark = Value
+    end)
+
+    local SeaDropdownSection = Tabs.Sea:AddSection("Sea Materials")
+
+    local SeaMaterialToggle = Tabs.Sea:AddToggle("AutoSeaMaterial", {
+        Title = "Auto Farm Sea Materials",
+        Default = false
+    })
+
+    SeaMaterialToggle:OnChanged(function(Value)
+        _G.AutoSeaMaterial = Value
+    end)
+else
+    local SeaInfo = Tabs.Sea:AddParagraph({
+        Title = "Sea Events Unavailable",
+        Content = "You need to be in Third Sea to access Sea Events. Complete the Second Sea and travel to Third Sea to unlock sea event features like Sea Beasts, Kitsune Island, and other special events."
+    })
+end
+
+-- Settings Tab 
 local InfoSection = Tabs.Settings:AddSection("Script Information")
 
 local ScriptInfo = Tabs.Settings:AddParagraph({
@@ -802,27 +1136,51 @@ local LowGraphicsToggle = Tabs.Settings:AddToggle("LowGraphics", {
     Default = false
 })
 
--- Enhanced Auto Farm with Speed Optimization
+local AntiKickToggle = Tabs.Settings:AddToggle("AntiKick", {
+    Title = "Anti Kick/AFK",
+    Default = false
+})
+
+local HideUIToggle = Tabs.Settings:AddToggle("HideUI", {
+    Title = "Hide Default UI",
+    Default = false
+})
+
+local FastTweenToggle = Tabs.Settings:AddToggle("FastTween", {
+    Title = "Fast Tween Speed",
+    Default = false
+})
+
+
 local function AutoFarmLoop()
-    while wait(0.1) do -- Faster loop for better performance
+    while wait(0.1) do
         pcall(function()
             if _G.AutoFarm and GetPlayerLevel() < 2650 then
-                local nearestMob = GetNearestMob()
-                if nearestMob and nearestMob:FindFirstChild("HumanoidRootPart") and nearestMob:FindFirstChild("Humanoid") then
-                    if nearestMob.Humanoid.Health > 0 then
-                        -- Equip weapon based on selection
+                -- Check if we have a quest
+                if not CheckQuest() then
+                    StartQuest()
+                    wait(1)
+                end
+                
+              
+                local questMob = GetNearestMob(_G.QuestMob)
+                if questMob and questMob:FindFirstChild("HumanoidRootPart") and questMob:FindFirstChild("Humanoid") then
+                    if questMob.Humanoid.Health > 0 then
+                      
                         EquipWeapon(_G.SelectedWeapon)
                         
-                        -- Fast teleport if mob is far
-                        local distance = (RootPart.Position - nearestMob.HumanoidRootPart.Position).Magnitude
+                        
+                        local distance = (RootPart.Position - questMob.HumanoidRootPart.Position).Magnitude
                         if distance > 20 then
-                            RootPart.CFrame = nearestMob.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
+                            TweenToPosition(questMob.HumanoidRootPart.Position)
+                        else
+                            RootPart.CFrame = questMob.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
                         end
                         
-                        -- Attack the mob
+                        -- Attack
                         AttackFunction()
                         
-                        -- Bring other mobs for faster farming
+                        -- Bring mobs
                         if _G.BringMobs then
                             BringMobs()
                         end
@@ -872,17 +1230,18 @@ end
 
 -- Main Game Loop
 spawn(function()
-    while wait(1) do -- Slower loop for UI updates
+    while wait(1) do
         pcall(function()
-            -- Update player stats
+           
             if StatsLabel then
                 StatsLabel:SetDesc(string.format(
-                    "Level: %d\nMoney: %d\nFragments: %d\nRace: %s\nBounty: %d",
+                    "Level: %d\nMoney: %d\nFragments: %d\nRace: %s\nBounty: %d\nCurrent Sea: %d",
                     GetPlayerLevel(),
                     GetPlayerMoney(),
                     GetPlayerFragments(),
                     GetPlayerRace(),
-                    GetPlayerBounty()
+                    GetPlayerBounty(),
+                    currentSea
                 ))
             end
         end)
@@ -906,7 +1265,7 @@ spawn(AutoFarmLoop)
 -- Skills Loop
 spawn(SkillsLoop)
 
--- Additional Features Loop
+--  Features Loop
 spawn(function()
     while wait(0.2) do
         pcall(function()
@@ -916,18 +1275,18 @@ spawn(function()
                 if nearestMob then
                     local distance = (RootPart.Position - nearestMob.HumanoidRootPart.Position).Magnitude
                     if distance > 15 then
-                        RootPart.CFrame = nearestMob.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+                        TweenToPosition(nearestMob.HumanoidRootPart.Position)
                     end
                     AttackFunction()
                 end
             end
             
-            -- Solo Raid with improved deletion
+            -- Solo Raid
             if _G.SoloRaid then
                 for _, mob in pairs(Workspace.Enemies:GetChildren()) do
                     if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
                         local distance = (RootPart.Position - mob.HumanoidRootPart.Position).Magnitude
-                        if distance <= 1000 then -- Only delete nearby mobs
+                        if distance <= 1000 then
                             mob.Humanoid.Health = 0
                             wait(0.1)
                             if mob.Parent then
@@ -950,6 +1309,27 @@ spawn(function()
             -- Bring Mobs
             if _G.BringMobs then
                 BringMobs()
+            end
+            
+            -- Bring Fruit
+            if _G.BringFruit then
+                for _, fruit in pairs(Workspace:GetChildren()) do
+                    if fruit.Name:find("Fruit") or fruit.Name:find("fruit") then
+                        if fruit:FindFirstChild("Handle") or fruit:FindFirstChild("Mesh") then
+                            fruit.Handle.CFrame = RootPart.CFrame
+                        end
+                    end
+                end
+            end
+            
+            -- Store Fruit
+            if _G.StoreFruit then
+                local args = {
+                    [1] = "StoreFruit",
+                    [2] = Player.Character:FindFirstChildOfClass("Tool").Name,
+                    [3] = Player.Backpack
+                }
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
             end
         end)
     end
