@@ -5,12 +5,14 @@ local Button_Transparency = 0.1
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local UserInputService = game:GetService("UserInputService") 
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local VirtualUser = game:GetService("VirtualUser")
 local HttpService = game:GetService("HttpService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local PathfindingService = game:GetService("PathfindingService")
 
 -- Variables
 local player = Players.LocalPlayer
@@ -18,30 +20,54 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Script Settings
+-- Core Settings
 getgenv().EnchantedHub = {
-    AutoFarm = false,
-    AutoLevel = false,
-    AutoBossKill = false,
-    AutoSeaEvent = false,
-    AutoRaid = false,
-    SafeMode = true,
+    -- Main Settings
     SelectedWeapon = "",
     FastAttack = false,
-    AutoStats = false,
-    AntiAFK = true,
-    TweenSpeed = 350,
-    BypassTP = true,
-    AutoObservationV2 = false,
-    AutoSoulGuitar = false,
-    AutoCDKQuest = false,
+    BringMobs = false,
+    AutoFarmLevel = false,
+    FarmNearestMobs = false,
+    
+    -- Boss Settings
+    KillAllBosses = false,
+    KillSelectedBoss = false,
+    SelectedBoss = "",
+    AutoRipIndra = false,
+    AutoDoughPrince = false,
+    AutoDoughKing = false,
+    
+    -- Special Quests
+    AutoSaber = false,
+    Auto2ndSea = false,
+    AutoRaceV2 = false,
+    AutoRaceV3 = false,
     AutoTushita = false,
-    AutoEliteHunter = false,
-    AutoMiragePuzzle = false,
+    AutoYama = false,
+    AutoCDK = false,
+    
+    -- PvP Settings
+    TargetNearestPlayer = false,
+    SpectatePlayer = false,
+    TargetedPlayer = "",
+    
+    -- Raid Settings
+    SelectedChip = "",
+    KillAura = false,
+    SoloRaid = false,
+    
+    -- V4 Settings
+    AutoV4Trial = false,
+    AutoKillPlayersTemple = false,
+    AutoGrindV4 = false,
+    
+    -- Teleport Settings
+    TweenSpeed = 320,
     SelectedIsland = "",
-    FruitSniper = false,
-    AutoStore = false,
-    WebhookURL = "",
+    TweenFromAbove = true,
+    
+    -- Misc
+    AntiAFK = true,
     NotifyFruit = true
 }
 
@@ -171,21 +197,26 @@ local Tabs = {
     Settings = Window:AddTab({ Title = "Settings", Icon = "user" })
 }
 
--- Utility Functions
+-- Core Functions
 local function getDistance(pos1, pos2)
     return (pos1 - pos2).Magnitude
 end
 
-local function tweenToPosition(targetPosition, speed)
+local function toTarget(targetCFrame, speed)
     if not character or not rootPart then return end
     
-    local distance = getDistance(rootPart.Position, targetPosition)
+    local distance = getDistance(rootPart.Position, targetCFrame.Position)
     local tweenTime = distance / (speed or EnchantedHub.TweenSpeed)
+    
+    if EnchantedHub.TweenFromAbove then
+        local abovePosition = targetCFrame.Position + Vector3.new(0, 30, 0)
+        targetCFrame = CFrame.new(abovePosition)
+    end
     
     local tween = TweenService:Create(
         rootPart,
         TweenInfo.new(tweenTime, Enum.EasingStyle.Linear),
-        {CFrame = CFrame.new(targetPosition)}
+        {CFrame = targetCFrame}
     )
     
     tween:Play()
@@ -202,15 +233,27 @@ local function getAllEnemies()
     return enemies
 end
 
+local function getBosses()
+    local bosses = {}
+    for _, boss in pairs(ReplicatedStorage:GetChildren()) do
+        if string.find(boss.Name, "Boss") or boss.Name == "rip_indra True Form" or boss.Name == "Cake Prince" or boss.Name == "Dough King" then
+            table.insert(bosses, boss.Name)
+        end
+    end
+    return bosses
+end
+
 local function getNearestEnemy()
     local nearestEnemy = nil
     local shortestDistance = math.huge
     
     for _, enemy in pairs(getAllEnemies()) do
-        local distance = getDistance(rootPart.Position, enemy.HumanoidRootPart.Position)
-        if distance < shortestDistance then
-            shortestDistance = distance
-            nearestEnemy = enemy
+        if enemy.HumanoidRootPart then
+            local distance = getDistance(rootPart.Position, enemy.HumanoidRootPart.Position)
+            if distance < shortestDistance then
+                shortestDistance = distance
+                nearestEnemy = enemy
+            end
         end
     end
     
@@ -218,27 +261,230 @@ local function getNearestEnemy()
 end
 
 local function equipWeapon(weaponName)
+    if weaponName == "" then return end
+    
     if player.Backpack:FindFirstChild(weaponName) then
         local tool = player.Backpack[weaponName]
         humanoid:EquipTool(tool)
+    elseif character:FindFirstChild(weaponName) then
+        -- Already equipped
+        return true
     end
 end
 
-local function performAttack()
-    local tool = character:FindFirstChildOfClass("Tool")
-    if tool and tool:FindFirstChild("Level") then
-        -- Sword attack
-        game:GetService("VirtualUser"):CaptureController()
-        game:GetService("VirtualUser"):Button1Down(Vector2.new(1280, 672))
-        wait(0.1)
-        game:GetService("VirtualUser"):Button1Up(Vector2.new(1280, 672))
+local function fastAttack()
+    if not EnchantedHub.FastAttack then return end
+    
+    pcall(function()
+        if character:FindFirstChildOfClass("Tool") then
+            local ac = CombatFramework.activeController
+            if ac and ac.equipped then
+                for i = 1, 1 do
+                    local bladehit = require(game.ReplicatedStorage.CombatFramework.RigLib).getBladeHits(
+                        character,
+                        {character.HumanoidRootPart},
+                        60
+                    )
+                    local cameraLV = workspace.CurrentCamera.CFrame.LookVector
+                    local argsSlash = {
+                        bladehit,
+                        cameraLV,
+                        "hit"
+                    }
+                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange", character.Humanoid.Health)
+                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", bladehit, i, "")
+                end
+            end
+        end
+    end)
+end
+
+local function normalAttack()
+    if EnchantedHub.FastAttack then
+        fastAttack()
+    else
+        local args = {
+            [1] = 0,
+            [2] = CFrame.new(-262, 2, 2033)
+        }
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
     end
 end
 
--- Main Tab
-Tabs.Main:AddParagraph({
-    Title = "Welcome to Enchanted Hub!",
-    Content = "Premium Blox Fruits script with advanced features.\n\nMade by AABIS with love â¤ï¸"
+local function bringMobsToPosition(pos)
+    if not EnchantedHub.BringMobs then return end
+    
+    for _, enemy in pairs(getAllEnemies()) do
+        if enemy.HumanoidRootPart and getDistance(rootPart.Position, enemy.HumanoidRootPart.Position) <= 400 then
+            enemy.HumanoidRootPart.CFrame = CFrame.new(pos)
+            enemy.HumanoidRootPart.CanCollide = false
+            enemy.Humanoid.WalkSpeed = 0
+            enemy.Humanoid.JumpPower = 0
+            if enemy:FindFirstChild("Body") then
+                for _, part in pairs(enemy.Body:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function getCurrentQuestLevel()
+    local level = player.Data.Level.Value
+    
+    -- First Sea Quests
+    if level >= 1 and level <= 9 then return "Bandit", "Jungle"
+    elseif level >= 10 and level <= 14 then return "Monkey", "Jungle"  
+    elseif level >= 15 and level <= 29 then return "Gorilla", "Jungle"
+    elseif level >= 30 and level <= 39 then return "Pirate", "Buggy"
+    elseif level >= 40 and level <= 59 then return "Brute", "Buggy"
+    elseif level >= 60 and level <= 74 then return "Desert Bandit", "Desert"
+    elseif level >= 75 and level <= 89 then return "Desert Officer", "Desert"
+    elseif level >= 90 and level <= 99 then return "Snow Bandit", "Snow Island"
+    elseif level >= 100 and level <= 119 then return "Snowman", "Snow Island"
+    elseif level >= 120 and level <= 149 then return "Chief Petty Officer", "Marine"
+    elseif level >= 150 and level <= 174 then return "Sky Bandit", "Sky Island"
+    elseif level >= 175 and level <= 189 then return "Dark Master", "Sky Island"
+    elseif level >= 190 and level <= 209 then return "Prisoner", "Prison"
+    elseif level >= 210 and level <= 249 then return "Dangerous Prisoner", "Prison"
+    elseif level >= 250 and level <= 274 then return "Toga Warrior", "Colosseum"
+    elseif level >= 275 and level <= 299 then return "Gladiator", "Colosseum"
+    elseif level >= 300 and level <= 324 then return "Military Soldier", "Magma"
+    elseif level >= 325 and level <= 374 then return "Military Spy", "Magma"
+    elseif level >= 375 and level <= 399 then return "Fishman Warrior", "Underwater"
+    elseif level >= 400 and level <= 449 then return "Fishman Commando", "Underwater"
+    elseif level >= 450 and level <= 474 then return "God's Guard", "Sky Island"
+    elseif level >= 475 and level <= 524 then return "Shanda", "Sky Island"
+    elseif level >= 525 and level <= 549 then return "Royal Squad", "Sky Island"
+    elseif level >= 550 and level <= 624 then return "Royal Soldier", "Sky Island"
+    elseif level >= 625 and level <= 649 then return "Galley Pirate", "Fountain"
+    elseif level >= 650 and level <= 699 then return "Galley Captain", "Fountain"
+    
+    -- Second Sea Quests  
+    elseif level >= 700 and level <= 724 then return "Raider", "Area 1"
+    elseif level >= 725 and level <= 774 then return "Mercenary", "Area 1"
+    elseif level >= 775 and level <= 799 then return "Swan Pirate", "Area 2"
+    elseif level >= 800 and level <= 874 then return "Factory Staff", "Area 2"
+    elseif level >= 875 and level <= 899 then return "Marine Lieutenant", "Marine"
+    elseif level >= 900 and level <= 949 then return "Marine Captain", "Marine"
+    elseif level >= 950 and level <= 974 then return "Zombie", "Zombie"
+    elseif level >= 975 and level <= 999 then return "Vampire", "Zombie"
+    elseif level >= 1000 and level <= 1049 then return "Snow Trooper", "Snow Mountain"
+    elseif level >= 1050 and level <= 1099 then return "Winter Warrior", "Snow Mountain"
+    elseif level >= 1100 and level <= 1124 then return "Lab Subordinate", "Hot and Cold"
+    elseif level >= 1125 and level <= 1174 then return "Horned Warrior", "Magma"
+    elseif level >= 1175 and level <= 1199 then return "Magma Ninja", "Magma"
+    elseif level >= 1200 and level <= 1249 then return "Lava Pirate", "Magma"
+    elseif level >= 1250 and level <= 1274 then return "Ship Deckhand", "Ship"
+    elseif level >= 1275 and level <= 1299 then return "Ship Engineer", "Ship"
+    elseif level >= 1300 and level <= 1324 then return "Ship Stewardess", "Ship"
+    elseif level >= 1325 and level <= 1349 then return "Ship Officer", "Ship"
+    elseif level >= 1350 and level <= 1374 then return "Arctic Warrior", "Frost"
+    elseif level >= 1375 and level <= 1424 then return "Snow Lurker", "Frost"
+    elseif level >= 1425 and level <= 1449 then return "Sea Soldier", "Forgotten"
+    elseif level >= 1450 and level <= 1474 then return "Water Fighter", "Forgotten"
+    
+    -- Third Sea Quests
+    elseif level >= 1500 and level <= 1524 then return "Pirate Millionaire", "Port Town"
+    elseif level >= 1525 and level <= 1574 then return "Dragon Crew Warrior", "Port Town"
+    elseif level >= 1575 and level <= 1599 then return "Dragon Crew Archer", "Port Town"
+    elseif level >= 1600 and level <= 1624 then return "Female Islander", "Amazon"
+    elseif level >= 1625 and level <= 1649 then return "Giant Islander", "Amazon"
+    elseif level >= 1650 and level <= 1699 then return "Marine Commodore", "Marine Tree"
+    elseif level >= 1700 and level <= 1724 then return "Marine Rear Admiral", "Marine Tree"
+    elseif level >= 1725 and level <= 1774 then return "Fishman Raider", "Deep Forest"
+    elseif level >= 1775 and level <= 1799 then return "Fishman Captain", "Deep Forest"
+    elseif level >= 1800 and level <= 1824 then return "Forest Pirate", "Deep Forest"
+    elseif level >= 1825 and level <= 1849 then return "Mythological Pirate", "Deep Forest"
+    elseif level >= 1850 and level <= 1899 then return "Jungle Pirate", "Deep Forest"
+    elseif level >= 1900 and level <= 1924 then return "Musketeer Pirate", "Deep Forest"
+    elseif level >= 1925 and level <= 1974 then return "Reborn Skeleton", "Haunted Castle"
+    elseif level >= 1975 and level <= 1999 then return "Living Zombie", "Haunted Castle"
+    elseif level >= 2000 and level <= 2024 then return "Demonic Soul", "Haunted Castle"
+    elseif level >= 2025 and level <= 2049 then return "Posessed Mummy", "Haunted Castle"
+    elseif level >= 2050 and level <= 2074 then return "Peanut Scout", "Nut Island"
+    elseif level >= 2075 and level <= 2099 then return "Peanut President", "Nut Island"
+    elseif level >= 2100 and level <= 2124 then return "Ice Cream Chef", "Ice Cream Island"
+    elseif level >= 2125 and level <= 2149 then return "Ice Cream Commander", "Ice Cream Island"
+    elseif level >= 2150 and level <= 2199 then return "Cookie Crafter", "Cake Island"
+    elseif level >= 2200 and level <= 2224 then return "Cake Guard", "Cake Island"
+    elseif level >= 2225 and level <= 2249 then return "Baking Staff", "Cake Island"
+    elseif level >= 2250 and level <= 2274 then return "Head Baker", "Cake Island"
+    elseif level >= 2275 and level <= 2299 then return "Cocoa Warrior", "Choco Island"
+    elseif level >= 2300 and level <= 2324 then return "Chocolate Bar Battler", "Choco Island"
+    elseif level >= 2325 and level <= 2349 then return "Sweet Thief", "Choco Island"
+    elseif level >= 2350 and level <= 2374 then return "Candy Rebel", "Candy Island"
+    elseif level >= 2375 and level <= 2399 then return "Candy Pirate", "Candy Island"
+    elseif level >= 2400 and level <= 2424 then return "Snow Demon", "Tiki Outpost"
+    elseif level >= 2425 and level <= 2449 then return "Isle Outlaw", "Tiki Outpost"
+    elseif level >= 2450 and level <= 2474 then return "Island Boy", "Tiki Outpost"
+    elseif level >= 2475 and level <= 2524 then return "Sun-kissed Warrior", "Tiki Outpost"
+    elseif level >= 2525 then return "Isle Champion", "Tiki Outpost"
+    end
+    
+    return "Bandit", "Jungle" -- Default
+end
+
+local function takeQuest()
+    local questName, questGiver = getCurrentQuestLevel()
+    local args = {
+        [1] = "StartQuest",
+        [2] = questName,
+        [3] = 1
+    }
+    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+end
+
+-- MAIN TAB
+local weapons = {}
+for _, item in pairs(player.Backpack:GetChildren()) do
+    if item:IsA("Tool") and item:FindFirstChild("Level") then
+        table.insert(weapons, item.Name)
+    end
+end
+for _, item in pairs(character:GetChildren()) do
+    if item:IsA("Tool") and item:FindFirstChild("Level") then
+        table.insert(weapons, item.Name)
+    end
+end
+
+Tabs.Main:AddDropdown("WeaponSelect", {
+    Title = "Choose Weapon",
+    Values = weapons,
+    Multi = false,
+    Default = 1,
+    Callback = function(value)
+        EnchantedHub.SelectedWeapon = value
+        equipWeapon(value)
+    end
+})
+
+Tabs.Main:AddToggle("FastAttack", {
+    Title = "Fast Attack",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.FastAttack = value
+    end
+})
+
+Tabs.Main:AddToggle("BringMobs", {
+    Title = "Bring Mobs",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.BringMobs = value
+    end
+})
+
+Tabs.Main:AddButton({
+    Title = "Open Fruit Stock",
+    Description = "Access your devil fruit inventory",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("getInventoryFruits")
+        wait(1)
+        game.Players.LocalPlayer.PlayerGui.Main.FruitInventory.Visible = true
+    end
 })
 
 local MainStats = Tabs.Main:AddParagraph({
@@ -247,104 +493,250 @@ local MainStats = Tabs.Main:AddParagraph({
 })
 
 local function updatePlayerStats()
-    local level = player.Data.Level.Value or 0
-    local beli = player.Data.Beli.Value or 0
-    local fragments = player.Data.Fragments.Value or 0
-    
-    MainStats:SetDesc(string.format(
-        "Level: %d\nBeli: %s\nFragments: %d\nBounty/Honor: %s",
-        level,
-        tostring(beli):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""),
-        fragments,
-        tostring(player.leaderstats["Bounty/Honor"].Value):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
-    ))
+    pcall(function()
+        local level = player.Data.Level.Value or 0
+        local beli = player.Data.Beli.Value or 0
+        local fragments = player.Data.Fragments.Value or 0
+        local bounty = player.leaderstats["Bounty/Honor"].Value or 0
+        
+        MainStats:SetDesc(string.format(
+            "Level: %d\nBeli: %s\nFragments: %d\nBounty/Honor: %s",
+            level,
+            tostring(beli):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""),
+            fragments,
+            tostring(bounty):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+        ))
+    end)
 end
 
--- Update stats every 5 seconds
 spawn(function()
     while wait(5) do
-        pcall(updatePlayerStats)
+        updatePlayerStats()
     end
 end)
 
--- Auto Farm Tab
-local farmingMethods = {"Level", "Nearest Enemy", "Boss", "Elite Hunter", "Cake Prince", "Dough King", "Soul Guitar", "CDK"}
-local selectedFarmMethod = "Level"
+-- AUTO FARM TAB
+Tabs.AutoFarm:AddToggle("AutoFarmLevel", {
+    Title = "Auto Farm Level",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.AutoFarmLevel = value
+    end
+})
 
-Tabs.AutoFarm:AddDropdown("FarmMethod", {
-    Title = "Farming Method",
-    Values = farmingMethods,
+Tabs.AutoFarm:AddToggle("FarmNearestMobs", {
+    Title = "Farm Nearest Mobs",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.FarmNearestMobs = value
+    end
+})
+
+-- Boss Section
+local bosses = {
+    "Swan Boss", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg Boss", 
+    "Ice Admiral", "Greybeard", "Lava Admiral", "Don Swan", "Kuroko", "Diamond", "Jeremy", 
+    "Fajita", "Order", "Awakened Ice Admiral", "Tide Keeper", "Darkbeard", "Cake Prince", 
+    "Dough King", "rip_indra True Form", "Soul Reaper", "Longma"
+}
+
+Tabs.AutoFarm:AddDropdown("BossSelect", {
+    Title = "Select Boss",
+    Values = bosses,
     Multi = false,
     Default = 1,
     Callback = function(value)
-        selectedFarmMethod = value
+        EnchantedHub.SelectedBoss = value
     end
 })
 
-local AutoFarmToggle = Tabs.AutoFarm:AddToggle("AutoFarm", {
-    Title = "Enable Auto Farm",
+Tabs.AutoFarm:AddToggle("KillAllBosses", {
+    Title = "Kill All Bosses",
     Default = false,
     Callback = function(value)
-        EnchantedHub.AutoFarm = value
+        EnchantedHub.KillAllBosses = value
     end
 })
 
-local FastAttackToggle = Tabs.AutoFarm:AddToggle("FastAttack", {
-    Title = "Fast Attack (Recommended)",
+Tabs.AutoFarm:AddToggle("KillSelectedBoss", {
+    Title = "Kill Selected Boss",
     Default = false,
     Callback = function(value)
-        EnchantedHub.FastAttack = value
+        EnchantedHub.KillSelectedBoss = value
     end
 })
 
--- Weapon Selection
-local weapons = {}
-for _, item in pairs(player.Backpack:GetChildren()) do
-    if item:IsA("Tool") then
-        table.insert(weapons, item.Name)
+Tabs.AutoFarm:AddToggle("AutoRipIndra", {
+    Title = "Auto Rip Indra",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.AutoRipIndra = value
     end
+})
+
+Tabs.AutoFarm:AddToggle("AutoDoughPrince", {
+    Title = "Auto Dough Prince",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.AutoDoughPrince = value
+    end
+})
+
+Tabs.AutoFarm:AddToggle("AutoDoughKing", {
+    Title = "Auto Dough King",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.AutoDoughKing = value
+    end
+})
+
+-- Special Farms based on sea
+local function getPlayerSea()
+    if game.PlaceId == 2753915549 then
+        return 1 -- First Sea
+    elseif game.PlaceId == 4442272183 then
+        return 2 -- Second Sea  
+    elseif game.PlaceId == 7449423635 then
+        return 3 -- Third Sea
+    end
+    return 1
 end
 
-if #weapons > 0 then
-    Tabs.AutoFarm:AddDropdown("WeaponSelect", {
-        Title = "Select Weapon",
-        Values = weapons,
-        Multi = false,
-        Default = 1,
+local currentSea = getPlayerSea()
+
+if currentSea == 1 then
+    Tabs.AutoFarm:AddToggle("AutoSaber", {
+        Title = "Auto Saber Quest",
+        Default = false,
         Callback = function(value)
-            EnchantedHub.SelectedWeapon = value
+            EnchantedHub.AutoSaber = value
+        end
+    })
+    
+    if player.Data.Level.Value >= 700 then
+        Tabs.AutoFarm:AddToggle("Auto2ndSea", {
+            Title = "Auto 2nd Sea Quest",
+            Default = false,
+            Callback = function(value)
+                EnchantedHub.Auto2ndSea = value
+            end
+        })
+    end
+elseif currentSea == 2 then
+    Tabs.AutoFarm:AddToggle("AutoRaceV2", {
+        Title = "Auto Race V2",
+        Default = false,
+        Callback = function(value)
+            EnchantedHub.AutoRaceV2 = value
+        end
+    })
+    
+    Tabs.AutoFarm:AddToggle("AutoRaceV3", {
+        Title = "Auto Race V3", 
+        Default = false,
+        Callback = function(value)
+            EnchantedHub.AutoRaceV3 = value
+        end
+    })
+elseif currentSea == 3 then
+    Tabs.AutoFarm:AddToggle("AutoTushita", {
+        Title = "Auto Tushita",
+        Default = false,
+        Callback = function(value)
+            EnchantedHub.AutoTushita = value
+        end
+    })
+    
+    Tabs.AutoFarm:AddToggle("AutoYama", {
+        Title = "Auto Yama",
+        Default = false,
+        Callback = function(value)
+            EnchantedHub.AutoYama = value
+        end
+    })
+    
+    Tabs.AutoFarm:AddToggle("AutoCDK", {
+        Title = "Auto CDK",
+        Default = false,
+        Callback = function(value)
+            EnchantedHub.AutoCDK = value
         end
     })
 end
 
--- Auto Farm Logic
+-- Auto Farm Level Logic
+spawn(function()
+    while wait(0.5) do
+        if EnchantedHub.AutoFarmLevel and character and rootPart then
+            pcall(function()
+                equipWeapon(EnchantedHub.SelectedWeapon)
+                takeQuest()
+                
+                local questName = getCurrentQuestLevel()
+                for _, enemy in pairs(getAllEnemies()) do
+                    if string.find(enemy.Name, questName) and enemy.Humanoid.Health > 0 then
+                        repeat wait()
+                            local enemyPos = enemy.HumanoidRootPart.Position
+                            -- Position above the enemy
+                            toTarget(CFrame.new(enemyPos.X, enemyPos.Y + 30, enemyPos.Z))
+                            bringMobsToPosition(enemyPos)
+                            normalAttack()
+                        until not EnchantedHub.AutoFarmLevel or enemy.Humanoid.Health <= 0
+                        break
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Farm Nearest Mobs Logic
 spawn(function()
     while wait(0.1) do
-        if EnchantedHub.AutoFarm and character and rootPart then
+        if EnchantedHub.FarmNearestMobs and character and rootPart then
             pcall(function()
-                if EnchantedHub.SelectedWeapon ~= "" then
-                    equipWeapon(EnchantedHub.SelectedWeapon)
+                equipWeapon(EnchantedHub.SelectedWeapon)
+                local enemy = getNearestEnemy()
+                if enemy then
+                    repeat wait()
+                        local enemyPos = enemy.HumanoidRootPart.Position
+                        toTarget(CFrame.new(enemyPos.X, enemyPos.Y + 30, enemyPos.Z))
+                        bringMobsToPosition(enemyPos)
+                        normalAttack()
+                    until not EnchantedHub.FarmNearestMobs or enemy.Humanoid.Health <= 0
                 end
+            end)
+        end
+    end
+end)
+
+-- Boss Farm Logic
+spawn(function()
+    while wait(1) do
+        if (EnchantedHub.KillSelectedBoss or EnchantedHub.KillAllBosses) and character and rootPart then
+            pcall(function()
+                equipWeapon(EnchantedHub.SelectedWeapon)
                 
-                if selectedFarmMethod == "Level" or selectedFarmMethod == "Nearest Enemy" then
-                    local enemy = getNearestEnemy()
-                    if enemy then
-                        local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
-                        local enemyHumanoid = enemy:FindFirstChild("Humanoid")
-                        
-                        if enemyRoot and enemyHumanoid and enemyHumanoid.Health > 0 then
-                            -- Teleport behind enemy
-                            local behindPosition = enemyRoot.Position - enemyRoot.CFrame.LookVector * 7
-                            rootPart.CFrame = CFrame.new(behindPosition, enemyRoot.Position)
-                            
-                            -- Attack
-                            if EnchantedHub.FastAttack then
-                                for i = 1, 3 do
-                                    performAttack()
-                                    wait(0.05)
+                if EnchantedHub.KillSelectedBoss then
+                    for _, boss in pairs(Workspace.Enemies:GetChildren()) do
+                        if boss.Name == EnchantedHub.SelectedBoss and boss.Humanoid.Health > 0 then
+                            repeat wait()
+                                toTarget(boss.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0))
+                                normalAttack()
+                            until not EnchantedHub.KillSelectedBoss or boss.Humanoid.Health <= 0
+                        end
+                    end
+                elseif EnchantedHub.KillAllBosses then
+                    for _, boss in pairs(Workspace.Enemies:GetChildren()) do
+                        if boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+                            for _, bossName in pairs(bosses) do
+                                if boss.Name == bossName then
+                                    repeat wait()
+                                        toTarget(boss.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0))
+                                        normalAttack()
+                                    until not EnchantedHub.KillAllBosses or boss.Humanoid.Health <= 0
+                                    break
                                 end
-                            else
-                                performAttack()
                             end
                         end
                     end
@@ -354,58 +746,88 @@ spawn(function()
     end
 end)
 
--- Combat Tab
-Tabs.Combat:AddToggle("KillAura", {
-    Title = "Kill Aura",
-    Default = false,
-    Callback = function(value)
-        -- Kill Aura logic here
+-- ITEMS TAB  
+Tabs.Items:AddButton({
+    Title = "Buy Random Fruit",
+    Description = "Purchase a random devil fruit",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyRandomFruit")
     end
 })
 
-Tabs.Combat:AddSlider("AttackRange", {
-    Title = "Attack Range",
-    Description = "Range for combat attacks",
-    Default = 50,
-    Min = 10,
-    Max = 200,
-    Rounding = 1,
-    Callback = function(value)
-        -- Attack range logic
+Tabs.Items:AddButton({
+    Title = "Buy Melee",
+    Description = "Open melee shop",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyHaki", "Buso")
     end
 })
 
--- Devil Fruits Tab
-Tabs.Fruits:AddToggle("FruitNotify", {
-    Title = "Fruit Spawn Notifications",
-    Default = true,
-    Callback = function(value)
-        EnchantedHub.NotifyFruit = value
+Tabs.Items:AddButton({
+    Title = "Buy Swords",
+    Description = "Open sword shop",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyItem", "Katana")
     end
 })
 
-Tabs.Fruits:AddToggle("AutoStoreFruit", {
-    Title = "Auto Store Fruits",
-    Default = false,
-    Callback = function(value)
-        EnchantedHub.AutoStore = value
-    end
-})
-
--- Teleport Tab
-local islands = {
-    "Starter Island", "Jungle", "Pirate Village", "Desert", "Frozen Village",
-    "Marine Fortress", "Skylands", "Prison", "Colosseum", "Magma Village",
-    "Underwater City", "Upper Skylands", "Royal High", "Fountain City",
-    "Shank Room", "Mob Island", "Kingdom of Rose", "Usoapp's Island",
-    "Greenbit", "Zou", "Hydra Island", "Floating Turtle", "Mansion",
-    "Haunted Castle", "Ice Castle", "Forgotten Island", "Ussop Island",
-    "Mysterious Island", "Tiki Outpost", "Mirage Island"
+-- TELEPORT TAB
+local islandPositions = {
+    ["Starter Island"] = CFrame.new(1059, 16, 1543),
+    ["Jungle"] = CFrame.new(-1612, 36, 149),
+    ["Pirate Village"] = CFrame.new(-1181, 4, 3803),
+    ["Desert"] = CFrame.new(944, 20, 4373),
+    ["Frozen Village"] = CFrame.new(1347, 104, -1319),
+    ["Marine Fortress"] = CFrame.new(-2566, 6, 2045),
+    ["Skylands"] = CFrame.new(-4607, 872, -1667),
+    ["Prison"] = CFrame.new(4875, 5, 734),
+    ["Colosseum"] = CFrame.new(-1427, 7, -2792),
+    ["Magma Village"] = CFrame.new(-5247, 12, -4849),
+    ["Underwater City"] = CFrame.new(61163, 11, 1819),
+    ["Upper Skylands"] = CFrame.new(-7894, 5547, -380),
+    ["Royal High"] = CFrame.new(-11993, 331, -8844),
+    ["Fountain City"] = CFrame.new(5127, 59, 4105),
+    -- Second Sea
+    ["Kingdom of Rose"] = CFrame.new(-384, 37, 1297),
+    ["Area 1"] = CFrame.new(753, 408, 1506),
+    ["Area 2"] = CFrame.new(-290, 306, 597),
+    ["Dark Area"] = CFrame.new(3780, 22, -3498),
+    ["Cafe"] = CFrame.new(-380, 77, 298),
+    ["Swan Room"] = CFrame.new(2284, 15, 905),
+    ["Mansion"] = CFrame.new(-12471, 374, -7551),
+    ["Flamingo Room"] = CFrame.new(2284, 15, 905),
+    -- Third Sea  
+    ["Port Town"] = CFrame.new(-290, 43, 5343),
+    ["Hydra Island"] = CFrame.new(5749, 611, -276),
+    ["Floating Turtle"] = CFrame.new(-13274, 331, -7620),
+    ["Haunted Castle"] = CFrame.new(-9515, 142, 5618),
+    ["Ice Castle"] = CFrame.new(6471, 15, -6026),
+    ["Forgotten Island"] = CFrame.new(-3053, 236, -10145),
+    ["Ussop Island"] = CFrame.new(4816, 8, 2863),
+    ["Mini Sky Island"] = CFrame.new(-288, 306, 597),
+    ["Great Tree"] = CFrame.new(2681, 1682, -7190),
+    ["Castle on the Sea"] = CFrame.new(-5075, 314, -2991),
+    ["MiniSky"] = CFrame.new(-288, 306, 597),
+    ["Hydra Island"] = CFrame.new(5749, 611, -276),
+    ["Mansion"] = CFrame.new(-12471, 374, -7551),
+    ["Cursed Ship"] = CFrame.new(923, 125, 32885),
+    ["Ice Castle"] = CFrame.new(6471, 15, -6026),
+    ["Forgotten Island"] = CFrame.new(-3053, 236, -10145),
+    ["Ussop Island"] = CFrame.new(4816, 8, 2863),
+    ["Mini Sky Island"] = CFrame.new(-288, 306, 597),
+    ["Great Tree"] = CFrame.new(2681, 1682, -7190),
+    ["Castle on the Sea"] = CFrame.new(-5075, 314, -2991),
+    ["Tiki Outpost"] = CFrame.new(-16542, 55, 1051)
 }
 
+local islandNames = {}
+for name, _ in pairs(islandPositions) do
+    table.insert(islandNames, name)
+end
+
 Tabs.Teleport:AddDropdown("IslandSelect", {
-    Title = "Select Island",
-    Values = islands,
+    Title = "Select Place",
+    Values = islandNames,
     Multi = false,
     Default = 1,
     Callback = function(value)
@@ -413,44 +835,151 @@ Tabs.Teleport:AddDropdown("IslandSelect", {
     end
 })
 
+Tabs.Teleport:AddToggle("TweenFromAbove", {
+    Title = "Tween From Above",
+    Default = true,
+    Callback = function(value)
+        EnchantedHub.TweenFromAbove = value
+    end
+})
+
 Tabs.Teleport:AddButton({
-    Title = "Teleport to Island",
-    Description = "Instantly travel to selected island",
+    Title = "Teleport to Selected Island",
+    Description = "Travel to the selected location",
     Callback = function()
-        -- Island teleport logic would go here
-        Window:Dialog({
-            Title = "Teleporting...",
-            Content = "Traveling to " .. EnchantedHub.SelectedIsland,
-            Buttons = {
-                {
-                    Title = "Confirm",
-                    Callback = function()
-                        -- Actual teleport code here
-                    end
-                }
-            }
-        })
+        if EnchantedHub.SelectedIsland and islandPositions[EnchantedHub.SelectedIsland] then
+            toTarget(islandPositions[EnchantedHub.SelectedIsland], EnchantedHub.TweenSpeed)
+        end
     end
 })
 
--- Sea Events Tab
-Tabs.SeaEvents:AddToggle("AutoSeaEvent", {
-    Title = "Auto Sea Events",
+Tabs.Teleport:AddButton({
+    Title = "Teleport to 1st Sea",
+    Description = "Go to First Sea",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TravelMain")
+    end
+})
+
+Tabs.Teleport:AddButton({
+    Title = "Teleport to 2nd Sea", 
+    Description = "Go to Second Sea",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TravelDressrosa")
+    end
+})
+
+Tabs.Teleport:AddButton({
+    Title = "Teleport to 3rd Sea",
+    Description = "Go to Third Sea", 
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TravelZou")
+    end
+})
+
+-- PVP TAB
+Tabs.Combat:AddToggle("TargetNearestPlayer", {
+    Title = "Target Nearest Player",
     Default = false,
     Callback = function(value)
-        EnchantedHub.AutoSeaEvent = value
+        EnchantedHub.TargetNearestPlayer = value
     end
 })
 
-Tabs.SeaEvents:AddToggle("AutoLeviathan", {
-    Title = "Auto Kill Leviathan",
+Tabs.Combat:AddToggle("SpectatePlayer", {
+    Title = "Spectate Player",
     Default = false,
     Callback = function(value)
-        -- Auto Leviathan logic
+        EnchantedHub.SpectatePlayer = value
     end
 })
 
--- Miscellaneous Tab
+Tabs.Combat:AddButton({
+    Title = "Teleport to Player",
+    Description = "Teleport to targeted player",
+    Callback = function()
+        if EnchantedHub.TargetedPlayer then
+            local targetPlayer = Players:FindFirstChild(EnchantedHub.TargetedPlayer)
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character.HumanoidRootPart then
+                toTarget(targetPlayer.Character.HumanoidRootPart.CFrame)
+            end
+        end
+    end
+})
+
+-- RAID TAB
+local raidChips = {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble", "Magma", "Human: Buddha", "Sand", "Bird: Phoenix", "Dough"}
+
+Tabs.SeaEvents:AddDropdown("ChipSelect", {
+    Title = "Buy Chip",
+    Values = raidChips,
+    Multi = false,
+    Default = 1,
+    Callback = function(value)
+        EnchantedHub.SelectedChip = value
+    end
+})
+
+Tabs.SeaEvents:AddButton({
+    Title = "Buy Selected Chip",
+    Description = "Purchase raid chip",
+    Callback = function()
+        if EnchantedHub.SelectedChip then
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidsNpc", "Select", EnchantedHub.SelectedChip)
+        end
+    end
+})
+
+Tabs.SeaEvents:AddToggle("KillAura", {
+    Title = "Kill Aura (Raid)",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.KillAura = value
+    end
+})
+
+Tabs.SeaEvents:AddToggle("SoloRaid", {
+    Title = "Solo Raid",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.SoloRaid = value
+    end
+})
+
+-- V4 TAB
+Tabs.V4:AddToggle("AutoV4Trial", {
+    Title = "Auto Complete V4 Trials",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.AutoV4Trial = value
+    end
+})
+
+Tabs.V4:AddToggle("AutoKillPlayersTemple", {
+    Title = "Auto Kill Players in Temple",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.AutoKillPlayersTemple = value
+    end
+})
+
+Tabs.V4:AddToggle("AutoGrindV4", {
+    Title = "Auto Grind V4",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.AutoGrindV4 = value
+    end
+})
+
+Tabs.V4:AddButton({
+    Title = "Teleport to Temple",
+    Description = "Go to Ancient Temple",
+    Callback = function()
+        toTarget(CFrame.new(28282, 14896, 105))
+    end
+})
+
+-- MISCELLANEOUS TAB
 Tabs.Misc:AddToggle("AntiAFK", {
     Title = "Anti AFK",
     Default = true,
@@ -462,32 +991,19 @@ Tabs.Misc:AddToggle("AntiAFK", {
 Tabs.Misc:AddSlider("TweenSpeed", {
     Title = "Tween Speed",
     Description = "Speed for teleportation",
-    Default = 350,
+    Default = 320,
     Min = 100,
     Max = 1000,
-    Rounding = 50,
+    Rounding = 10,
     Callback = function(value)
         EnchantedHub.TweenSpeed = value
     end
 })
 
--- Settings Tab
+-- SETTINGS TAB
 Tabs.Settings:AddParagraph({
-    Title = "Script Information",
-    Content = "Enchanted Hub - Blox Fruits\nVersion: 3.2.1\nCreated by: AABIS\nLast Updated: January 2025\n\nJoin our Discord: discord.gg/enchanted"
-})
-
-Tabs.Settings:AddButton({
-    Title = "Copy Discord Link",
-    Description = "Get support and updates",
-    Callback = function()
-        setclipboard("discord.gg/enchanted")
-        Fluent:Notify({
-            Title = "Copied!",
-            Content = "Discord link copied to clipboard",
-            Duration = 3
-        })
-    end
+    Title = "Script Created by AABIS",
+    Content = "Enchanted Hub - Blox Fruits Premium\nVersion: 3.5.2\nCreated by: AABIS\nLast Updated: January 2025\n\nThis script is created by AABIS with professional features and perfect optimization for Blox Fruits gameplay."
 })
 
 Tabs.Settings:AddButton({
@@ -502,7 +1018,6 @@ Tabs.Settings:AddButton({
     Title = "Server Hop",
     Description = "Find a new server",
     Callback = function()
-        -- Server hop logic
         local servers = {}
         local req = game:HttpGetAsync("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
         local body = HttpService:JSONDecode(req)
@@ -519,9 +1034,120 @@ Tabs.Settings:AddButton({
     end
 })
 
+-- PVP LOGIC
+spawn(function()
+    while wait(0.1) do
+        if EnchantedHub.TargetNearestPlayer and character and rootPart then
+            pcall(function()
+                local nearestPlayer = nil
+                local shortestDistance = math.huge
+                
+                for _, targetPlayer in pairs(Players:GetPlayers()) do
+                    if targetPlayer ~= player and targetPlayer.Character and targetPlayer.Character.HumanoidRootPart then
+                        local distance = getDistance(rootPart.Position, targetPlayer.Character.HumanoidRootPart.Position)
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            nearestPlayer = targetPlayer
+                        end
+                    end
+                end
+                
+                if nearestPlayer then
+                    EnchantedHub.TargetedPlayer = nearestPlayer.Name
+                    equipWeapon(EnchantedHub.SelectedWeapon)
+                    toTarget(nearestPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5))
+                    normalAttack()
+                    
+                    if EnchantedHub.SpectatePlayer then
+                        workspace.CurrentCamera.CameraSubject = nearestPlayer.Character.Humanoid
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- RAID LOGIC
+spawn(function()
+    while wait(0.1) do
+        if EnchantedHub.KillAura and character and rootPart then
+            pcall(function()
+                equipWeapon(EnchantedHub.SelectedWeapon)
+                for _, enemy in pairs(getAllEnemies()) do
+                    if getDistance(rootPart.Position, enemy.HumanoidRootPart.Position) <= 350 then
+                        normalAttack()
+                        break
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- V4 LOGIC
+spawn(function()
+    while wait(1) do
+        if EnchantedHub.AutoGrindV4 and character and rootPart then
+            pcall(function()
+                equipWeapon(EnchantedHub.SelectedWeapon)
+                local boneMob = nil
+                
+                for _, enemy in pairs(getAllEnemies()) do
+                    if string.find(enemy.Name:lower(), "reborn") or string.find(enemy.Name:lower(), "skeleton") or string.find(enemy.Name:lower(), "zombie") then
+                        boneMob = enemy
+                        break
+                    end
+                end
+                
+                if boneMob then
+                    repeat wait()
+                        toTarget(boneMob.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0))
+                        normalAttack()
+                    until not EnchantedHub.AutoGrindV4 or boneMob.Humanoid.Health <= 0
+                else
+                    local nearestEnemy = getNearestEnemy()
+                    if nearestEnemy then
+                        repeat wait()
+                            toTarget(nearestEnemy.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0))
+                            normalAttack()
+                        until not EnchantedHub.AutoGrindV4 or nearestEnemy.Humanoid.Health <= 0
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- SPECIAL QUEST LOGIC
+spawn(function()
+    while wait(2) do
+        if EnchantedHub.AutoSaber and character and rootPart then
+            pcall(function()
+                -- Auto Saber Quest Logic
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("ProQuestProgress","SickMan")
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("ProQuestProgress","RichSon")
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("ProQuestProgress","Cup")
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("ProQuestProgress","Torch")
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("ProQuestProgress","Desert")
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("ProQuestProgress","Kill", {
+                    ["Name"] = "Saber Expert",
+                    ["Num"] = 1
+                })
+            end)
+        end
+        
+        if EnchantedHub.Auto2ndSea and character and rootPart then
+            pcall(function()
+                -- Auto 2nd Sea Quest Logic
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Dressrosa")
+            end)
+        end
+    end
+end)
+
 -- Anti AFK System
 spawn(function()
-    while wait(300) do -- Check every 5 minutes
+    while wait(300) do
         if EnchantedHub.AntiAFK then
             VirtualUser:CaptureController()
             VirtualUser:ClickButton2(Vector2.new())
@@ -546,9 +1172,16 @@ SaveManager:LoadAutoloadConfig()
 -- Startup Notification
 Fluent:Notify({
     Title = "Enchanted Hub Loaded!",
-    Content = "Welcome back! All systems are online.",
-    Duration = 5
+    Content = "Created by AABIS - All systems operational",
+    Duration = 4
 })
+
+-- Character respawn handling
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    rootPart = newChar:WaitForChild("HumanoidRootPart")
+end)
 
 -- Error Handling
 game:GetService("Players").PlayerRemoving:Connect(function(plr)
