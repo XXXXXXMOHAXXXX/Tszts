@@ -91,17 +91,33 @@ ImageButton.MouseButton1Click:Connect(function()
     end
 end)
 
+-- Wait for proper loading
+wait(2)
+
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
     Title = "SPACE HUB ULTIMATE - BLOX FRUIT v4.0",
     SubTitle = "Created by MOHA - Enhanced Premium Edition",
-    TabWidth = 125,
-    Size = UDim2.fromOffset(750, 600),
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
     Acrylic = true,
-    Theme = "Aqua",
+    Theme = "Dark",
     MinimizeKey = Enum.KeyCode.LeftControl
 })
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
+    AutoFarm = Window:AddTab({ Title = "Auto Farm", Icon = "zap" }),
+    Raid = Window:AddTab({ Title = "Raid", Icon = "shield" }),
+    V4 = Window:AddTab({ Title = "V4 Awakening", Icon = "star" }),
+    PvP = Window:AddTab({ Title = "PvP", Icon = "sword" }),
+    Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
+    Sea = Window:AddTab({ Title = "Sea", Icon = "anchor" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
 
 -- Services
 local Players = game:GetService("Players")
@@ -123,27 +139,32 @@ local Character = Player.Character
 local Humanoid = Character:WaitForChild("Humanoid")
 local RootPart = Character:WaitForChild("HumanoidRootPart")
 
--- Combat Framework
-local CombatFramework = require(ReplicatedStorage.CombatFramework)
-local CombatFrameworkR = getupvalues(CombatFramework)[2]
-local RigController = require(ReplicatedStorage.CombatFramework.RigLib)
+-- Protect against errors with pcall
+local CombatFramework, CombatFrameworkR, RigController
+pcall(function()
+    CombatFramework = require(ReplicatedStorage.CombatFramework)
+    CombatFrameworkR = getupvalues(CombatFramework)[2]
+    RigController = require(ReplicatedStorage.CombatFramework.RigLib)
+end)
 
 -- Anti-Detection
-local mt = getrawmetatable(game)
-local oldnamecall = mt.__namecall
-setreadonly(mt, false)
-mt.__namecall = newcclosure(function(...)
-    local args = {...}
-    if getnamecallmethod() == "FireServer" then
-        if tostring(args[1]) == "RemoteEvent" then
-            if tostring(args[2]) ~= "true" and tostring(args[2]) ~= "false" then
-                return
+pcall(function()
+    local mt = getrawmetatable(game)
+    local oldnamecall = mt.__namecall
+    setreadonly(mt, false)
+    mt.__namecall = newcclosure(function(...)
+        local args = {...}
+        if getnamecallmethod() == "FireServer" then
+            if tostring(args[1]) == "RemoteEvent" then
+                if tostring(args[2]) ~= "true" and tostring(args[2]) ~= "false" then
+                    return
+                end
             end
         end
-    end
-    return oldnamecall(...)
+        return oldnamecall(...)
+    end)
+    setreadonly(mt, true)
 end)
-setreadonly(mt, true)
 
 -- Global Variables
 _G.AutoFarm = false
@@ -194,23 +215,23 @@ local function GetCurrentSea()
 end
 
 local function GetPlayerLevel()
-    return Player.Data.Level.Value
+    return Player.Data and Player.Data.Level and Player.Data.Level.Value or 1
 end
 
 local function GetPlayerMoney()
-    return Player.Data.Beli.Value
+    return Player.Data and Player.Data.Beli and Player.Data.Beli.Value or 0
 end
 
 local function GetPlayerRace()
-    return Player.Data.Race.Value
+    return Player.Data and Player.Data.Race and Player.Data.Race.Value or "Human"
 end
 
 local function GetPlayerBounty()
-    return Player.leaderstats["Bounty/Honor"].Value
+    return Player.leaderstats and Player.leaderstats["Bounty/Honor"] and Player.leaderstats["Bounty/Honor"].Value or 0
 end
 
 local function GetPlayerFragments()
-    return Player.Data.Fragments.Value
+    return Player.Data and Player.Data.Fragments and Player.Data.Fragments.Value or 0
 end
 
 local function TweenToPosition(position, speed)
@@ -329,20 +350,10 @@ local function BringMobs()
     end
 end
 
--- tabs 
-local MainTab = Window:AddTab({Title = "Main", Icon = "home"})
-local AutoFarmTab = Window:AddTab({Title = "Auto Farm", Icon = "zap"})
-local RaidTab = Window:AddTab({Title = "Raid", Icon = "shield"})
-local V4Tab = Window:AddTab({Title = "V4 Awakening", Icon = "star"})
-local PvPTab = Window:AddTab({Title = "PvP", Icon = "sword"})
-local TeleportTab = Window:AddTab({Title = "Teleport", Icon = "map-pin"})
-local SeaTab = Window:AddTab({Title = "Sea", Icon = "anchor"})
-local SettingsTab = Window:AddTab({Title = "Settings", Icon = "settings"})
-
 -- Main Tab
-local WeaponSection = MainTab:AddSection("Weapon Selection")
+local WeaponSection = Tabs.Main:AddSection("Weapon Selection")
 
-local WeaponDropdown = MainTab:AddDropdown("WeaponDropdown", {
+local WeaponDropdown = Tabs.Main:AddDropdown("WeaponDropdown", {
     Title = "Select Weapon",
     Values = {"Melee", "Sword", "Gun", "Fruit"},
     Multi = false,
@@ -353,9 +364,9 @@ WeaponDropdown:OnChanged(function(Value)
     _G.SelectedWeapon = Value
 end)
 
-local CombatSection = MainTab:AddSection("Combat")
+local CombatSection = Tabs.Main:AddSection("Combat")
 
-local FastAttackToggle = MainTab:AddToggle("FastAttack", {
+local FastAttackToggle = Tabs.Main:AddToggle("FastAttack", {
     Title = "Fast Attack",
     Default = false
 })
@@ -364,7 +375,7 @@ FastAttackToggle:OnChanged(function(Value)
     _G.FastAttack = Value
 end)
 
-local BringMobsToggle = MainTab:AddToggle("BringMobs", {
+local BringMobsToggle = Tabs.Main:AddToggle("BringMobs", {
     Title = "Bring Mobs",
     Default = false
 })
@@ -374,12 +385,12 @@ BringMobsToggle:OnChanged(function(Value)
 end)
 
 -- Sea-based Quests
-local QuestSection = MainTab:AddSection("Sea Quests")
+local QuestSection = Tabs.Main:AddSection("Sea Quests")
 
 local currentSea = GetCurrentSea()
 
 if currentSea == 1 then
-    local AutoSaberToggle = MainTab:AddToggle("AutoSaber", {
+    local AutoSaberToggle = Tabs.Main:AddToggle("AutoSaber", {
         Title = "Auto Saber Quest",
         Default = false
     })
@@ -388,7 +399,7 @@ if currentSea == 1 then
         _G.AutoSaber = Value
     end)
     
-    local AutoSecondSeaToggle = MainTab:AddToggle("AutoSecondSea", {
+    local AutoSecondSeaToggle = Tabs.Main:AddToggle("AutoSecondSea", {
         Title = "Auto Second Sea Quest",
         Default = false
     })
@@ -398,7 +409,7 @@ if currentSea == 1 then
     end)
 
 elseif currentSea == 2 then
-    local AutoRaceV2Toggle = MainTab:AddToggle("AutoRaceV2", {
+    local AutoRaceV2Toggle = Tabs.Main:AddToggle("AutoRaceV2", {
         Title = "Auto Race V2",
         Default = false
     })
@@ -407,7 +418,7 @@ elseif currentSea == 2 then
         _G.AutoRaceV2 = Value
     end)
     
-    local AutoRaceV3Toggle = MainTab:AddToggle("AutoRaceV3", {
+    local AutoRaceV3Toggle = Tabs.Main:AddToggle("AutoRaceV3", {
         Title = "Auto Race V3",
         Default = false
     })
@@ -416,7 +427,7 @@ elseif currentSea == 2 then
         _G.AutoRaceV3 = Value
     end)
     
-    local AutoThirdSeaToggle = MainTab:AddToggle("AutoThirdSea", {
+    local AutoThirdSeaToggle = Tabs.Main:AddToggle("AutoThirdSea", {
         Title = "Auto Third Sea Quest",
         Default = false
     })
@@ -426,7 +437,7 @@ elseif currentSea == 2 then
     end)
 
 elseif currentSea == 3 then
-    local AutoCDKToggle = MainTab:AddToggle("AutoCDK", {
+    local AutoCDKToggle = Tabs.Main:AddToggle("AutoCDK", {
         Title = "Auto CDK",
         Default = false
     })
@@ -435,7 +446,7 @@ elseif currentSea == 3 then
         _G.AutoCDK = Value
     end)
     
-    local AutoYamaToggle = MainTab:AddToggle("AutoYama", {
+    local AutoYamaToggle = Tabs.Main:AddToggle("AutoYama", {
         Title = "Auto Yama",
         Default = false
     })
@@ -444,7 +455,7 @@ elseif currentSea == 3 then
         _G.AutoYama = Value
     end)
     
-    local AutoTushitaToggle = MainTab:AddToggle("AutoTushita", {
+    local AutoTushitaToggle = Tabs.Main:AddToggle("AutoTushita", {
         Title = "Auto Tushita",
         Default = false
     })
@@ -455,24 +466,17 @@ elseif currentSea == 3 then
 end
 
 -- Player Stats Section
-local StatsSection = MainTab:AddSection("Player Stats")
+local StatsSection = Tabs.Main:AddSection("Player Stats")
 
-local StatsLabel = MainTab:AddParagraph({
+local StatsLabel = Tabs.Main:AddParagraph({
     Title = "Player Information",
-    Content = string.format(
-        "Level: %d\nMoney: %d\nFragments: %d\nRace: %s\nBounty: %d",
-        GetPlayerLevel(),
-        GetPlayerMoney(),
-        GetPlayerFragments(),
-        GetPlayerRace(),
-        GetPlayerBounty()
-    )
+    Content = "Loading player stats..."
 })
 
 -- Auto Farm Tab
-local LevelFarmSection = AutoFarmTab:AddSection("Level Farming")
+local LevelFarmSection = Tabs.AutoFarm:AddSection("Level Farming")
 
-local AutoFarmToggle = AutoFarmTab:AddToggle("AutoFarm", {
+local AutoFarmToggle = Tabs.AutoFarm:AddToggle("AutoFarm", {
     Title = "Auto Farm Level (Max: 2650)",
     Default = false
 })
@@ -481,7 +485,7 @@ AutoFarmToggle:OnChanged(function(Value)
     _G.AutoFarm = Value
 end)
 
-local AutoNearestMobsToggle = AutoFarmTab:AddToggle("AutoNearestMobs", {
+local AutoNearestMobsToggle = Tabs.AutoFarm:AddToggle("AutoNearestMobs", {
     Title = "Auto Farm Nearest Mobs",
     Default = false
 })
@@ -490,7 +494,7 @@ AutoNearestMobsToggle:OnChanged(function(Value)
     _G.AutoNearestMobs = Value
 end)
 
-local AutoBonesToggle = AutoFarmTab:AddToggle("AutoBones", {
+local AutoBonesToggle = Tabs.AutoFarm:AddToggle("AutoBones", {
     Title = "Auto Farm Bones",
     Default = false
 })
@@ -500,9 +504,9 @@ AutoBonesToggle:OnChanged(function(Value)
 end)
 
 -- Boss Section
-local BossSection = AutoFarmTab:AddSection("Boss Farming")
+local BossSection = Tabs.AutoFarm:AddSection("Boss Farming")
 
-local AutoAllBossToggle = AutoFarmTab:AddToggle("AutoAllBoss", {
+local AutoAllBossToggle = Tabs.AutoFarm:AddToggle("AutoAllBoss", {
     Title = "Auto Farm All Bosses",
     Default = false
 })
@@ -511,7 +515,7 @@ AutoAllBossToggle:OnChanged(function(Value)
     _G.AutoAllBoss = Value
 end)
 
-local BossDropdown = AutoFarmTab:AddDropdown("BossDropdown", {
+local BossDropdown = Tabs.AutoFarm:AddDropdown("BossDropdown", {
     Title = "Select Boss to Farm",
     Values = {"Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg", "Ice Admiral", "Greybeard"},
     Multi = false,
@@ -522,7 +526,7 @@ BossDropdown:OnChanged(function(Value)
     _G.SelectedBoss = Value
 end)
 
-local AutoSelectedBossToggle = AutoFarmTab:AddToggle("AutoSelectedBoss", {
+local AutoSelectedBossToggle = Tabs.AutoFarm:AddToggle("AutoSelectedBoss", {
     Title = "Auto Farm Selected Boss",
     Default = false
 })
@@ -532,9 +536,9 @@ AutoSelectedBossToggle:OnChanged(function(Value)
 end)
 
 -- Special Bosses
-local SpecialBossSection = AutoFarmTab:AddSection("Special Bosses")
+local SpecialBossSection = Tabs.AutoFarm:AddSection("Special Bosses")
 
-local AutoRipIndraToggle = AutoFarmTab:AddToggle("AutoRipIndra", {
+local AutoRipIndraToggle = Tabs.AutoFarm:AddToggle("AutoRipIndra", {
     Title = "Auto Rip Indra",
     Default = false
 })
@@ -543,7 +547,7 @@ AutoRipIndraToggle:OnChanged(function(Value)
     _G.AutoRipIndra = Value
 end)
 
-local AutoDoughKingToggle = AutoFarmTab:AddToggle("AutoDoughKing", {
+local AutoDoughKingToggle = Tabs.AutoFarm:AddToggle("AutoDoughKing", {
     Title = "Auto Dough King",
     Default = false
 })
@@ -552,7 +556,7 @@ AutoDoughKingToggle:OnChanged(function(Value)
     _G.AutoDoughKing = Value
 end)
 
-local AutoDoughPrinceToggle = AutoFarmTab:AddToggle("AutoDoughPrince", {
+local AutoDoughPrinceToggle = Tabs.AutoFarm:AddToggle("AutoDoughPrince", {
     Title = "Auto Dough Prince",
     Default = false
 })
@@ -562,13 +566,12 @@ AutoDoughPrinceToggle:OnChanged(function(Value)
 end)
 
 -- Raid Tab
-local RaidSection = RaidTab:AddSection("Raid Controls")
+local RaidSection = Tabs.Raid:AddSection("Raid Controls")
 
-local BuyChipButton = RaidTab:AddButton({
+local BuyChipButton = Tabs.Raid:AddButton({
     Title = "Buy Chip",
     Description = "Purchase raid chip",
     Callback = function()
-        -- Buy chip logic
         local args = {
             [1] = "RaidsNpc",
             [2] = "Select",
@@ -578,11 +581,10 @@ local BuyChipButton = RaidTab:AddButton({
     end
 })
 
-local StartRaidButton = RaidTab:AddButton({
+local StartRaidButton = Tabs.Raid:AddButton({
     Title = "Start Raid",
     Description = "Start the raid",
     Callback = function()
-        -- Start raid logic
         local args = {
             [1] = "RaidsNpc",
             [2] = "StartRaid",
@@ -592,7 +594,7 @@ local StartRaidButton = RaidTab:AddButton({
     end
 })
 
-local SoloRaidToggle = RaidTab:AddToggle("SoloRaid", {
+local SoloRaidToggle = Tabs.Raid:AddToggle("SoloRaid", {
     Title = "Solo Raid (Silent Aim)",
     Default = false
 })
@@ -602,9 +604,9 @@ SoloRaidToggle:OnChanged(function(Value)
 end)
 
 -- PvP Tab
-local PvPSection = PvPTab:AddSection("Player Targeting")
+local PvPSection = Tabs.PvP:AddSection("Player Targeting")
 
-local AimNearestPlayerToggle = PvPTab:AddToggle("AimNearestPlayer", {
+local AimNearestPlayerToggle = Tabs.PvP:AddToggle("AimNearestPlayer", {
     Title = "Aim Nearest Player",
     Default = false
 })
@@ -613,7 +615,7 @@ AimNearestPlayerToggle:OnChanged(function(Value)
     _G.AimNearestPlayer = Value
 end)
 
-local SpectateToggle = PvPTab:AddToggle("Spectate", {
+local SpectateToggle = Tabs.PvP:AddToggle("Spectate", {
     Title = "Spectate Player",
     Default = false
 })
@@ -631,32 +633,32 @@ SpectateToggle:OnChanged(function(Value)
 end)
 
 -- Combat Modes
-local CombatSection = PvPTab:AddSection("Combat Modes")
+local CombatSection = Tabs.PvP:AddSection("Combat Modes")
 
-local AimMeleeToggle = PvPTab:AddToggle("AimMelee", {
+local AimMeleeToggle = Tabs.PvP:AddToggle("AimMelee", {
     Title = "Aim Melee Attack",
     Default = false
 })
 
-local AimSwordToggle = PvPTab:AddToggle("AimSword", {
+local AimSwordToggle = Tabs.PvP:AddToggle("AimSword", {
     Title = "Aim Sword Attack",
     Default = false
 })
 
-local AimGunToggle = PvPTab:AddToggle("AimGun", {
+local AimGunToggle = Tabs.PvP:AddToggle("AimGun", {
     Title = "Aim Gun Attack",
     Default = false
 })
 
-local AimFruitToggle = PvPTab:AddToggle("AimFruit", {
+local AimFruitToggle = Tabs.PvP:AddToggle("AimFruit", {
     Title = "Aim Fruit Attack",
     Default = false
 })
 
 -- Skills Section
-local SkillsSection = PvPTab:AddSection("Skills")
+local SkillsSection = Tabs.PvP:AddSection("Skills")
 
-local SkillZToggle = PvPTab:AddToggle("SkillZ", {
+local SkillZToggle = Tabs.PvP:AddToggle("SkillZ", {
     Title = "Skill Z",
     Default = false
 })
@@ -665,7 +667,7 @@ SkillZToggle:OnChanged(function(Value)
     _G.SkillZ = Value
 end)
 
-local SkillXToggle = PvPTab:AddToggle("SkillX", {
+local SkillXToggle = Tabs.PvP:AddToggle("SkillX", {
     Title = "Skill X",
     Default = false
 })
@@ -674,7 +676,7 @@ SkillXToggle:OnChanged(function(Value)
     _G.SkillX = Value
 end)
 
-local SkillCToggle = PvPTab:AddToggle("SkillC", {
+local SkillCToggle = Tabs.PvP:AddToggle("SkillC", {
     Title = "Skill C",
     Default = false
 })
@@ -683,7 +685,7 @@ SkillCToggle:OnChanged(function(Value)
     _G.SkillC = Value
 end)
 
-local SkillVToggle = PvPTab:AddToggle("SkillV", {
+local SkillVToggle = Tabs.PvP:AddToggle("SkillV", {
     Title = "Skill V",
     Default = false
 })
@@ -692,7 +694,7 @@ SkillVToggle:OnChanged(function(Value)
     _G.SkillV = Value
 end)
 
-local SkillFToggle = PvPTab:AddToggle("SkillF", {
+local SkillFToggle = Tabs.PvP:AddToggle("SkillF", {
     Title = "Skill F",
     Default = false
 })
@@ -702,7 +704,7 @@ SkillFToggle:OnChanged(function(Value)
 end)
 
 -- Teleport Tab
-local TeleportSection = TeleportTab:AddSection("Teleport Locations")
+local TeleportSection = Tabs.Teleport:AddSection("Teleport Locations")
 
 -- Sea-specific teleport locations
 local teleportLocations = {}
@@ -727,14 +729,14 @@ elseif currentSea == 3 then
     }
 end
 
-local TeleportDropdown = TeleportTab:AddDropdown("TeleportDropdown", {
+local TeleportDropdown = Tabs.Teleport:AddDropdown("TeleportDropdown", {
     Title = "Select Location",
     Values = teleportLocations,
     Multi = false,
     Default = 1,
 })
 
-local TeleportButton = TeleportTab:AddButton({
+local TeleportButton = Tabs.Teleport:AddButton({
     Title = "Teleport",
     Description = "Teleport to selected location",
     Callback = function()
@@ -744,9 +746,9 @@ local TeleportButton = TeleportTab:AddButton({
 })
 
 -- Sea Tab
-local SeaEventsSection = SeaTab:AddSection("Sea Events")
+local SeaEventsSection = Tabs.Sea:AddSection("Sea Events")
 
-local AutoKitsuneToggle = SeaTab:AddToggle("AutoKitsune", {
+local AutoKitsuneToggle = Tabs.Sea:AddToggle("AutoKitsune", {
     Title = "Auto Kitsune Island",
     Default = false
 })
@@ -755,7 +757,7 @@ AutoKitsuneToggle:OnChanged(function(Value)
     _G.AutoKitsuneIsland = Value
 end)
 
-local AutoAzureToggle = SeaTab:AddToggle("AutoAzure", {
+local AutoAzureToggle = Tabs.Sea:AddToggle("AutoAzure", {
     Title = "Auto Azure Ember",
     Default = false
 })
@@ -765,16 +767,16 @@ AutoAzureToggle:OnChanged(function(Value)
 end)
 
 -- Settings Tab
-local InfoSection = SettingsTab:AddSection("Script Information")
+local InfoSection = Tabs.Settings:AddSection("Script Information")
 
-local ScriptInfo = SettingsTab:AddParagraph({
+local ScriptInfo = Tabs.Settings:AddParagraph({
     Title = "Script Creator",
     Content = "THIS SCRIPT IS CREATED BY MOHA"
 })
 
-local DiscordSection = SettingsTab:AddSection("Discord")
+local DiscordSection = Tabs.Settings:AddSection("Discord")
 
-local DiscordButton = SettingsTab:AddButton({
+local DiscordButton = Tabs.Settings:AddButton({
     Title = "Copy Discord Server Link",
     Description = "Join our Discord community",
     Callback = function()
@@ -788,14 +790,14 @@ local DiscordButton = SettingsTab:AddButton({
 })
 
 -- Settings Section
-local SettingsSection = SettingsTab:AddSection("Settings")
+local SettingsSection = Tabs.Settings:AddSection("Settings")
 
-local AutoSaveToggle = SettingsTab:AddToggle("AutoSave", {
+local AutoSaveToggle = Tabs.Settings:AddToggle("AutoSave", {
     Title = "Auto Save Settings",
     Default = true
 })
 
-local LowGraphicsToggle = SettingsTab:AddToggle("LowGraphics", {
+local LowGraphicsToggle = Tabs.Settings:AddToggle("LowGraphics", {
     Title = "Low Graphics Mode",
     Default = false
 })
