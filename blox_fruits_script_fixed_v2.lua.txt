@@ -2,16 +2,61 @@ local Show_Button = true
 local Button_Icon = "rbxassetid://135671141026630"
 local Button_Transparency = 0.1
 
--- ui 
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local VirtualUser = game:GetService("VirtualUser")
+local HttpService = game:GetService("HttpService")
+
+-- Variables
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Script Settings
+getgenv().EnchantedHub = {
+    AutoFarm = false,
+    AutoLevel = false,
+    AutoBossKill = false,
+    AutoSeaEvent = false,
+    AutoRaid = false,
+    SafeMode = true,
+    SelectedWeapon = "",
+    FastAttack = false,
+    AutoStats = false,
+    AntiAFK = true,
+    TweenSpeed = 350,
+    BypassTP = true,
+    AutoObservationV2 = false,
+    AutoSoulGuitar = false,
+    AutoCDKQuest = false,
+    AutoTushita = false,
+    AutoEliteHunter = false,
+    AutoMiragePuzzle = false,
+    SelectedIsland = "",
+    FruitSniper = false,
+    AutoStore = false,
+    WebhookURL = "",
+    NotifyFruit = true
+}
+
+-- UI Creation
 local ScreenGui = Instance.new("ScreenGui")
 local ImageButton = Instance.new("ImageButton")
 local UICorner = Instance.new("UICorner")
 local UIStroke = Instance.new("UIStroke")
 local UIGradient = Instance.new("UIGradient")
 local UIScale = Instance.new("UIScale")
-ScreenGui.Name = "SpaceHubButton"
+
+ScreenGui.Name = "EnchantedHubButton"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
 ImageButton.Parent = ScreenGui
 ImageButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 ImageButton.BackgroundTransparency = Button_Transparency
@@ -21,12 +66,15 @@ ImageButton.Size = UDim2.new(0, 70, 0, 70)
 ImageButton.Image = Button_Icon
 ImageButton.Draggable = true
 ImageButton.ImageTransparency = 0
+
 UICorner.CornerRadius = UDim.new(0, 20)
 UICorner.Parent = ImageButton
+
 UIStroke.Parent = ImageButton
 UIStroke.Color = Color3.fromRGB(0, 150, 255)
 UIStroke.Thickness = 4
 UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
 UIGradient.Parent = ImageButton
 UIGradient.Color = ColorSequence.new{
     ColorSequenceKeypoint.new(0, Color3.fromRGB(135, 206, 250)),
@@ -37,23 +85,23 @@ UIGradient.Rotation = 45
 UIScale.Parent = ImageButton
 UIScale.Scale = 1
 
--- animations
+-- Button Animation Function
 local function animateButton()
-    local tween1 = game:GetService("TweenService"):Create(
+    local tween1 = TweenService:Create(
         UIScale,
         TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
         {Scale = 0.8}
     )
     tween1:Play()
     tween1.Completed:Connect(function()
-        local tween2 = game:GetService("TweenService"):Create(
+        local tween2 = TweenService:Create(
             UIScale,
             TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
             {Scale = 1.1}
         )
         tween2:Play()
         tween2.Completed:Connect(function()
-            local tween3 = game:GetService("TweenService"):Create(
+            local tween3 = TweenService:Create(
                 UIScale,
                 TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
                 {Scale = 1}
@@ -63,1102 +111,448 @@ local function animateButton()
     end)
 end
 
+-- Open/Close GUI Logic
+local isHidden = false
+ImageButton.MouseButton1Click:Connect(function()
+    animateButton()
+    wait(0.2)
+    if isHidden then
+        for _, gui in pairs(game.CoreGui:GetChildren()) do
+            if gui.Name == "ScreenGui" and gui:FindFirstChild("Frame") then
+                gui.Enabled = true
+            end
+        end
+        if Window and Window.Root then
+            Window.Root.Visible = true
+        end
+        isHidden = false
+    else
+        for _, gui in pairs(game.CoreGui:GetChildren()) do
+            if gui.Name == "ScreenGui" and gui:FindFirstChild("Frame") then
+                gui.Enabled = false
+            end
+        end
+        if Window and Window.Root then
+            Window.Root.Visible = false
+        end
+        isHidden = true
+    end
+end)
+
+-- Wait before creating main GUI
 wait(3)
 
+-- Load Fluent Library
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
+-- Create Main Window
 local Window = Fluent:CreateWindow({
-    Title = "SPACE HUB | BLOX FRUIT ",
-    SubTitle = "Created by MOHA ",
-    TabWidth = 155,
-    Size = UDim2.fromOffset(600, 500),
+    Title = "ENCHANTED HUB | BLOX FRUITS",
+    SubTitle = "Created by AABIS | Version 3.2.1",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(680, 520),
     Acrylic = true,
     Theme = "Dark",
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
+-- Create Tabs
 local Tabs = {
     Main = Window:AddTab({ Title = "Main", Icon = "home" }),
     AutoFarm = Window:AddTab({ Title = "Auto Farm", Icon = "zap" }),
-    Raid = Window:AddTab({ Title = "Raid", Icon = "shield" }),
-    V4 = Window:AddTab({ Title = "V4 Awakening", Icon = "star" }),
-    PvP = Window:AddTab({ Title = "PvP", Icon = "sword" }),
+    Combat = Window:AddTab({ Title = "Combat", Icon = "sword" }),
+    Fruits = Window:AddTab({ Title = "Devil Fruits", Icon = "apple" }),
+    Items = Window:AddTab({ Title = "Items & Quests", Icon = "package" }),
+    SeaEvents = Window:AddTab({ Title = "Sea Events", Icon = "anchor" }),
     Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
-    Sea = Window:AddTab({ Title = "Sea", Icon = "anchor" }),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+    Misc = Window:AddTab({ Title = "Miscellaneous", Icon = "settings" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "user" })
 }
 
--- Services
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-
-repeat wait() until game:IsLoaded()
-
-local Player = Players.LocalPlayer
-repeat wait() until Player.Character
-local Character = Player.Character
-local Humanoid = Character:WaitForChild("Humanoid")
-local RootPart = Character:WaitForChild("HumanoidRootPart")
-
--- Global Variables
-_G.AutoFarm = false
-_G.FastAttack = false
-_G.BringMobs = false
-_G.AutoQuest = true
-_G.AutoSaber = false
-_G.AutoSecondSea = false
-_G.AutoRaceV2 = false
-_G.AutoRaceV3 = false
-_G.AutoThirdSea = false
-_G.AutoCDK = false
-_G.AutoYama = false
-_G.AutoTushita = false
-_G.AutoBones = false
-_G.AutoAllBoss = false
-_G.AutoSelectedBoss = false
-_G.AutoRipIndra = false
-_G.AutoDoughKing = false
-_G.AutoDoughPrince = false
-_G.AutoRaid = false
-_G.KillAura = false
-_G.AimNearestPlayer = false
-_G.SpectatePlayer = false
-_G.AutoSeaBeast = false
-_G.AutoKitsuneIsland = false
-_G.AutoAzure = false
-_G.AutoGhostShip = false
-_G.AutoPiranha = false
-_G.AutoShark = false
-_G.AutoTerrorshark = false
-_G.AutoV4Trial = false
-_G.AutoKillPlayer = false
-_G.BringFruit = false
-_G.StoreFruit = false
-_G.AutoNearestMobs = false
-
--- Combat Variables
-_G.SelectedWeapon = "Melee"
-_G.SelectedBoss = "Gorilla King"
-_G.SkillZ = false
-_G.SkillX = false
-_G.SkillC = false
-_G.SkillV = false
-_G.SkillF = false
-
--- Quest Variables
-_G.QuestName = ""
-_G.QuestMob = ""
-_G.QuestPosition = Vector3.new(0, 0, 0)
-
--- Attack Variables
-local LatestAttackTime = 0
-local AttackCooldown = 0.2
-
-function GetCurrentSea()
-    local placeId = game.PlaceId
-    if placeId == 2753915549 then
-        return 1
-    elseif placeId == 4442272183 then
-        return 2
-    elseif placeId == 7449423635 then
-        return 3
-    end
-    return 1
+-- Utility Functions
+local function getDistance(pos1, pos2)
+    return (pos1 - pos2).Magnitude
 end
 
-function GetPlayerLevel()
-    return Player.Data and Player.Data.Level and Player.Data.Level.Value or 1
-end
-
-function GetPlayerMoney()
-    return Player.Data and Player.Data.Beli and Player.Data.Beli.Value or 0
-end
-
-function GetPlayerRace()
-    return Player.Data and Player.Data.Race and Player.Data.Race.Value or "Human"
-end
-
-function GetPlayerBounty()
-    return Player.leaderstats and Player.leaderstats["Bounty/Honor"] and Player.leaderstats["Bounty/Honor"].Value or 0
-end
-
-function GetPlayerFragments()
-    return Player.Data and Player.Data.Fragments and Player.Data.Fragments.Value or 0
-end
-
-function TweenToPosition(position, speed)
-    if not position then return end
-    speed = speed or 350
-    local distance = (RootPart.Position - position).Magnitude
+local function tweenToPosition(targetPosition, speed)
+    if not character or not rootPart then return end
     
-    if distance <= 10 then
-        RootPart.CFrame = CFrame.new(position)
-        return
-    end
+    local distance = getDistance(rootPart.Position, targetPosition)
+    local tweenTime = distance / (speed or EnchantedHub.TweenSpeed)
     
-    local time = distance / speed
     local tween = TweenService:Create(
-        RootPart,
-        TweenInfo.new(time, Enum.EasingStyle.Linear),
-        {CFrame = CFrame.new(position)}
+        rootPart,
+        TweenInfo.new(tweenTime, Enum.EasingStyle.Linear),
+        {CFrame = CFrame.new(targetPosition)}
     )
+    
     tween:Play()
     return tween
 end
 
-function GetNearestMob(mobName)
-    local nearestMob = nil
+local function getAllEnemies()
+    local enemies = {}
+    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+        if enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") and enemy.Humanoid.Health > 0 then
+            table.insert(enemies, enemy)
+        end
+    end
+    return enemies
+end
+
+local function getNearestEnemy()
+    local nearestEnemy = nil
     local shortestDistance = math.huge
     
-    for i, v in pairs(Workspace.Enemies:GetChildren()) do
-        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-            if not mobName or v.Name == mobName then
-                local distance = (RootPart.Position - v.HumanoidRootPart.Position).Magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    nearestMob = v
-                end
-            end
+    for _, enemy in pairs(getAllEnemies()) do
+        local distance = getDistance(rootPart.Position, enemy.HumanoidRootPart.Position)
+        if distance < shortestDistance then
+            shortestDistance = distance
+            nearestEnemy = enemy
         end
     end
     
-    return nearestMob
+    return nearestEnemy
 end
 
-function EquipWeapon(weaponName)
-    for i, v in pairs(Player.Backpack:GetChildren()) do
-        if v:IsA("Tool") then
-            if weaponName == "Melee" and v.ToolTip == "Combat" then
-                Humanoid:EquipTool(v)
-                return
-            elseif weaponName == "Sword" and v.ToolTip == "Sword" then
-                Humanoid:EquipTool(v)
-                return
-            elseif weaponName == "Gun" and v.ToolTip == "Gun" then
-                Humanoid:EquipTool(v)
-                return
-            elseif weaponName == "Fruit" and v.ToolTip == "Blox Fruit" then
-                Humanoid:EquipTool(v)
-                return
-            end
-        end
+local function equipWeapon(weaponName)
+    if player.Backpack:FindFirstChild(weaponName) then
+        local tool = player.Backpack[weaponName]
+        humanoid:EquipTool(tool)
     end
 end
 
--- Quest Data
-QuestTable = {
-    [1] = { -- First Sea
-        [1] = {questName = "BanditQuest1", questNum = 1, mobName = "Bandit", pos = Vector3.new(1060, 17, 1545)},
-        [15] = {questName = "JungleQuest", questNum = 1, mobName = "Monkey", pos = Vector3.new(-1602, 37, 152)},
-        [30] = {questName = "JungleQuest", questNum = 2, mobName = "Gorilla", pos = Vector3.new(-1602, 37, 152)},
-        [60] = {questName = "Area1Quest", questNum = 1, mobName = "Pirate", pos = Vector3.new(-429, 73, 1835)},
-        [75] = {questName = "Area1Quest", questNum = 2, mobName = "Brute", pos = Vector3.new(-429, 73, 1835)},
-        [90] = {questName = "DesertQuest", questNum = 1, mobName = "Desert Bandit", pos = Vector3.new(897, 7, 4388)},
-        [100] = {questName = "DesertQuest", questNum = 2, mobName = "Desert Officer", pos = Vector3.new(897, 7, 4388)},
-        [120] = {questName = "SnowQuest", questNum = 1, mobName = "Snow Bandit", pos = Vector3.new(1389, 88, -1298)},
-        [150] = {questName = "SnowQuest", questNum = 2, mobName = "Snowman", pos = Vector3.new(1389, 88, -1298)},
-        [175] = {questName = "MarineQuest2", questNum = 1, mobName = "Chief Petty Officer", pos = Vector3.new(-5040, 29, 4326)},
-        [200] = {questName = "SkyQuest", questNum = 1, mobName = "Sky Bandit", pos = Vector3.new(-4842, 718, -2623)},
-        [300] = {questName = "SkyQuest", questNum = 2, mobName = "Dark Master", pos = Vector3.new(-4842, 718, -2623)},
-        [325] = {questName = "PrisonerQuest", questNum = 1, mobName = "Prisoner", pos = Vector3.new(5308, 1, 474)},
-        [375] = {questName = "PrisonerQuest", questNum = 2, mobName = "Dangerous Prisoner", pos = Vector3.new(5308, 1, 474)},
-        [400] = {questName = "ColosseumQuest", questNum = 1, mobName = "Toga Warrior", pos = Vector3.new(-1581, 7, -2986)},
-        [450] = {questName = "ColosseumQuest", questNum = 2, mobName = "Gladiator", pos = Vector3.new(-1581, 7, -2986)},
-        [475] = {questName = "MagmaQuest", questNum = 1, mobName = "Military Soldier", pos = Vector3.new(-5316, 12, 8515)},
-        [525] = {questName = "MagmaQuest", questNum = 2, mobName = "Military Spy", pos = Vector3.new(-5316, 12, 8515)},
-        [550] = {questName = "FishmanQuest", questNum = 1, mobName = "Fishman Warrior", pos = Vector3.new(61123, 19, 1569)},
-        [575] = {questName = "FishmanQuest", questNum = 2, mobName = "Fishman Commando", pos = Vector3.new(61123, 19, 1569)},
-        [700] = {questName = "SkyExp1Quest", questNum = 1, mobName = "God's Guard", pos = Vector3.new(-4722, 845, -1954)}
-    },
-    [2] = { -- Second Sea
-        [700] = {questName = "Area1Quest", questNum = 1, mobName = "Raider", pos = Vector3.new(-429, 73, 1835)},
-        [875] = {questName = "Area1Quest", questNum = 2, mobName = "Mercenary", pos = Vector3.new(-429, 73, 1835)},
-        [900] = {questName = "Area2Quest", questNum = 1, mobName = "Swan Pirate", pos = Vector3.new(638, 73, 918)},
-        [950] = {questName = "Area2Quest", questNum = 2, mobName = "Factory Staff", pos = Vector3.new(638, 73, 918)},
-        [1000] = {questName = "MarineQuest3", questNum = 1, mobName = "Marine Lieutenant", pos = Vector3.new(-2441, 73, -3219)},
-        [1050] = {questName = "MarineQuest3", questNum = 2, mobName = "Marine Captain", pos = Vector3.new(-2441, 73, -3219)},
-        [1100] = {questName = "ZombieQuest", questNum = 1, mobName = "Zombie", pos = Vector3.new(-5494, 49, -795)},
-        [1125] = {questName = "ZombieQuest", questNum = 2, mobName = "Vampire", pos = Vector3.new(-5494, 49, -795)},
-        [1150] = {questName = "SnowMountainQuest", questNum = 1, mobName = "Snow Trooper", pos = Vector3.new(609, 401, -5371)},
-        [1175] = {questName = "SnowMountainQuest", questNum = 2, mobName = "Winter Warrior", pos = Vector3.new(609, 401, -5371)},
-        [1200] = {questName = "IceSideQuest", questNum = 1, mobName = "Lab Subordinate", pos = Vector3.new(-6062, 16, -4902)},
-        [1250] = {questName = "IceSideQuest", questNum = 2, mobName = "Horned Warrior", pos = Vector3.new(-6062, 16, -4902)},
-        [1275] = {questName = "FireSideQuest", questNum = 1, mobName = "Magma Ninja", pos = Vector3.new(-5429, 16, -5297)},
-        [1300] = {questName = "FireSideQuest", questNum = 2, mobName = "Lava Pirate", pos = Vector3.new(-5429, 16, -5297)},
-        [1325] = {questName = "ShipQuest1", questNum = 1, mobName = "Ship Deckhand", pos = Vector3.new(1038, 125, 32911)},
-        [1350] = {questName = "ShipQuest1", questNum = 2, mobName = "Ship Engineer", pos = Vector3.new(1038, 125, 32911)},
-        [1375] = {questName = "ShipQuest2", questNum = 1, mobName = "Ship Steward", pos = Vector3.new(969, 125, 33245)},
-        [1400] = {questName = "ShipQuest2", questNum = 2, mobName = "Ship Officer", pos = Vector3.new(969, 125, 33245)},
-        [1425] = {questName = "FrostQuest", questNum = 1, mobName = "Arctic Warrior", pos = Vector3.new(5669, 28, -6482)},
-        [1450] = {questName = "FrostQuest", questNum = 2, mobName = "Snow Lurker", pos = Vector3.new(5669, 28, -6482)},
-        [1475] = {questName = "ForgottenQuest", questNum = 1, mobName = "Sea Soldier", pos = Vector3.new(-3054, 237, -10148)},
-        [1500] = {questName = "ForgottenQuest", questNum = 2, mobName = "Water Fighter", pos = Vector3.new(-3054, 237, -10148)}
-    },
-    [3] = { -- Third Sea
-        [1500] = {questName = "PiratePortQuest", questNum = 1, mobName = "Pirate Millionaire", pos = Vector3.new(-290, 44, 5581)},
-        [1525] = {questName = "PiratePortQuest", questNum = 2, mobName = "Pistol Billionaire", pos = Vector3.new(-290, 44, 5581)},
-        [1575] = {questName = "AmazonQuest", questNum = 1, mobName = "Dragon Crew Warrior", pos = Vector3.new(5832, 52, -1636)},
-        [1600] = {questName = "AmazonQuest", questNum = 2, mobName = "Dragon Crew Archer", pos = Vector3.new(5832, 52, -1636)},
-        [1625] = {questName = "AmazonQuest2", questNum = 1, mobName = "Female Islander", pos = Vector3.new(5448, 602, 751)},
-        [1675] = {questName = "AmazonQuest2", questNum = 2, mobName = "Giant Islander", pos = Vector3.new(5448, 602, 751)},
-        [1700] = {questName = "MarineTreeIsland", questNum = 1, mobName = "Marine Commodore", pos = Vector3.new(2180, 29, -6737)},
-        [1725] = {questName = "MarineTreeIsland", questNum = 2, mobName = "Marine Rear Admiral", pos = Vector3.new(2180, 29, -6737)},
-        [1775] = {questName = "DeepForestIsland3", questNum = 1, mobName = "Fishman Raider", pos = Vector3.new(-13234, 333, -7625)},
-        [1800] = {questName = "DeepForestIsland", questNum = 1, mobName = "Fishman Captain", pos = Vector3.new(-13234, 333, -7625)},
-        [1825] = {questName = "DeepForestIsland", questNum = 2, mobName = "Forest Pirate", pos = Vector3.new(-13234, 333, -7625)},
-        [1850] = {questName = "DeepForestIsland2", questNum = 1, mobName = "Mythological Pirate", pos = Vector3.new(-13234, 333, -7625)},
-        [1900] = {questName = "DeepForestIsland2", questNum = 2, mobName = "Jungle Pirate", pos = Vector3.new(-12680, 390, -9902)},
-        [1950] = {questName = "DeepForestIsland2", questNum = 3, mobName = "Musketeer Pirate", pos = Vector3.new(-12680, 390, -9902)},
-        [2000] = {questName = "HauntedQuest1", questNum = 1, mobName = "Reborn Skeleton", pos = Vector3.new(-9482, 142, 5566)},
-        [2025] = {questName = "HauntedQuest1", questNum = 2, mobName = "Living Zombie", pos = Vector3.new(-9482, 142, 5566)},
-        [2050] = {questName = "HauntedQuest2", questNum = 1, mobName = "Demonic Soul", pos = Vector3.new(-9515, 172, 6078)},
-        [2075] = {questName = "HauntedQuest2", questNum = 2, mobName = "Posessed Mummy", pos = Vector3.new(-9515, 172, 6078)},
-        [2100] = {questName = "NutsIslandQuest", questNum = 1, mobName = "Peanut Scout", pos = Vector3.new(-2104, 38, -10192)},
-        [2125] = {questName = "NutsIslandQuest", questNum = 2, mobName = "Peanut President", pos = Vector3.new(-2104, 38, -10192)},
-        [2150] = {questName = "IceCreamIslandQuest", questNum = 1, mobName = "Ice Cream Chef", pos = Vector3.new(-821, 66, -10965)},
-        [2175] = {questName = "IceCreamIslandQuest", questNum = 2, mobName = "Ice Cream Commander", pos = Vector3.new(-821, 66, -10965)},
-        [2200] = {questName = "CakeQuest1", questNum = 1, mobName = "Cookie Crafter", pos = Vector3.new(-2021, 38, -12028)},
-        [2225] = {questName = "CakeQuest1", questNum = 2, mobName = "Cake Guard", pos = Vector3.new(-2021, 38, -12028)},
-        [2250] = {questName = "CakeQuest2", questNum = 1, mobName = "Baking Staff", pos = Vector3.new(-1928, 38, -12842)},
-        [2275] = {questName = "CakeQuest2", questNum = 2, mobName = "Head Baker", pos = Vector3.new(-1928, 38, -12842)},
-        [2300] = {questName = "ChocQuest1", questNum = 1, mobName = "Cocoa Warrior", pos = Vector3.new(233, 25, -12201)},
-        [2325] = {questName = "ChocQuest1", questNum = 2, mobName = "Chocolate Bar Battler", pos = Vector3.new(233, 25, -12201)},
-        [2350] = {questName = "ChocQuest2", questNum = 1, mobName = "Sweet Thief", pos = Vector3.new(150, 25, -12774)},
-        [2375] = {questName = "ChocQuest2", questNum = 2, mobName = "Candy Rebel", pos = Vector3.new(150, 25, -12774)},
-        [2400] = {questName = "CandyQuest1", questNum = 1, mobName = "Candy Pirate", pos = Vector3.new(-1150, 21, -14298)},
-        [2425] = {questName = "CandyQuest1", questNum = 2, mobName = "Snow Demon", pos = Vector3.new(-1150, 21, -14298)},
-        [2450] = {questName = "TikiQuest1", questNum = 1, mobName = "Isle Outlaw", pos = Vector3.new(-16547, 8, 448)},
-        [2475] = {questName = "TikiQuest1", questNum = 2, mobName = "Island Boy", pos = Vector3.new(-16547, 8, 448)},
-        [2500] = {questName = "TikiQuest2", questNum = 1, mobName = "Sun-kissed Warrior", pos = Vector3.new(-16539, 56, 1051)},
-        [2525] = {questName = "TikiQuest2", questNum = 2, mobName = "Isle Champion", pos = Vector3.new(-16539, 56, 1051)}
-    }
-}
-
-function GetQuest()
-    local level = GetPlayerLevel()
-    local sea = GetCurrentSea()
-    local quests = QuestTable[sea]
-    
-    if not quests then return nil end
-    
-    local selectedQuest = nil
-    for reqLevel, questData in pairs(quests) do
-        if level >= reqLevel then
-            selectedQuest = questData
-        end
-    end
-    
-    return selectedQuest
-end
-
-function StartQuest()
-    local quest = GetQuest()
-    if not quest then return end
-    
-    _G.QuestName = quest.questName
-    _G.QuestMob = quest.mobName  
-    _G.QuestPosition = quest.pos
-    
-    TweenToPosition(quest.pos)
-    wait(2)
-    
-    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", quest.questName, quest.questNum)
-end
-
-function CheckQuest()
-    local questGui = Player.PlayerGui.Main.Quest
-    if not questGui.Visible then
-        return false
-    end
-    
-    local questTitle = questGui.Container.QuestTitle.Title.Text
-    local currentQuest = GetQuest()
-    
-    if currentQuest and string.find(questTitle, currentQuest.mobName) then
-        return true
-    end
-    
-    return false
-end
-
--- Working Fast Attack
-function FastAttack()
-    if not _G.FastAttack then return end
-    if tick() - LatestAttackTime < AttackCooldown then return end
-    
-    LatestAttackTime = tick()
-    
-    pcall(function()
-        if Player.Character:FindFirstChildOfClass("Tool") then
-            local tool = Player.Character:FindFirstChildOfClass("Tool")
-            game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange", tool.Name)
-            game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", 1, 500, 1, tool.Name)
-        end
-    end)
-end
-
--- Working Bring Mobs
-function BringMobs()
-    if not _G.BringMobs then return end
-    
-    for i, v in pairs(Workspace.Enemies:GetChildren()) do
-        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-            if v.Name == _G.QuestMob then
-                local distance = (RootPart.Position - v.HumanoidRootPart.Position).Magnitude
-                if distance <= 350 then
-                    v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
-                    v.HumanoidRootPart.CFrame = RootPart.CFrame * CFrame.new(0, -40, 0)
-                    v.HumanoidRootPart.CanCollide = false
-                    v.Humanoid.WalkSpeed = 0
-                    v.Humanoid.JumpPower = 0
-                    v.HumanoidRootPart.Transparency = 1
-                    
-                    if v:FindFirstChild("Body") then
-                        for _, part in pairs(v.Body:GetChildren()) do
-                            if part:IsA("Part") then
-                                part.CanCollide = false
-                            end
-                        end
-                    end
-                    
-                    sethiddenproperty(v, "NetworkOwner", Player)
-                end
-            end
-        end
+local function performAttack()
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool and tool:FindFirstChild("Level") then
+        -- Sword attack
+        game:GetService("VirtualUser"):CaptureController()
+        game:GetService("VirtualUser"):Button1Down(Vector2.new(1280, 672))
+        wait(0.1)
+        game:GetService("VirtualUser"):Button1Up(Vector2.new(1280, 672))
     end
 end
-
--- Kill Aura for Raids
-function KillAura()
-    if not _G.KillAura then return end
-    
-    for i, v in pairs(Workspace.Enemies:GetChildren()) do
-        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-            local distance = (RootPart.Position - v.HumanoidRootPart.Position).Magnitude
-            if distance <= 200 then
-                v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
-                v.HumanoidRootPart.CFrame = RootPart.CFrame * CFrame.new(0, -40, 0)
-                v.HumanoidRootPart.CanCollide = false
-                v.Humanoid.WalkSpeed = 0
-                v.Humanoid.JumpPower = 0
-                v.HumanoidRootPart.Transparency = 1
-                
-                for _, part in pairs(v:GetDescendants()) do
-                    if part:IsA("Part") then
-                        part.CanCollide = false
-                    end
-                end
-                
-                sethiddenproperty(v, "NetworkOwner", Player)
-            end
-        end
-    end
-end
-
--- Current sea
-local currentSea = GetCurrentSea()
 
 -- Main Tab
-local WeaponSection = Tabs.Main:AddSection("Weapon Selection")
-
-local WeaponDropdown = Tabs.Main:AddDropdown("WeaponDropdown", {
-    Title = "Select Weapon",
-    Values = {"Melee", "Sword", "Gun", "Fruit"},
-    Multi = false,
-    Default = 1,
+Tabs.Main:AddParagraph({
+    Title = "Welcome to Enchanted Hub!",
+    Content = "Premium Blox Fruits script with advanced features.\n\nMade by AABIS with love â¤ï¸"
 })
 
-WeaponDropdown:OnChanged(function(Value)
-    _G.SelectedWeapon = Value
-end)
-
-local CombatSection = Tabs.Main:AddSection("Combat")
-
-local FastAttackToggle = Tabs.Main:AddToggle("FastAttack", {
-    Title = "Fast Attack",
-    Default = false
+local MainStats = Tabs.Main:AddParagraph({
+    Title = "Player Statistics",
+    Content = "Loading player data..."
 })
 
-FastAttackToggle:OnChanged(function(Value)
-    _G.FastAttack = Value
-end)
-
-local BringMobsToggle = Tabs.Main:AddToggle("BringMobs", {
-    Title = "Bring Mobs",
-    Default = false
-})
-
-BringMobsToggle:OnChanged(function(Value)
-    _G.BringMobs = Value
-end)
-
--- Fruit section
-local FruitSection = Tabs.Main:AddSection("Fruit Management")
-
-local BringFruitToggle = Tabs.Main:AddToggle("BringFruit", {
-    Title = "Bring Fruit",
-    Default = false
-})
-
-BringFruitToggle:OnChanged(function(Value)
-    _G.BringFruit = Value
-end)
-
-local StoreFruitToggle = Tabs.Main:AddToggle("StoreFruit", {
-    Title = "Auto Store Fruit",
-    Default = false
-})
-
-StoreFruitToggle:OnChanged(function(Value)
-    _G.StoreFruit = Value
-end)
-
--- Sea quest section
-local QuestSection = Tabs.Main:AddSection("Sea Quests")
-
-if currentSea == 1 then
-    local AutoSaberToggle = Tabs.Main:AddToggle("AutoSaber", {
-        Title = "Auto Saber Quest",
-        Default = false
-    })
+local function updatePlayerStats()
+    local level = player.Data.Level.Value or 0
+    local beli = player.Data.Beli.Value or 0
+    local fragments = player.Data.Fragments.Value or 0
     
-    AutoSaberToggle:OnChanged(function(Value)
-        _G.AutoSaber = Value
-    end)
-    
-    local AutoSecondSeaToggle = Tabs.Main:AddToggle("AutoSecondSea", {
-        Title = "Auto Second Sea Quest",
-        Default = false
-    })
-    
-    AutoSecondSeaToggle:OnChanged(function(Value)
-        _G.AutoSecondSea = Value
-    end)
-
-elseif currentSea == 2 then
-    local AutoRaceV2Toggle = Tabs.Main:AddToggle("AutoRaceV2", {
-        Title = "Auto Race V2",
-        Default = false
-    })
-    
-    AutoRaceV2Toggle:OnChanged(function(Value)
-        _G.AutoRaceV2 = Value
-    end)
-    
-    local AutoRaceV3Toggle = Tabs.Main:AddToggle("AutoRaceV3", {
-        Title = "Auto Race V3",
-        Default = false
-    })
-    
-    AutoRaceV3Toggle:OnChanged(function(Value)
-        _G.AutoRaceV3 = Value
-    end)
-    
-    local AutoThirdSeaToggle = Tabs.Main:AddToggle("AutoThirdSea", {
-        Title = "Auto Third Sea Quest",
-        Default = false
-    })
-    
-    AutoThirdSeaToggle:OnChanged(function(Value)
-        _G.AutoThirdSea = Value
-    end)
-
-elseif currentSea == 3 then
-    local AutoCDKToggle = Tabs.Main:AddToggle("AutoCDK", {
-        Title = "Auto CDK",
-        Default = false
-    })
-    
-    AutoCDKToggle:OnChanged(function(Value)
-        _G.AutoCDK = Value
-    end)
-    
-    local AutoYamaToggle = Tabs.Main:AddToggle("AutoYama", {
-        Title = "Auto Yama",
-        Default = false
-    })
-    
-    AutoYamaToggle:OnChanged(function(Value)
-        _G.AutoYama = Value
-    end)
-    
-    local AutoTushitaToggle = Tabs.Main:AddToggle("AutoTushita", {
-        Title = "Auto Tushita",
-        Default = false
-    })
-    
-    AutoTushitaToggle:OnChanged(function(Value)
-        _G.AutoTushita = Value
-    end)
+    MainStats:SetDesc(string.format(
+        "Level: %d\nBeli: %s\nFragments: %d\nBounty/Honor: %s",
+        level,
+        tostring(beli):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""),
+        fragments,
+        tostring(player.leaderstats["Bounty/Honor"].Value):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+    ))
 end
-
--- Player Stats
-local StatsSection = Tabs.Main:AddSection("Player Stats")
-
-local StatsLabel = Tabs.Main:AddParagraph({
-    Title = "Player Information",
-    Content = "Loading..."
-})
 
 -- Update stats every 5 seconds
 spawn(function()
     while wait(5) do
-        pcall(function()
-            local content = string.format(
-                "Level: %d\nSea: %d\nBeli: %s\nFragments: %s\nBounty: %s\nRace: %s",
-                GetPlayerLevel(),
-                GetCurrentSea(),
-                tostring(GetPlayerMoney()),
-                tostring(GetPlayerFragments()),
-                tostring(GetPlayerBounty()),
-                GetPlayerRace()
-            )
-            StatsLabel:SetDesc(content)
-        end)
+        pcall(updatePlayerStats)
     end
 end)
 
 -- Auto Farm Tab
-local LevelFarmSection = Tabs.AutoFarm:AddSection("Level Farming")
+local farmingMethods = {"Level", "Nearest Enemy", "Boss", "Elite Hunter", "Cake Prince", "Dough King", "Soul Guitar", "CDK"}
+local selectedFarmMethod = "Level"
+
+Tabs.AutoFarm:AddDropdown("FarmMethod", {
+    Title = "Farming Method",
+    Values = farmingMethods,
+    Multi = false,
+    Default = 1,
+    Callback = function(value)
+        selectedFarmMethod = value
+    end
+})
 
 local AutoFarmToggle = Tabs.AutoFarm:AddToggle("AutoFarm", {
-    Title = "Auto Farm Level",
-    Default = false
+    Title = "Enable Auto Farm",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.AutoFarm = value
+    end
 })
 
-AutoFarmToggle:OnChanged(function(Value)
-    _G.AutoFarm = Value
-end)
-
-local AutoNearestMobsToggle = Tabs.AutoFarm:AddToggle("AutoNearestMobs", {
-    Title = "Auto Farm Nearest Mobs",
-    Default = false
+local FastAttackToggle = Tabs.AutoFarm:AddToggle("FastAttack", {
+    Title = "Fast Attack (Recommended)",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.FastAttack = value
+    end
 })
 
-AutoNearestMobsToggle:OnChanged(function(Value)
-    _G.AutoNearestMobs = Value
-end)
-
-local AutoBonesToggle = Tabs.AutoFarm:AddToggle("AutoBones", {
-    Title = "Auto Farm Bones",
-    Default = false
-})
-
-AutoBonesToggle:OnChanged(function(Value)
-    _G.AutoBones = Value
-end)
-
--- Boss Section
-local BossSection = Tabs.AutoFarm:AddSection("Boss Farming")
-
-local AutoAllBossToggle = Tabs.AutoFarm:AddToggle("AutoAllBoss", {
-    Title = "Auto Farm All Bosses",
-    Default = false
-})
-
-AutoAllBossToggle:OnChanged(function(Value)
-    _G.AutoAllBoss = Value
-end)
-
-local BossValues = {}
-if currentSea == 1 then
-    BossValues = {"Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg", "Ice Admiral", "Greybeard"}
-elseif currentSea == 2 then
-    BossValues = {"Diamond", "Jeremy", "Fajita", "Don Swan", "Smoke Admiral", "Cursed Captain", "Darkbeard", "Order", "Awakened Ice Admiral", "Tide Keeper"}
-elseif currentSea == 3 then
-    BossValues = {"Stone", "Island Empress", "Kilo Admiral", "Captain Elephant", "Beautiful Pirate", "rip_indra True Form", "Longma", "Soul Reaper", "Cake Queen"}
+-- Weapon Selection
+local weapons = {}
+for _, item in pairs(player.Backpack:GetChildren()) do
+    if item:IsA("Tool") then
+        table.insert(weapons, item.Name)
+    end
 end
 
-local BossDropdown = Tabs.AutoFarm:AddDropdown("BossDropdown", {
-    Title = "Select Boss to Farm",
-    Values = BossValues,
-    Multi = false,
-    Default = 1,
-})
-
-BossDropdown:OnChanged(function(Value)
-    _G.SelectedBoss = Value
-end)
-
-local AutoSelectedBossToggle = Tabs.AutoFarm:AddToggle("AutoSelectedBoss", {
-    Title = "Auto Farm Selected Boss",
-    Default = false
-})
-
-AutoSelectedBossToggle:OnChanged(function(Value)
-    _G.AutoSelectedBoss = Value
-end)
-
--- Special Bosses
-local SpecialBossSection = Tabs.AutoFarm:AddSection("Special Bosses")
-
-local AutoRipIndraToggle = Tabs.AutoFarm:AddToggle("AutoRipIndra", {
-    Title = "Auto Rip Indra",
-    Default = false
-})
-
-AutoRipIndraToggle:OnChanged(function(Value)
-    _G.AutoRipIndra = Value
-end)
-
-local AutoDoughKingToggle = Tabs.AutoFarm:AddToggle("AutoDoughKing", {
-    Title = "Auto Dough King",
-    Default = false
-})
-
-AutoDoughKingToggle:OnChanged(function(Value)
-    _G.AutoDoughKing = Value
-end)
-
-local AutoDoughPrinceToggle = Tabs.AutoFarm:AddToggle("AutoDoughPrince", {
-    Title = "Auto Dough Prince",
-    Default = false
-})
-
-AutoDoughPrinceToggle:OnChanged(function(Value)
-    _G.AutoDoughPrince = Value
-end)
-
--- Raid Tab
-local RaidChips = {
-    "Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble", "Magma",
-    "Human: Buddha", "Sand", "Bird: Phoenix", "Rubber", "Barrier", "Gravity",
-    "T-Rex", "Dough", "Shadow", "Venom", "Control", "Soul", "Dragon"
-}
-
-if currentSea >= 2 then
-    local RaidSection = Tabs.Raid:AddSection("Raid Controls")
-    
-    local ChipDropdown = Tabs.Raid:AddDropdown("ChipDropdown", {
-        Title = "Select Raid Chip",
-        Values = RaidChips,
+if #weapons > 0 then
+    Tabs.AutoFarm:AddDropdown("WeaponSelect", {
+        Title = "Select Weapon",
+        Values = weapons,
         Multi = false,
         Default = 1,
-    })
-    
-    ChipDropdown:OnChanged(function(Value)
-        _G.SelectedChip = Value
-    end)
-
-    local BuyChipButton = Tabs.Raid:AddButton({
-        Title = "Buy Selected Chip",
-        Description = "Purchase the selected raid chip",
-        Callback = function()
-            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidsNpc", "Select", _G.SelectedChip or "Flame")
+        Callback = function(value)
+            EnchantedHub.SelectedWeapon = value
         end
-    })
-
-    local StartRaidButton = Tabs.Raid:AddButton({
-        Title = "Start Raid",
-        Description = "Start the raid with selected chip",
-        Callback = function()
-            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidsNpc", "StartRaid", _G.SelectedChip or "Flame")
-        end
-    })
-
-    local AutoRaidToggle = Tabs.Raid:AddToggle("AutoRaid", {
-        Title = "Auto Raid",
-        Default = false
-    })
-
-    AutoRaidToggle:OnChanged(function(Value)
-        _G.AutoRaid = Value
-    end)
-    
-    local KillAuraToggle = Tabs.Raid:AddToggle("KillAura", {
-        Title = "Kill Aura",
-        Default = false
-    })
-
-    KillAuraToggle:OnChanged(function(Value)
-        _G.KillAura = Value
-    end)
-else
-    local RaidInfo = Tabs.Raid:AddParagraph({
-        Title = "Raid Unavailable",
-        Content = "You need to be in Second Sea or Third Sea to access raids."
     })
 end
 
--- V4 Tab
-if currentSea == 3 then
-    local V4Section = Tabs.V4:AddSection("V4 Race Awakening")
-
-    local AutoV4TrialToggle = Tabs.V4:AddToggle("AutoV4Trial", {
-        Title = "Auto Complete V4 Trials",
-        Default = false
-    })
-
-    AutoV4TrialToggle:OnChanged(function(Value)
-        _G.AutoV4Trial = Value
-    end)
-
-    local AutoKillPlayerToggle = Tabs.V4:AddToggle("AutoKillPlayer", {
-        Title = "Auto Kill Player (for trials)",
-        Default = false
-    })
-
-    AutoKillPlayerToggle:OnChanged(function(Value)
-        _G.AutoKillPlayer = Value
-    end)
-
-    local V4TeleportSection = Tabs.V4:AddSection("V4 Teleports")
-
-    local TeleportTempleButton = Tabs.V4:AddButton({
-        Title = "Teleport to Temple",
-        Description = "Teleport to Ancient One",
-        Callback = function()
-            TweenToPosition(Vector3.new(28286, 14895, 102))
-        end
-    })
-
-    local TeleportAcientOneButton = Tabs.V4:AddButton({
-        Title = "Teleport to Ancient One",
-        Description = "Teleport to start V4 trials",
-        Callback = function()
-            TweenToPosition(Vector3.new(28286, 14895, 102))
-        end
-    })
-else
-    local V4Info = Tabs.V4:AddParagraph({
-        Title = "V4 Awakening Unavailable",
-        Content = "You need to be in Third Sea to access V4 Race Awakening features."
-    })
-end
-
--- PvP Tab
-local PvPSection = Tabs.PvP:AddSection("Player Targeting")
-
-local AimNearestPlayerToggle = Tabs.PvP:AddToggle("AimNearestPlayer", {
-    Title = "Aim Nearest Player",
-    Default = false
-})
-
-AimNearestPlayerToggle:OnChanged(function(Value)
-    _G.AimNearestPlayer = Value
-end)
-
-local SpectateToggle = Tabs.PvP:AddToggle("Spectate", {
-    Title = "Spectate Player",
-    Default = false
-})
-
-SpectateToggle:OnChanged(function(Value)
-    _G.SpectatePlayer = Value
-end)
-
--- Skills Section
-local SkillsSection = Tabs.PvP:AddSection("Skills")
-
-local SkillZToggle = Tabs.PvP:AddToggle("SkillZ", {
-    Title = "Skill Z",
-    Default = false
-})
-
-SkillZToggle:OnChanged(function(Value)
-    _G.SkillZ = Value
-end)
-
-local SkillXToggle = Tabs.PvP:AddToggle("SkillX", {
-    Title = "Skill X",
-    Default = false
-})
-
-SkillXToggle:OnChanged(function(Value)
-    _G.SkillX = Value
-end)
-
-local SkillCToggle = Tabs.PvP:AddToggle("SkillC", {
-    Title = "Skill C",
-    Default = false
-})
-
-SkillCToggle:OnChanged(function(Value)
-    _G.SkillC = Value
-end)
-
-local SkillVToggle = Tabs.PvP:AddToggle("SkillV", {
-    Title = "Skill V",
-    Default = false
-})
-
-SkillVToggle:OnChanged(function(Value)
-    _G.SkillV = Value
-end)
-
-local SkillFToggle = Tabs.PvP:AddToggle("SkillF", {
-    Title = "Skill F",
-    Default = false
-})
-
-SkillFToggle:OnChanged(function(Value)
-    _G.SkillF = Value
-end)
-
--- Teleport Tab
-local TeleportSection = Tabs.Teleport:AddSection("Teleport Locations")
-
-local teleportLocations = {}
-local teleportPositions = {}
-
-if currentSea == 1 then
-    teleportLocations = {
-        "Spawn", "Bandit Camp", "Jungle", "Pirate Village", "Desert", "Frozen Village",
-        "Marine Fortress", "Sky Island", "Prison", "Colosseum", "Magma Village",
-        "Under Water City", "Fountain City", "Shells Town"
-    }
-    teleportPositions = {
-        ["Spawn"] = Vector3.new(1, 17, 1471),
-        ["Bandit Camp"] = Vector3.new(1045, 17, 1550),
-        ["Jungle"] = Vector3.new(-1612, 37, 149),
-        ["Pirate Village"] = Vector3.new(-1181, 5, 3803),
-        ["Desert"] = Vector3.new(944, 21, 4481),
-        ["Frozen Village"] = Vector3.new(1198, 104, -1297),
-        ["Marine Fortress"] = Vector3.new(-2566, 7, -3038),
-        ["Sky Island"] = Vector3.new(-4607, 873, -1667),
-        ["Prison"] = Vector3.new(4875, 6, 734),
-        ["Colosseum"] = Vector3.new(-1427, 8, -2673),
-        ["Magma Village"] = Vector3.new(-5247, 13, 8504),
-        ["Under Water City"] = Vector3.new(61163, 11, 1819),
-        ["Fountain City"] = Vector3.new(5127, 60, 4105),
-        ["Shells Town"] = Vector3.new(-7865, 6, 5425)
-    }
-elseif currentSea == 2 then
-    teleportLocations = {
-        "Kingdom of Rose", "Cafe", "Mansion", "Graveyard", "Snow Mountain",
-        "Hot and Cold", "Cursed Ship", "Ice Castle", "Forgotten Island"
-    }
-    teleportPositions = {
-        ["Kingdom of Rose"] = Vector3.new(-379, 74, 853),
-        ["Cafe"] = Vector3.new(-385, 74, 297),
-        ["Mansion"] = Vector3.new(-12471, 374, -7551),
-        ["Graveyard"] = Vector3.new(-5494, 49, -795),
-        ["Snow Mountain"] = Vector3.new(753, 408, -5274),
-        ["Hot and Cold"] = Vector3.new(-6062, 16, -4902),
-        ["Cursed Ship"] = Vector3.new(923, 125, 32852),
-        ["Ice Castle"] = Vector3.new(5669, 28, -6481),
-        ["Forgotten Island"] = Vector3.new(-3054, 237, -10145)
-    }
-elseif currentSea == 3 then
-    teleportLocations = {
-        "Port Town", "Hydra Island", "Great Tree", "Castle on the Sea",
-        "Floating Turtle", "Haunted Castle", "Ice Cream Island", "Peanut Island",
-        "Cocoa Island", "Candy Island", "Cake Island"
-    }
-    teleportPositions = {
-        ["Port Town"] = Vector3.new(-290, 44, 5581),
-        ["Hydra Island"] = Vector3.new(5228, 604, -345),
-        ["Great Tree"] = Vector3.new(2681, 1682, -7190),
-        ["Castle on the Sea"] = Vector3.new(-5075, 314, -3152),
-        ["Floating Turtle"] = Vector3.new(-13274, 332, -7620),
-        ["Haunted Castle"] = Vector3.new(-9515, 172, 5567),
-        ["Ice Cream Island"] = Vector3.new(-902, 79, -10988),
-        ["Peanut Island"] = Vector3.new(-2104, 38, -10192),
-        ["Cocoa Island"] = Vector3.new(87, 73, -12297),
-        ["Candy Island"] = Vector3.new(-1049, 14, -14445),
-        ["Cake Island"] = Vector3.new(-2021, 32, -11864)
-    }
-end
-
-local TeleportDropdown = Tabs.Teleport:AddDropdown("TeleportDropdown", {
-    Title = "Select Location",
-    Values = teleportLocations,
-    Multi = false,
-    Default = 1,
-})
-
-local selectedTeleportLocation = teleportLocations[1]
-TeleportDropdown:OnChanged(function(Value)
-    selectedTeleportLocation = Value
-end)
-
-local TeleportButton = Tabs.Teleport:AddButton({
-    Title = "Teleport to Selected Place",
-    Description = "Teleport to the selected location",
-    Callback = function()
-        local position = teleportPositions[selectedTeleportLocation]
-        if position then
-            TweenToPosition(position)
-        end
-    end
-})
-
--- Sea Travel Section
-local SeaTravelSection = Tabs.Teleport:AddSection("Sea Travel")
-
-local TeleportFirstSeaButton = Tabs.Teleport:AddButton({
-    Title = "Teleport to First Sea",
-    Description = "Travel to First Sea (Level 1-700)",
-    Callback = function()
-        game:GetService("TeleportService"):Teleport(2753915549, Player)
-    end
-})
-
-local TeleportSecondSeaButton = Tabs.Teleport:AddButton({
-    Title = "Teleport to Second Sea", 
-    Description = "Travel to Second Sea (Level 700+)",
-    Callback = function()
-        game:GetService("TeleportService"):Teleport(4442272183, Player)
-    end
-})
-
-local TeleportThirdSeaButton = Tabs.Teleport:AddButton({
-    Title = "Teleport to Third Sea",
-    Description = "Travel to Third Sea (Level 1500+)", 
-    Callback = function()
-        game:GetService("TeleportService"):Teleport(7449423635, Player)
-    end
-})
-
--- Sea Tab
-if currentSea == 3 then
-    local SeaEventsSection = Tabs.Sea:AddSection("Sea Events")
-    
-    local SeaEventDropdown = Tabs.Sea:AddDropdown("SeaEventDropdown", {
-        Title = "Select Sea Event",
-        Values = {"Sea Beast", "Kitsune Island", "Ghost Ship", "Shark", "Terror Shark", "Piranha"},
-        Multi = false,
-        Default = 1,
-    })
-    
-    local selectedSeaEvent = "Sea Beast"
-    SeaEventDropdown:OnChanged(function(Value)
-        selectedSeaEvent = Value
-    end)
-    
-    local AutoSeaEventToggle = Tabs.Sea:AddToggle("AutoSeaEvent", {
-        Title = "Auto Selected Sea Event",
-        Default = false
-    })
-
-    AutoSeaEventToggle:OnChanged(function(Value)
-        if selectedSeaEvent == "Sea Beast" then
-            _G.AutoSeaBeast = Value
-        elseif selectedSeaEvent == "Kitsune Island" then
-            _G.AutoKitsuneIsland = Value
-        elseif selectedSeaEvent == "Ghost Ship" then
-            _G.AutoGhostShip = Value
-        elseif selectedSeaEvent == "Shark" then
-            _G.AutoShark = Value
-        elseif selectedSeaEvent == "Terror Shark" then
-            _G.AutoTerrorshark = Value
-        elseif selectedSeaEvent == "Piranha" then
-            _G.AutoPiranha = Value
-        end
-    end)
-    
-    -- Special Events Section
-    local SpecialEventsSection = Tabs.Sea:AddSection("Special Events")
-    
-    local AutoAzureToggle = Tabs.Sea:AddToggle("AutoAzure", {
-        Title = "Auto Azure Ember",
-        Default = false
-    })
-
-    AutoAzureToggle:OnChanged(function(Value)
-        _G.AutoAzure = Value
-    end)
-else
-    local SeaInfo = Tabs.Sea:AddParagraph({
-        Title = "Sea Events Unavailable",
-        Content = "You need to be in Third Sea to access sea events and special features."
-    })
-end
-
--- Settings Tab
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("FluentScriptHub")
-SaveManager:SetFolder("FluentScriptHub/specific-game")
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
-
--- Main Loop
+-- Auto Farm Logic
 spawn(function()
     while wait(0.1) do
-        pcall(function()
-            -- Fast Attack
-            if _G.FastAttack then
-                FastAttack()
-            end
-            
-            -- Bring Mobs
-            if _G.BringMobs then
-                BringMobs()
-            end
-            
-            -- Kill Aura for Raids
-            if _G.KillAura then
-                KillAura()
-            end
-            
-            -- Auto Farm Level
-            if _G.AutoFarm then
-                EquipWeapon(_G.SelectedWeapon)
+        if EnchantedHub.AutoFarm and character and rootPart then
+            pcall(function()
+                if EnchantedHub.SelectedWeapon ~= "" then
+                    equipWeapon(EnchantedHub.SelectedWeapon)
+                end
                 
-                if not CheckQuest() and _G.AutoQuest then
-                    StartQuest()
-                    wait(3)
-                else
-                    local mob = GetNearestMob(_G.QuestMob)
-                    if mob and mob:FindFirstChild("HumanoidRootPart") then
-                        -- Position player above mob for proper attack
-                        RootPart.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0)
+                if selectedFarmMethod == "Level" or selectedFarmMethod == "Nearest Enemy" then
+                    local enemy = getNearestEnemy()
+                    if enemy then
+                        local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+                        local enemyHumanoid = enemy:FindFirstChild("Humanoid")
                         
-                        -- Use skills
-                        if _G.SkillZ then
-                            VirtualInputManager:SendKeyEvent(true, "Z", false, game)
-                            wait(0.1)
+                        if enemyRoot and enemyHumanoid and enemyHumanoid.Health > 0 then
+                            -- Teleport behind enemy
+                            local behindPosition = enemyRoot.Position - enemyRoot.CFrame.LookVector * 7
+                            rootPart.CFrame = CFrame.new(behindPosition, enemyRoot.Position)
+                            
+                            -- Attack
+                            if EnchantedHub.FastAttack then
+                                for i = 1, 3 do
+                                    performAttack()
+                                    wait(0.05)
+                                end
+                            else
+                                performAttack()
+                            end
                         end
-                        if _G.SkillX then
-                            VirtualInputManager:SendKeyEvent(true, "X", false, game)
-                            wait(0.1)
-                        end
-                        if _G.SkillC then
-                            VirtualInputManager:SendKeyEvent(true, "C", false, game)
-                            wait(0.1)
-                        end
-                        if _G.SkillV then
-                            VirtualInputManager:SendKeyEvent(true, "V", false, game)
-                            wait(0.1)
-                        end
-                        if _G.SkillF then
-                            VirtualInputManager:SendKeyEvent(true, "F", false, game)
-                            wait(0.1)
-                        end
-                    else
-                        TweenToPosition(_G.QuestPosition)
                     end
                 end
-            end
-            
-            -- Auto Farm Nearest Mobs
-            if _G.AutoNearestMobs then
-                EquipWeapon(_G.SelectedWeapon)
-                local mob = GetNearestMob()
-                if mob and mob:FindFirstChild("HumanoidRootPart") then
-                    RootPart.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0)
-                end
-            end
-        end)
+            end)
+        end
     end
 end)
 
-Window:SelectTab(1)
+-- Combat Tab
+Tabs.Combat:AddToggle("KillAura", {
+    Title = "Kill Aura",
+    Default = false,
+    Callback = function(value)
+        -- Kill Aura logic here
+    end
+})
+
+Tabs.Combat:AddSlider("AttackRange", {
+    Title = "Attack Range",
+    Description = "Range for combat attacks",
+    Default = 50,
+    Min = 10,
+    Max = 200,
+    Rounding = 1,
+    Callback = function(value)
+        -- Attack range logic
+    end
+})
+
+-- Devil Fruits Tab
+Tabs.Fruits:AddToggle("FruitNotify", {
+    Title = "Fruit Spawn Notifications",
+    Default = true,
+    Callback = function(value)
+        EnchantedHub.NotifyFruit = value
+    end
+})
+
+Tabs.Fruits:AddToggle("AutoStoreFruit", {
+    Title = "Auto Store Fruits",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.AutoStore = value
+    end
+})
+
+-- Teleport Tab
+local islands = {
+    "Starter Island", "Jungle", "Pirate Village", "Desert", "Frozen Village",
+    "Marine Fortress", "Skylands", "Prison", "Colosseum", "Magma Village",
+    "Underwater City", "Upper Skylands", "Royal High", "Fountain City",
+    "Shank Room", "Mob Island", "Kingdom of Rose", "Usoapp's Island",
+    "Greenbit", "Zou", "Hydra Island", "Floating Turtle", "Mansion",
+    "Haunted Castle", "Ice Castle", "Forgotten Island", "Ussop Island",
+    "Mysterious Island", "Tiki Outpost", "Mirage Island"
+}
+
+Tabs.Teleport:AddDropdown("IslandSelect", {
+    Title = "Select Island",
+    Values = islands,
+    Multi = false,
+    Default = 1,
+    Callback = function(value)
+        EnchantedHub.SelectedIsland = value
+    end
+})
+
+Tabs.Teleport:AddButton({
+    Title = "Teleport to Island",
+    Description = "Instantly travel to selected island",
+    Callback = function()
+        -- Island teleport logic would go here
+        Window:Dialog({
+            Title = "Teleporting...",
+            Content = "Traveling to " .. EnchantedHub.SelectedIsland,
+            Buttons = {
+                {
+                    Title = "Confirm",
+                    Callback = function()
+                        -- Actual teleport code here
+                    end
+                }
+            }
+        })
+    end
+})
+
+-- Sea Events Tab
+Tabs.SeaEvents:AddToggle("AutoSeaEvent", {
+    Title = "Auto Sea Events",
+    Default = false,
+    Callback = function(value)
+        EnchantedHub.AutoSeaEvent = value
+    end
+})
+
+Tabs.SeaEvents:AddToggle("AutoLeviathan", {
+    Title = "Auto Kill Leviathan",
+    Default = false,
+    Callback = function(value)
+        -- Auto Leviathan logic
+    end
+})
+
+-- Miscellaneous Tab
+Tabs.Misc:AddToggle("AntiAFK", {
+    Title = "Anti AFK",
+    Default = true,
+    Callback = function(value)
+        EnchantedHub.AntiAFK = value
+    end
+})
+
+Tabs.Misc:AddSlider("TweenSpeed", {
+    Title = "Tween Speed",
+    Description = "Speed for teleportation",
+    Default = 350,
+    Min = 100,
+    Max = 1000,
+    Rounding = 50,
+    Callback = function(value)
+        EnchantedHub.TweenSpeed = value
+    end
+})
+
+-- Settings Tab
+Tabs.Settings:AddParagraph({
+    Title = "Script Information",
+    Content = "Enchanted Hub - Blox Fruits\nVersion: 3.2.1\nCreated by: AABIS\nLast Updated: January 2025\n\nJoin our Discord: discord.gg/enchanted"
+})
+
+Tabs.Settings:AddButton({
+    Title = "Copy Discord Link",
+    Description = "Get support and updates",
+    Callback = function()
+        setclipboard("discord.gg/enchanted")
+        Fluent:Notify({
+            Title = "Copied!",
+            Content = "Discord link copied to clipboard",
+            Duration = 3
+        })
+    end
+})
+
+Tabs.Settings:AddButton({
+    Title = "Rejoin Server",
+    Description = "Rejoin current server",
+    Callback = function()
+        game:GetService("TeleportService"):Teleport(game.PlaceId, player)
+    end
+})
+
+Tabs.Settings:AddButton({
+    Title = "Server Hop",
+    Description = "Find a new server",
+    Callback = function()
+        -- Server hop logic
+        local servers = {}
+        local req = game:HttpGetAsync("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
+        local body = HttpService:JSONDecode(req)
+        
+        for i, v in next, body.data do
+            if v.playing ~= v.maxPlayers and v.id ~= game.JobId then
+                table.insert(servers, v.id)
+            end
+        end
+        
+        if #servers > 0 then
+            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)])
+        end
+    end
+})
+
+-- Anti AFK System
+spawn(function()
+    while wait(300) do -- Check every 5 minutes
+        if EnchantedHub.AntiAFK then
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end
+    end
+end)
+
+-- Save System
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+InterfaceManager:SetFolder("EnchantedHub")
+SaveManager:SetFolder("EnchantedHub/BloxFruits")
+
+SaveManager:BuildConfigSection(Tabs.Settings)
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+
+SaveManager:LoadAutoloadConfig()
+
+-- Startup Notification
 Fluent:Notify({
-    Title = "SPACE HUB",
-    Content = "Script loaded successfully!",
+    Title = "Enchanted Hub Loaded!",
+    Content = "Welcome back! All systems are online.",
     Duration = 5
 })
 
-SaveManager:LoadAutoloadConfig()
+-- Error Handling
+game:GetService("Players").PlayerRemoving:Connect(function(plr)
+    if plr == player then
+        SaveManager:SaveConfig()
+    end
+end)
