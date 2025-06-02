@@ -1,49 +1,13 @@
-local Show_Button = true
-local Button_Icon = "rbxassetid://135671141026630"
-local Button_Transparency = 0.1
-
--- Game Services
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local VirtualUser = game:GetService("VirtualUser")
-local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
-local Lighting = game:GetService("Lighting")
-
--- Player Variables
-local Player = Players.LocalPlayer
-local Character
-local Humanoid
-local RootPart
-
--- Function to update character references
-local function updateCharacter()
-    Character = Player.Character or Player.CharacterAdded:Wait()
-    Humanoid = Character:WaitForChild("Humanoid")
-    RootPart = Character:WaitForChild("HumanoidRootPart")
-end
-
-Player.CharacterAdded:Connect(updateCharacter)
-if Player.Character then
-    updateCharacter()
-end
-
--- Global Variables and Settings
-local Settings = {
+getgenv().Settings = {
     AutoFarmLevel = false,
     AutoFarmNearest = false,
     FastAttack = false,
     BringMob = false,
     AutoBuso = false,
-    AutoObservation = false,
     BringFruit = false,
     StoreFruit = false,
     ESPFruit = false,
-    FruitNotification = false,
+    FruitNotif = false,
     AutoSaber = false,
     AutoSecondSea = false,
     AutoRaceV2 = false,
@@ -53,128 +17,195 @@ local Settings = {
     SelectedWeapon = "Melee",
     SelectedBoss = "",
     SelectedLocation = "",
-    AttackDistance = 35,
     TeleportHeight = 20,
-    ClickDelay = 0.1,
-    FarmDistance = 30
+    FarmDistance = 25
 }
 
--- Sea Detection
-local function getCurrentSea()
-    local PlaceId = game.PlaceId
-    if PlaceId == 2753915549 then
+-- Game Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
+local VirtualUser = game:GetService("VirtualUser")
+
+-- Player stuff
+local Player = Players.LocalPlayer
+local Character
+local Humanoid
+local RootPart
+
+-- Character handler
+function updatePlayerCharacter()
+    Character = Player.Character or Player.CharacterAdded:Wait()
+    Humanoid = Character:WaitForChild("Humanoid")
+    RootPart = Character:WaitForChild("HumanoidRootPart")
+end
+
+Player.CharacterAdded:Connect(updatePlayerCharacter)
+if Player.Character then
+    updatePlayerCharacter()
+end
+
+-- Get current sea
+function getCurrentSea()
+    local placeId = game.PlaceId
+    if placeId == 2753915549 then
         return 1
-    elseif PlaceId == 4442272183 then
+    elseif placeId == 4442272183 then
         return 2
-    elseif PlaceId == 7449423635 then
+    elseif placeId == 7449423635 then
         return 3
-    else
-        return 1
     end
+    return 1
 end
 
 local CurrentSea = getCurrentSea()
 
--- Complete Quest Data for All Seas (1-2650)
+-- Player level function
+function getPlayerLevel()
+    return Player.Data.Level.Value or 1
+end
+
+-- Teleport function
+function tpTo(pos)
+    if Character and Character:FindFirstChild("HumanoidRootPart") then
+        Character.HumanoidRootPart.CFrame = pos
+    end
+end
+
+-- Attack function for melee
+function meleeAttack()
+    local combat = ReplicatedStorage:FindFirstChild("Combat")
+    if combat then
+        combat:FireServer()
+    end
+    
+    -- Manual click simulation
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton1(Vector2.new(1280, 672))
+end
+
+-- Quest data for all levels
 local QuestData = {
     [1] = {
-        {Level = {1, 9}, Quest = "BanditQuest1", QuestNumber = 1, NPC = "Bandit", Location = CFrame.new(1059, 17, 1549)},
-        {Level = {10, 14}, Quest = "JungleQuest", QuestNumber = 1, NPC = "Monkey", Location = CFrame.new(-1448, 50, 38)},
-        {Level = {15, 29}, Quest = "BuggyQuest1", QuestNumber = 1, NPC = "Pirate", Location = CFrame.new(-1181, 5, 3803)},
-        {Level = {30, 39}, Quest = "DesertQuest", QuestNumber = 1, NPC = "Desert Bandit", Location = CFrame.new(924, 7, 4481)},
-        {Level = {40, 59}, Quest = "DesertQuest", QuestNumber = 2, NPC = "Desert Officer", Location = CFrame.new(924, 7, 4481)},
-        {Level = {60, 74}, Quest = "SnowQuest", QuestNumber = 1, NPC = "Snow Bandit", Location = CFrame.new(1347, 104, -1319)},
-        {Level = {75, 89}, Quest = "SnowQuest", QuestNumber = 2, NPC = "Snowman", Location = CFrame.new(1347, 104, -1319)},
-        {Level = {90, 99}, Quest = "MarineQuest", QuestNumber = 1, NPC = "Chief Petty Officer", Location = CFrame.new(-2440, 7, 2025)},
-        {Level = {100, 119}, Quest = "MarineQuest", QuestNumber = 2, NPC = "Rear Admiral", Location = CFrame.new(-2440, 7, 2025)},
-        {Level = {120, 149}, Quest = "JungleQuest", QuestNumber = 2, NPC = "Gorilla King", Location = CFrame.new(-1612, 37, 149)},
-        {Level = {150, 174}, Quest = "ColosseumQuest", QuestNumber = 1, NPC = "Gladiator", Location = CFrame.new(-1427, 8, -2673)},
-        {Level = {175, 189}, Quest = "ColosseumQuest", QuestNumber = 2, NPC = "Toga Warrior", Location = CFrame.new(-1427, 8, -2673)},
-        {Level = {190, 209}, Quest = "ColosseumQuest", QuestNumber = 3, NPC = "Gladiator", Location = CFrame.new(-1427, 8, -2673)},
-        {Level = {210, 249}, Quest = "PrisonQuest", QuestNumber = 1, NPC = "Prisoner", Location = CFrame.new(4875, 6, 734)},
-        {Level = {250, 274}, Quest = "PrisonQuest", QuestNumber = 2, NPC = "Dangerous Prisoner", Location = CFrame.new(4875, 6, 734)},
-        {Level = {275, 299}, Quest = "ColosseumQuest", QuestNumber = 2, NPC = "Toga Warrior", Location = CFrame.new(-1427, 8, -2673)},
-        {Level = {300, 324}, Quest = "MagmaQuest", QuestNumber = 1, NPC = "Lava Pirate", Location = CFrame.new(-5231, 9, -4530)},
-        {Level = {325, 374}, Quest = "MagmaQuest", QuestNumber = 2, NPC = "Head Baker", Location = CFrame.new(-5231, 9, -4530)},
-        {Level = {375, 399}, Quest = "MagmaQuest", QuestNumber = 3, NPC = "Cake Prince", Location = CFrame.new(-5231, 9, -4530)},
-        {Level = {400, 449}, Quest = "FishmanQuest", QuestNumber = 1, NPC = "Fishman Warrior", Location = CFrame.new(61122, 19, 1569)},
-        {Level = {450, 474}, Quest = "FishmanQuest", QuestNumber = 2, NPC = "Fishman Commando", Location = CFrame.new(61122, 19, 1569)},
-        {Level = {475, 524}, Quest = "SkyQuest", QuestNumber = 1, NPC = "God's Guard", Location = CFrame.new(-4721, 845, -1954)},
-        {Level = {525, 549}, Quest = "SkyQuest", QuestNumber = 2, NPC = "Shanda", Location = CFrame.new(-4721, 845, -1954)},
-        {Level = {550, 624}, Quest = "SkyQuest", QuestNumber = 3, NPC = "Royal Squad", Location = CFrame.new(-4721, 845, -1954)},
-        {Level = {625, 649}, Quest = "SkyQuest", QuestNumber = 4, NPC = "Royal Soldier", Location = CFrame.new(-4721, 845, -1954)},
-        {Level = {650, 699}, Quest = "FountainQuest", QuestNumber = 1, NPC = "Galley Pirate", Location = CFrame.new(5127, 43, 4041)},
-        {Level = {700, 849}, Quest = "FountainQuest", QuestNumber = 2, NPC = "Galley Captain", Location = CFrame.new(5127, 43, 4041)}
+        {1, 9, "BanditQuest1", 1, "Bandit", CFrame.new(1059, 17, 1549)},
+        {10, 14, "JungleQuest", 1, "Monkey", CFrame.new(-1448, 50, 38)},
+        {15, 29, "BuggyQuest1", 1, "Pirate", CFrame.new(-1181, 5, 3803)},
+        {30, 39, "DesertQuest", 1, "Desert Bandit", CFrame.new(924, 7, 4481)},
+        {40, 59, "DesertQuest", 2, "Desert Officer", CFrame.new(924, 7, 4481)},
+        {60, 74, "SnowQuest", 1, "Snow Bandit", CFrame.new(1347, 104, -1319)},
+        {75, 89, "SnowQuest", 2, "Snowman", CFrame.new(1347, 104, -1319)},
+        {90, 99, "MarineQuest", 1, "Chief Petty Officer", CFrame.new(-2440, 7, 2025)},
+        {100, 119, "MarineQuest", 2, "Rear Admiral", CFrame.new(-2440, 7, 2025)},
+        {120, 149, "JungleQuest", 2, "Gorilla King", CFrame.new(-1612, 37, 149)},
+        {150, 174, "ColosseumQuest", 1, "Gladiator", CFrame.new(-1427, 8, -2673)},
+        {175, 189, "ColosseumQuest", 2, "Toga Warrior", CFrame.new(-1427, 8, -2673)},
+        {190, 209, "ColosseumQuest", 3, "Gladiator", CFrame.new(-1427, 8, -2673)},
+        {210, 249, "PrisonQuest", 1, "Prisoner", CFrame.new(4875, 6, 734)},
+        {250, 274, "PrisonQuest", 2, "Dangerous Prisoner", CFrame.new(4875, 6, 734)},
+        {275, 299, "ColosseumQuest", 2, "Toga Warrior", CFrame.new(-1427, 8, -2673)},
+        {300, 324, "MagmaQuest", 1, "Lava Pirate", CFrame.new(-5231, 9, -4530)},
+        {325, 374, "MagmaQuest", 2, "Head Baker", CFrame.new(-5231, 9, -4530)},
+        {375, 399, "MagmaQuest", 3, "Cake Prince", CFrame.new(-5231, 9, -4530)},
+        {400, 449, "FishmanQuest", 1, "Fishman Warrior", CFrame.new(61122, 19, 1569)},
+        {450, 474, "FishmanQuest", 2, "Fishman Commando", CFrame.new(61122, 19, 1569)},
+        {475, 524, "SkyQuest", 1, "God's Guard", CFrame.new(-4721, 845, -1954)},
+        {525, 549, "SkyQuest", 2, "Shanda", CFrame.new(-4721, 845, -1954)},
+        {550, 624, "SkyQuest", 3, "Royal Squad", CFrame.new(-4721, 845, -1954)},
+        {625, 649, "SkyQuest", 4, "Royal Soldier", CFrame.new(-4721, 845, -1954)},
+        {650, 699, "FountainQuest", 1, "Galley Pirate", CFrame.new(5127, 43, 4041)},
+        {700, 849, "FountainQuest", 2, "Galley Captain", CFrame.new(5127, 43, 4041)}
     },
     [2] = {
-        {Level = {700, 724}, Quest = "Area1Quest", QuestNumber = 1, NPC = "Raider", Location = CFrame.new(-430, 73, 1836)},
-        {Level = {725, 774}, Quest = "Area1Quest", QuestNumber = 2, NPC = "Mercenary", Location = CFrame.new(-430, 73, 1836)},
-        {Level = {775, 849}, Quest = "Area1Quest", QuestNumber = 3, NPC = "Swan Pirate", Location = CFrame.new(-430, 73, 1836)},
-        {Level = {850, 874}, Quest = "Area2Quest", QuestNumber = 1, NPC = "Factory Staff", Location = CFrame.new(638, 73, 918)},
-        {Level = {875, 899}, Quest = "Area2Quest", QuestNumber = 2, NPC = "Marine Lieutenant", Location = CFrame.new(638, 73, 918)},
-        {Level = {900, 949}, Quest = "Area2Quest", QuestNumber = 3, NPC = "Marine Captain", Location = CFrame.new(638, 73, 918)},
-        {Level = {950, 974}, Quest = "MarineQuest3", QuestNumber = 1, NPC = "Zombie", Location = CFrame.new(-5736, 9, -877)},
-        {Level = {975, 999}, Quest = "MarineQuest3", QuestNumber = 2, NPC = "Vampire", Location = CFrame.new(-5736, 9, -877)},
-        {Level = {1000, 1049}, Quest = "SnowMountainQuest", QuestNumber = 1, NPC = "Snow Trooper", Location = CFrame.new(609, 401, -5371)},
-        {Level = {1050, 1099}, Quest = "SnowMountainQuest", QuestNumber = 2, NPC = "Winter Warrior", Location = CFrame.new(609, 401, -5371)},
-        {Level = {1100, 1124}, Quest = "FireSideQuest", QuestNumber = 1, NPC = "Lab Subordinate", Location = CFrame.new(-5492, 314, -2841)},
-        {Level = {1125, 1174}, Quest = "FireSideQuest", QuestNumber = 2, NPC = "Horned Warrior", Location = CFrame.new(-5492, 314, -2841)},
-        {Level = {1175, 1199}, Quest = "IceSideQuest", QuestNumber = 1, NPC = "Magma Ninja", Location = CFrame.new(-6059, 16, -4904)},
-        {Level = {1200, 1249}, Quest = "IceSideQuest", QuestNumber = 2, NPC = "Lava Pirate", Location = CFrame.new(-6059, 16, -4904)},
-        {Level = {1250, 1274}, Quest = "ShipQuest1", QuestNumber = 1, NPC = "Ship Deckhand", Location = CFrame.new(1037, 125, 32911)},
-        {Level = {1275, 1299}, Quest = "ShipQuest1", QuestNumber = 2, NPC = "Ship Engineer", Location = CFrame.new(1037, 125, 32911)},
-        {Level = {1300, 1324}, Quest = "ShipQuest2", QuestNumber = 1, NPC = "Ship Steward", Location = CFrame.new(968, 125, 33244)},
-        {Level = {1325, 1349}, Quest = "ShipQuest2", QuestNumber = 2, NPC = "Ship Officer", Location = CFrame.new(968, 125, 33244)},
-        {Level = {1350, 1374}, Quest = "FrostQuest", QuestNumber = 1, NPC = "Arctic Warrior", Location = CFrame.new(5669, 28, -6482)},
-        {Level = {1375, 1424}, Quest = "FrostQuest", QuestNumber = 2, NPC = "Snow Lurker", Location = CFrame.new(5669, 28, -6482)},
-        {Level = {1425, 1449}, Quest = "ForgottenQuest", QuestNumber = 1, NPC = "Sea Soldier", Location = CFrame.new(-3053, 237, -10148)},
-        {Level = {1450, 1499}, Quest = "ForgottenQuest", QuestNumber = 2, NPC = "Water Fighter", Location = CFrame.new(-3053, 237, -10148)}
+        {700, 724, "Area1Quest", 1, "Raider", CFrame.new(-430, 73, 1836)},
+        {725, 774, "Area1Quest", 2, "Mercenary", CFrame.new(-430, 73, 1836)},
+        {775, 849, "Area1Quest", 3, "Swan Pirate", CFrame.new(-430, 73, 1836)},
+        {850, 874, "Area2Quest", 1, "Factory Staff", CFrame.new(638, 73, 918)},
+        {875, 899, "Area2Quest", 2, "Marine Lieutenant", CFrame.new(638, 73, 918)},
+        {900, 949, "Area2Quest", 3, "Marine Captain", CFrame.new(638, 73, 918)},
+        {950, 974, "MarineQuest3", 1, "Zombie", CFrame.new(-5736, 9, -877)},
+        {975, 999, "MarineQuest3", 2, "Vampire", CFrame.new(-5736, 9, -877)},
+        {1000, 1049, "SnowMountainQuest", 1, "Snow Trooper", CFrame.new(609, 401, -5371)},
+        {1050, 1099, "SnowMountainQuest", 2, "Winter Warrior", CFrame.new(609, 401, -5371)},
+        {1100, 1124, "FireSideQuest", 1, "Lab Subordinate", CFrame.new(-5492, 314, -2841)},
+        {1125, 1174, "FireSideQuest", 2, "Horned Warrior", CFrame.new(-5492, 314, -2841)},
+        {1175, 1199, "IceSideQuest", 1, "Magma Ninja", CFrame.new(-6059, 16, -4904)},
+        {1200, 1249, "IceSideQuest", 2, "Lava Pirate", CFrame.new(-6059, 16, -4904)},
+        {1250, 1274, "ShipQuest1", 1, "Ship Deckhand", CFrame.new(1037, 125, 32911)},
+        {1275, 1299, "ShipQuest1", 2, "Ship Engineer", CFrame.new(1037, 125, 32911)},
+        {1300, 1324, "ShipQuest2", 1, "Ship Steward", CFrame.new(968, 125, 33244)},
+        {1325, 1349, "ShipQuest2", 2, "Ship Officer", CFrame.new(968, 125, 33244)},
+        {1350, 1374, "FrostQuest", 1, "Arctic Warrior", CFrame.new(5669, 28, -6482)},
+        {1375, 1424, "FrostQuest", 2, "Snow Lurker", CFrame.new(5669, 28, -6482)},
+        {1425, 1449, "ForgottenQuest", 1, "Sea Soldier", CFrame.new(-3053, 237, -10148)},
+        {1450, 1499, "ForgottenQuest", 2, "Water Fighter", CFrame.new(-3053, 237, -10148)}
     },
     [3] = {
-        {Level = {1500, 1524}, Quest = "PiratePortQuest", QuestNumber = 1, NPC = "Pirate Millionaire", Location = CFrame.new(-290, 44, 5577)},
-        {Level = {1525, 1574}, Quest = "PiratePortQuest", QuestNumber = 2, NPC = "Pistol Billionaire", Location = CFrame.new(-290, 44, 5577)},
-        {Level = {1575, 1599}, Quest = "AmazonQuest", QuestNumber = 1, NPC = "Dragon Crew Warrior", Location = CFrame.new(5832, 52, -1636)},
-        {Level = {1600, 1624}, Quest = "AmazonQuest", QuestNumber = 2, NPC = "Dragon Crew Archer", Location = CFrame.new(5832, 52, -1636)},
-        {Level = {1625, 1649}, Quest = "MarineTreeIsland", QuestNumber = 1, NPC = "Female Islander", Location = CFrame.new(2181, 73, -4773)},
-        {Level = {1650, 1699}, Quest = "MarineTreeIsland", QuestNumber = 2, NPC = "Giant Islander", Location = CFrame.new(2181, 73, -4773)},
-        {Level = {1700, 1724}, Quest = "DeepForestIsland", QuestNumber = 1, NPC = "Marine Commodore", Location = CFrame.new(-13232, 333, -7627)},
-        {Level = {1725, 1774}, Quest = "DeepForestIsland", QuestNumber = 2, NPC = "Marine Rear Admiral", Location = CFrame.new(-13232, 333, -7627)},
-        {Level = {1775, 1799}, Quest = "DeepForestIsland2", QuestNumber = 1, NPC = "Mythological Pirate", Location = CFrame.new(-13232, 333, -7627)},
-        {Level = {1800, 1849}, Quest = "DeepForestIsland2", QuestNumber = 2, NPC = "Jungle Pirate", Location = CFrame.new(-13232, 333, -7627)},
-        {Level = {1850, 1899}, Quest = "HydraIsland", QuestNumber = 1, NPC = "Musketeer Pirate", Location = CFrame.new(5259, 39, -4498)},
-        {Level = {1900, 1924}, Quest = "HydraIsland", QuestNumber = 2, NPC = "Reborn Skeleton", Location = CFrame.new(5259, 39, -4498)},
-        {Level = {1925, 1974}, Quest = "HydraIsland", QuestNumber = 3, NPC = "Living Zombie", Location = CFrame.new(5259, 39, -4498)},
-        {Level = {1975, 1999}, Quest = "HydraIsland", QuestNumber = 4, NPC = "Demonic Soul", Location = CFrame.new(5259, 39, -4498)},
-        {Level = {2000, 2024}, Quest = "HydraIsland", QuestNumber = 5, NPC = "Posessed Mummy", Location = CFrame.new(5259, 39, -4498)},
-        {Level = {2025, 2049}, Quest = "HauntedQuest", QuestNumber = 1, NPC = "Peanut Scout", Location = CFrame.new(-9482, 142, 5567)},
-        {Level = {2050, 2074}, Quest = "HauntedQuest", QuestNumber = 2, NPC = "Peanut President", Location = CFrame.new(-9482, 142, 5567)},
-        {Level = {2075, 2099}, Quest = "NutsIslandQuest", QuestNumber = 1, NPC = "Ice Cream Chef", Location = CFrame.new(-821, 66, -10965)},
-        {Level = {2100, 2124}, Quest = "NutsIslandQuest", QuestNumber = 2, NPC = "Ice Cream Commander", Location = CFrame.new(-821, 66, -10965)},
-        {Level = {2125, 2149}, Quest = "IceCreamIslandQuest", QuestNumber = 1, NPC = "Cookie Crafter", Location = CFrame.new(-821, 66, -10965)},
-        {Level = {2150, 2199}, Quest = "IceCreamIslandQuest", QuestNumber = 2, NPC = "Cake Guard", Location = CFrame.new(-821, 66, -10965)},
-        {Level = {2200, 2224}, Quest = "CakeQuest1", QuestNumber = 1, NPC = "Baking Staff", Location = CFrame.new(-1928, 38, -12030)},
-        {Level = {2225, 2249}, Quest = "CakeQuest1", QuestNumber = 2, NPC = "Head Baker", Location = CFrame.new(-1928, 38, -12030)},
-        {Level = {2250, 2274}, Quest = "CakeQuest2", QuestNumber = 1, NPC = "Cocoa Warrior", Location = CFrame.new(-1928, 38, -12030)},
-        {Level = {2275, 2299}, Quest = "CakeQuest2", QuestNumber = 2, NPC = "Chocolate Bar Battler", Location = CFrame.new(-1928, 38, -12030)},
-        {Level = {2300, 2324}, Quest = "ChocQuest1", QuestNumber = 1, NPC = "Sweet Thief", Location = CFrame.new(232, 25, -12200)},
-        {Level = {2325, 2349}, Quest = "ChocQuest1", QuestNumber = 2, NPC = "Candy Rebel", Location = CFrame.new(232, 25, -12200)},
-        {Level = {2350, 2374}, Quest = "ChocQuest2", QuestNumber = 1, NPC = "Candy Pirate", Location = CFrame.new(232, 25, -12200)},
-        {Level = {2375, 2399}, Quest = "ChocQuest2", QuestNumber = 2, NPC = "Snow Demon", Location = CFrame.new(232, 25, -12200)},
-        {Level = {2400, 2424}, Quest = "SeaBeastQuest1", QuestNumber = 1, NPC = "Isle Outlaw", Location = CFrame.new(-16544, 56, -173)},
-        {Level = {2425, 2449}, Quest = "SeaBeastQuest1", QuestNumber = 2, NPC = "Island Boy", Location = CFrame.new(-16544, 56, -173)},
-        {Level = {2450, 2474}, Quest = "TikiQuest1", QuestNumber = 1, NPC = "Sun-kissed Warrior", Location = CFrame.new(-16544, 56, -173)},
-        {Level = {2475, 2499}, Quest = "TikiQuest1", QuestNumber = 2, NPC = "Isle Champion", Location = CFrame.new(-16544, 56, -173)},
-        {Level = {2500, 2524}, Quest = "TikiQuest2", QuestNumber = 1, NPC = "Leviathan", Location = CFrame.new(-16544, 56, -173)},
-        {Level = {2525, 2549}, Quest = "TikiQuest2", QuestNumber = 2, NPC = "Ancient Fishman Warrior", Location = CFrame.new(-16544, 56, -173)},
-        {Level = {2550, 2574}, Quest = "KitsugaQuest", QuestNumber = 1, NPC = "Kitsune", Location = CFrame.new(-14542, 313, -3022)},
-        {Level = {2575, 2599}, Quest = "KitsugaQuest", QuestNumber = 2, NPC = "Tanuki", Location = CFrame.new(-14542, 313, -3022)},
-        {Level = {2600, 2624}, Quest = "MoonQuest", QuestNumber = 1, NPC = "Rabbit", Location = CFrame.new(-5496, 1050, -11173)},
-        {Level = {2625, 2650}, Quest = "MoonQuest", QuestNumber = 2, NPC = "Jotaro", Location = CFrame.new(-5496, 1050, -11173)}
+        {1500, 1524, "PiratePortQuest", 1, "Pirate Millionaire", CFrame.new(-290, 44, 5577)},
+        {1525, 1574, "PiratePortQuest", 2, "Pistol Billionaire", CFrame.new(-290, 44, 5577)},
+        {1575, 1599, "AmazonQuest", 1, "Dragon Crew Warrior", CFrame.new(5832, 52, -1636)},
+        {1600, 1624, "AmazonQuest", 2, "Dragon Crew Archer", CFrame.new(5832, 52, -1636)},
+        {1625, 1649, "MarineTreeIsland", 1, "Female Islander", CFrame.new(2181, 73, -4773)},
+        {1650, 1699, "MarineTreeIsland", 2, "Giant Islander", CFrame.new(2181, 73, -4773)},
+        {1700, 1724, "DeepForestIsland", 1, "Marine Commodore", CFrame.new(-13232, 333, -7627)},
+        {1725, 1774, "DeepForestIsland", 2, "Marine Rear Admiral", CFrame.new(-13232, 333, -7627)},
+        {1775, 1799, "DeepForestIsland2", 1, "Mythological Pirate", CFrame.new(-13232, 333, -7627)},
+        {1800, 1849, "DeepForestIsland2", 2, "Jungle Pirate", CFrame.new(-13232, 333, -7627)},
+        {1850, 1899, "HydraIsland", 1, "Musketeer Pirate", CFrame.new(5259, 39, -4498)},
+        {1900, 1924, "HydraIsland", 2, "Reborn Skeleton", CFrame.new(5259, 39, -4498)},
+        {1925, 1974, "HydraIsland", 3, "Living Zombie", CFrame.new(5259, 39, -4498)},
+        {1975, 1999, "HydraIsland", 4, "Demonic Soul", CFrame.new(5259, 39, -4498)},
+        {2000, 2024, "HydraIsland", 5, "Posessed Mummy", CFrame.new(5259, 39, -4498)},
+        {2025, 2049, "HauntedQuest", 1, "Peanut Scout", CFrame.new(-9482, 142, 5567)},
+        {2050, 2074, "HauntedQuest", 2, "Peanut President", CFrame.new(-9482, 142, 5567)},
+        {2075, 2099, "NutsIslandQuest", 1, "Ice Cream Chef", CFrame.new(-821, 66, -10965)},
+        {2100, 2124, "NutsIslandQuest", 2, "Ice Cream Commander", CFrame.new(-821, 66, -10965)},
+        {2125, 2149, "IceCreamIslandQuest", 1, "Cookie Crafter", CFrame.new(-821, 66, -10965)},
+        {2150, 2199, "IceCreamIslandQuest", 2, "Cake Guard", CFrame.new(-821, 66, -10965)},
+        {2200, 2224, "CakeQuest1", 1, "Baking Staff", CFrame.new(-1928, 38, -12030)},
+        {2225, 2249, "CakeQuest1", 2, "Head Baker", CFrame.new(-1928, 38, -12030)},
+        {2250, 2274, "CakeQuest2", 1, "Cocoa Warrior", CFrame.new(-1928, 38, -12030)},
+        {2275, 2299, "CakeQuest2", 2, "Chocolate Bar Battler", CFrame.new(-1928, 38, -12030)},
+        {2300, 2324, "ChocQuest1", 1, "Sweet Thief", CFrame.new(232, 25, -12200)},
+        {2325, 2349, "ChocQuest1", 2, "Candy Rebel", CFrame.new(232, 25, -12200)},
+        {2350, 2374, "ChocQuest2", 1, "Candy Pirate", CFrame.new(232, 25, -12200)},
+        {2375, 2399, "ChocQuest2", 2, "Snow Demon", CFrame.new(232, 25, -12200)},
+        {2400, 2424, "SeaBeastQuest1", 1, "Isle Outlaw", CFrame.new(-16544, 56, -173)},
+        {2425, 2449, "SeaBeastQuest1", 2, "Island Boy", CFrame.new(-16544, 56, -173)},
+        {2450, 2474, "TikiQuest1", 1, "Sun-kissed Warrior", CFrame.new(-16544, 56, -173)},
+        {2475, 2499, "TikiQuest1", 2, "Isle Champion", CFrame.new(-16544, 56, -173)},
+        {2500, 2524, "TikiQuest2", 1, "Leviathan", CFrame.new(-16544, 56, -173)},
+        {2525, 2549, "TikiQuest2", 2, "Ancient Fishman Warrior", CFrame.new(-16544, 56, -173)},
+        {2550, 2574, "KitsugaQuest", 1, "Kitsune", CFrame.new(-14542, 313, -3022)},
+        {2575, 2599, "KitsugaQuest", 2, "Tanuki", CFrame.new(-14542, 313, -3022)},
+        {2600, 2624, "MoonQuest", 1, "Rabbit", CFrame.new(-5496, 1050, -11173)},
+        {2625, 2650, "MoonQuest", 2, "Jotaro", CFrame.new(-5496, 1050, -11173)}
     }
 }
 
--- Location Data for Teleportation
-local LocationData = {
+-- Teleport locations
+local TeleportLocations = {
+    [1] = {
+        "Starter Island", "Jungle", "Pirate Village", "Desert", "Frozen Village", 
+        "Marine Fortress", "Skylands", "Prison", "Colosseum", "Magma Village", 
+        "Under Water Island", "Fountain City"
+    },
+    [2] = {
+        "Kingdom of Rose", "Usoapp's Island", "Green Zone", "Factory", "Coloseum", 
+        "Zombie Island", "Two Snow Mountain", "Punk Hazard", "Cursed Ship", 
+        "Ice Castle", "Forgotten Island", "Mini Sky Island"
+    },
+    [3] = {
+        "Mansion", "Port Town", "Great Tree", "Castle On The Sea", "MiniSky", 
+        "Hydra Island", "Floating Turtle", "Haunted Castle", "Ice Cream Island", 
+        "Peanut Island", "Cake Island", "Cocoa Island", "Candy Island", 
+        "Tiki Outpost", "Sea Beast Island", "Temple of Time", "Moon"
+    }
+}
+
+local TeleportCFrames = {
     [1] = {
         ["Starter Island"] = CFrame.new(945, 17, 1552),
         ["Jungle"] = CFrame.new(-1612, 37, 149),
@@ -187,8 +218,7 @@ local LocationData = {
         ["Colosseum"] = CFrame.new(-1427, 8, -2673),
         ["Magma Village"] = CFrame.new(-5231, 9, -4530),
         ["Under Water Island"] = CFrame.new(61164, 5, 1819),
-        ["Fountain City"] = CFrame.new(5127, 59, 4105),
-        ["Mob Island"] = CFrame.new(-2850, 7, 2550)
+        ["Fountain City"] = CFrame.new(5127, 59, 4105)
     },
     [2] = {
         ["Kingdom of Rose"] = CFrame.new(-288, 7, 1387),
@@ -202,7 +232,6 @@ local LocationData = {
         ["Cursed Ship"] = CFrame.new(923, 125, 32853),
         ["Ice Castle"] = CFrame.new(6148, 294, -6741),
         ["Forgotten Island"] = CFrame.new(-3053, 237, -10148),
-        ["Ussop Island"] = CFrame.new(4816, 8, 2863),
         ["Mini Sky Island"] = CFrame.new(-288, 49326, 664)
     },
     [3] = {
@@ -226,369 +255,354 @@ local LocationData = {
     }
 }
 
--- Boss Data
-local BossData = {
-    [1] = {
-        "The Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", 
-        "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", 
-        "Wysper", "Thunder God", "Cyborg"
-    },
-    [2] = {
-        "Diamond", "Jeremy", "Fajita", "Don Swan", "Smoke Admiral", 
-        "Cursed Captain", "Darkbeard", "Order", "Awakened Ice Admiral"
-    },
-    [3] = {
-        "Stone", "Island Empress", "Kilo Admiral", "Captain Elephant", 
-        "Beautiful Pirate", "rip_indra True Form", "Longma", "Soul Reaper", 
-        "Cake Queen", "Dough King", "Dough Prince"
-    }
+-- Boss lists
+local BossLists = {
+    [1] = {"The Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg"},
+    [2] = {"Diamond", "Jeremy", "Fajita", "Don Swan", "Smoke Admiral", "Cursed Captain", "Darkbeard", "Order", "Awakened Ice Admiral"},
+    [3] = {"Stone", "Island Empress", "Kilo Admiral", "Captain Elephant", "Beautiful Pirate", "rip_indra True Form", "Longma", "Soul Reaper", "Cake Queen", "Dough King", "Dough Prince"}
 }
 
--- Get Player Level
-local function getPlayerLevel()
-    return Player.Data and Player.Data.Level and Player.Data.Level.Value or 1
-end
-
--- Teleportation Function
-local function safeTeleport(cframe)
-    if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
-    
-    local success, err = pcall(function()
-        Character.HumanoidRootPart.CFrame = cframe
-    end)
-    
-    if not success then
-        local tween = TweenService:Create(
-            Character.HumanoidRootPart,
-            TweenInfo.new(0.5, Enum.EasingStyle.Linear),
-            {CFrame = cframe}
-        )
-        tween:Play()
-    end
-end
-
--- Fast Attack System
-local FastAttackConnection
-local function startFastAttack()
-    if FastAttackConnection then
-        FastAttackConnection:Disconnect()
-    end
-    
-    FastAttackConnection = RunService.Heartbeat:Connect(function()
-        if Settings.FastAttack then
-            local combat = ReplicatedStorage:FindFirstChild("Combat")
-            if combat then
-                combat:FireServer()
-            end
-            
-            pcall(function()
-                game:GetService("VirtualUser"):CaptureController()
-                game:GetService("VirtualUser"):ClickButton1(Vector2.new(1280, 672))
-            end)
-        end
-    end)
-end
-
--- Auto Haki System
-local HakiConnection
-local function startAutoHaki()
-    if HakiConnection then
-        HakiConnection:Disconnect()
-    end
-    
-    HakiConnection = RunService.Heartbeat:Connect(function()
-        if Settings.AutoBuso then
-            local args = {[1] = "Buso"}
-            ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
-        end
-    end)
-end
-
--- Enhanced Bring Mob System
-local BringMobConnection
-local function startBringMob()
-    if BringMobConnection then
-        BringMobConnection:Disconnect()
-    end
-    
-    BringMobConnection = RunService.Heartbeat:Connect(function()
-        if Settings.BringMob and Character and Character:FindFirstChild("HumanoidRootPart") then
-            for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
-                    if enemy.Humanoid.Health > 0 then
-                        local distance = (Character.HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
-                        if distance <= Settings.FarmDistance then
-                            enemy.HumanoidRootPart.CFrame = Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
-                            enemy.HumanoidRootPart.CanCollide = false
-                            enemy.HumanoidRootPart.Size = Vector3.new(1, 1, 1)
-                            if enemy:FindFirstChild("Head") then
-                                enemy.Head.CanCollide = false
-                            end
-                            -- Stop enemy movement
-                            if enemy:FindFirstChild("Humanoid") then
-                                enemy.Humanoid.WalkSpeed = 0
-                                enemy.Humanoid.JumpPower = 0
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end)
-end
-
--- Quest System
-local function getCurrentQuest()
+-- Get current quest for level
+function getCurrentQuestForLevel()
     local level = getPlayerLevel()
-    local questData = QuestData[CurrentSea]
+    local quests = QuestData[CurrentSea]
     
-    if questData then
-        for _, quest in pairs(questData) do
-            if level >= quest.Level[1] and level <= quest.Level[2] then
-                return quest
+    if quests then
+        for _, questInfo in ipairs(quests) do
+            if level >= questInfo[1] and level <= questInfo[2] then
+                return {
+                    MinLevel = questInfo[1],
+                    MaxLevel = questInfo[2],
+                    Quest = questInfo[3],
+                    QuestNumber = questInfo[4],
+                    NPC = questInfo[5],
+                    Location = questInfo[6]
+                }
             end
         end
     end
     return nil
 end
 
-local function takeQuest(questInfo)
-    if not questInfo then return false end
+-- Take quest function
+function takeQuest(questData)
+    if not questData then return end
     
-    safeTeleport(questInfo.Location)
+    tpTo(questData.Location)
     wait(2)
     
     local args = {
         [1] = "StartQuest",
-        [2] = questInfo.Quest,
-        [3] = questInfo.QuestNumber
+        [2] = questData.Quest,
+        [3] = questData.QuestNumber
     }
     
     ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
-    return true
 end
 
--- Auto Farm Level
-local AutoFarmConnection
-local function startAutoFarmLevel()
-    if AutoFarmConnection then
-        AutoFarmConnection:Disconnect()
+-- Get nearest enemy
+function getNearestEnemy(enemyName)
+    local nearestEnemy = nil
+    local shortestDistance = math.huge
+    
+    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+        if enemy.Name == enemyName and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+            if enemy.Humanoid.Health > 0 then
+                local distance = (Character.HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    nearestEnemy = enemy
+                end
+            end
+        end
     end
     
-    AutoFarmConnection = RunService.Heartbeat:Connect(function()
-        if Settings.AutoFarmLevel then
-            local questInfo = getCurrentQuest()
-            
-            if questInfo then
-                local hasQuest = Player.PlayerGui.Main.Quest.Visible
-                
-                if not hasQuest then
-                    takeQuest(questInfo)
-                    wait(2)
-                end
-                
-                -- Find enemy
-                for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                    if enemy.Name == questInfo.NPC and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
-                        if enemy.Humanoid.Health > 0 then
-                            local attackPosition = enemy.HumanoidRootPart.CFrame * CFrame.new(0, Settings.TeleportHeight, 0)
-                            safeTeleport(attackPosition)
-                            break
-                        end
+    return nearestEnemy
+end
+
+-- Bring mobs function
+function bringMobs()
+    if not getgenv().Settings.BringMob or not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+        if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+            if enemy.Humanoid.Health > 0 then
+                local distance = (Character.HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+                if distance <= getgenv().Settings.FarmDistance then
+                    enemy.HumanoidRootPart.CFrame = Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
+                    enemy.HumanoidRootPart.CanCollide = false
+                    enemy.HumanoidRootPart.Size = Vector3.new(1, 1, 1)
+                    if enemy:FindFirstChild("Head") then
+                        enemy.Head.CanCollide = false
+                    end
+                    if enemy.Humanoid then
+                        enemy.Humanoid.WalkSpeed = 0
+                        enemy.Humanoid.JumpPower = 0
                     end
                 end
             end
         end
-    end)
+    end
 end
 
--- Auto Farm Nearest
-local AutoFarmNearestConnection
-local function startAutoFarmNearest()
-    if AutoFarmNearestConnection then
-        AutoFarmNearestConnection:Disconnect()
+-- Auto haki function
+function autoHaki()
+    if getgenv().Settings.AutoBuso then
+        local args = {[1] = "Buso"}
+        ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+    end
+end
+
+-- Fast attack function
+function fastAttack()
+    if getgenv().Settings.FastAttack then
+        meleeAttack()
+    end
+end
+
+-- Auto farm level main function
+function autoFarmLevel()
+    if not getgenv().Settings.AutoFarmLevel then return end
+    
+    local questData = getCurrentQuestForLevel()
+    if not questData then return end
+    
+    local hasQuest = Player.PlayerGui.Main.Quest.Visible
+    if not hasQuest then
+        takeQuest(questData)
+        wait(3)
     end
     
-    AutoFarmNearestConnection = RunService.Heartbeat:Connect(function()
-        if Settings.AutoFarmNearest and Character and Character:FindFirstChild("HumanoidRootPart") then
-            local nearestEnemy = nil
-            local shortestDistance = math.huge
-            
+    local enemy = getNearestEnemy(questData.NPC)
+    if enemy then
+        local attackPos = enemy.HumanoidRootPart.CFrame * CFrame.new(0, getgenv().Settings.TeleportHeight, 0)
+        tpTo(attackPos)
+        
+        while enemy.Parent and enemy.Humanoid.Health > 0 and getgenv().Settings.AutoFarmLevel do
+            bringMobs()
+            autoHaki()
+            fastAttack()
+            wait(0.1)
+        end
+    end
+end
+
+-- Auto farm nearest function
+function autoFarmNearest()
+    if not getgenv().Settings.AutoFarmNearest or not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local nearestEnemy = nil
+    local shortestDistance = math.huge
+    
+    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+        if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+            if enemy.Humanoid.Health > 0 then
+                local distance = (Character.HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+                if distance < shortestDistance and distance <= 2000 then
+                    shortestDistance = distance
+                    nearestEnemy = enemy
+                end
+            end
+        end
+    end
+    
+    if nearestEnemy then
+        local attackPos = nearestEnemy.HumanoidRootPart.CFrame * CFrame.new(0, getgenv().Settings.TeleportHeight, 0)
+        tpTo(attackPos)
+        
+        while nearestEnemy.Parent and nearestEnemy.Humanoid.Health > 0 and getgenv().Settings.AutoFarmNearest do
+            bringMobs()
+            autoHaki()
+            fastAttack()
+            wait(0.1)
+        end
+    end
+end
+
+-- Auto saber quest
+local SaberProgress = 1
+function autoSaberQuest()
+    if not getgenv().Settings.AutoSaber or CurrentSea ~= 1 then return end
+    
+    local level = getPlayerLevel()
+    if level < 200 then return end
+    
+    if SaberProgress == 1 then
+        -- Step 1: Talk to Puzzle NPC
+        tpTo(CFrame.new(-1405, 30, -132))
+        wait(2)
+        local args = {[1] = "ProQuestProgress", [2] = "SaberExpert"}
+        ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+        wait(3)
+        SaberProgress = 2
+        
+    elseif SaberProgress == 2 then
+        -- Step 2: Kill Jungle Pirates
+        local piratesKilled = 0
+        while piratesKilled < 5 and getgenv().Settings.AutoSaber do
             for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+                if enemy.Name == "Jungle Pirate" and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
                     if enemy.Humanoid.Health > 0 then
-                        local distance = (Character.HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
-                        if distance < shortestDistance and distance <= 2000 then
-                            shortestDistance = distance
-                            nearestEnemy = enemy
+                        tpTo(enemy.HumanoidRootPart.CFrame * CFrame.new(0, 20, 0))
+                        while enemy.Parent and enemy.Humanoid.Health > 0 and getgenv().Settings.AutoSaber do
+                            meleeAttack()
+                            wait(0.1)
                         end
+                        piratesKilled = piratesKilled + 1
+                        break
                     end
-                end
-            end
-            
-            if nearestEnemy then
-                local attackPosition = nearestEnemy.HumanoidRootPart.CFrame * CFrame.new(0, Settings.TeleportHeight, 0)
-                safeTeleport(attackPosition)
-            end
-        end
-    end)
-end
-
--- Auto Saber Quest Implementation
-local SaberStep = 1
-local function autoSaber()
-    spawn(function()
-        while Settings.AutoSaber and CurrentSea == 1 do
-            local level = getPlayerLevel()
-            
-            if level >= 200 then
-                if SaberStep == 1 then
-                    -- Step 1: Talk to Puzzle NPC
-                    safeTeleport(CFrame.new(-1405, 30, -132))
-                    wait(2)
-                    
-                    local args = {[1] = "ProQuestProgress", [2] = "SaberExpert"}
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
-                    wait(3)
-                    SaberStep = 2
-                    
-                elseif SaberStep == 2 then
-                    -- Step 2: Kill 5 Jungle Pirates
-                    local piratesKilled = 0
-                    while piratesKilled < 5 and Settings.AutoSaber do
-                        for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                            if enemy.Name == "Jungle Pirate" and enemy:FindFirstChild("HumanoidRootPart") then
-                                safeTeleport(enemy.HumanoidRootPart.CFrame * CFrame.new(0, 20, 0))
-                                repeat
-                                    wait(0.1)
-                                until enemy.Humanoid.Health <= 0 or not enemy.Parent
-                                piratesKilled = piratesKilled + 1
-                                break
-                            end
-                        end
-                        wait(1)
-                    end
-                    SaberStep = 3
-                    
-                elseif SaberStep == 3 then
-                    -- Step 3: Get Cup from Rich Man
-                    safeTeleport(CFrame.new(-910, 17, 4040))
-                    wait(2)
-                    
-                    local args = {[1] = "ProQuestProgress", [2] = "RichSon"}
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
-                    wait(3)
-                    SaberStep = 4
-                    
-                elseif SaberStep == 4 then
-                    -- Step 4: Kill Mob Leader
-                    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                        if enemy.Name == "Mob Leader" and enemy:FindFirstChild("HumanoidRootPart") then
-                            safeTeleport(enemy.HumanoidRootPart.CFrame * CFrame.new(0, 20, 0))
-                            repeat
-                                wait(0.1)
-                            until enemy.Humanoid.Health <= 0 or not enemy.Parent
-                            break
-                        end
-                    end
-                    SaberStep = 5
-                    
-                elseif SaberStep == 5 then
-                    -- Step 5: Get Torch from Desert
-                    safeTeleport(CFrame.new(1114, 5, 4350))
-                    wait(2)
-                    
-                    -- Find and collect torch
-                    for _, torch in pairs(Workspace:GetChildren()) do
-                        if torch.Name == "Torch" and torch:FindFirstChild("Handle") then
-                            torch.Handle.CFrame = Character.HumanoidRootPart.CFrame
-                        end
-                    end
-                    SaberStep = 6
-                    
-                elseif SaberStep == 6 then
-                    -- Step 6: Light torch and open door
-                    safeTeleport(CFrame.new(1114, 5, 4350))
-                    wait(2)
-                    
-                    local args = {[1] = "ProQuestProgress", [2] = "FlameTorch"}
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
-                    
-                    -- Open hidden door
-                    wait(3)
-                    safeTeleport(CFrame.new(1613, 7, 4787))
-                    wait(2)
-                    
-                    -- Get Saber
-                    local args2 = {[1] = "ProQuestProgress", [2] = "SaberExpert"}
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args2))
-                    
-                    Settings.AutoSaber = false
-                    print("Saber Quest Completed!")
                 end
             end
             wait(1)
         end
-    end)
-end
-
--- Auto Second Sea Quest
-local function autoSecondSea()
-    spawn(function()
-        while Settings.AutoSecondSea and CurrentSea == 1 do
-            local level = getPlayerLevel()
-            
-            if level >= 700 then
-                -- Go to Prison
-                safeTeleport(CFrame.new(4875, 6, 734))
-                wait(2)
-                
-                -- Talk to Military Detective
-                local args = {[1] = "DressrosaQuestProgress", [2] = "Detective"}
-                ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
-                wait(3)
-                
-                -- Kill Key Holders
-                for i = 1, 5 do
-                    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                        if string.find(enemy.Name, "Key") and enemy:FindFirstChild("HumanoidRootPart") then
-                            safeTeleport(enemy.HumanoidRootPart.CFrame * CFrame.new(0, 20, 0))
-                            repeat
-                                wait(0.1)
-                            until enemy.Humanoid.Health <= 0 or not enemy.Parent
-                            break
-                        end
+        SaberProgress = 3
+        
+    elseif SaberProgress == 3 then
+        -- Step 3: Get Cup
+        tpTo(CFrame.new(-910, 17, 4040))
+        wait(2)
+        local args = {[1] = "ProQuestProgress", [2] = "RichSon"}
+        ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+        wait(3)
+        SaberProgress = 4
+        
+    elseif SaberProgress == 4 then
+        -- Step 4: Kill Mob Leader
+        for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+            if enemy.Name == "Mob Leader" and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+                if enemy.Humanoid.Health > 0 then
+                    tpTo(enemy.HumanoidRootPart.CFrame * CFrame.new(0, 20, 0))
+                    while enemy.Parent and enemy.Humanoid.Health > 0 and getgenv().Settings.AutoSaber do
+                        meleeAttack()
+                        wait(0.1)
                     end
-                    wait(2)
+                    break
                 end
-                
-                -- Use Key
-                local args2 = {[1] = "DressrosaQuestProgress", [2] = "Key"}
-                ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args2))
-                wait(3)
-                
-                -- Teleport to Second Sea
-                TeleportService:Teleport(4442272183, Player)
             end
-            wait(1)
         end
-    end)
+        SaberProgress = 5
+        
+    elseif SaberProgress == 5 then
+        -- Step 5: Get Torch
+        tpTo(CFrame.new(1114, 5, 4350))
+        wait(2)
+        for _, torch in pairs(Workspace:GetChildren()) do
+            if torch.Name == "Torch" and torch:FindFirstChild("Handle") then
+                torch.Handle.CFrame = Character.HumanoidRootPart.CFrame
+            end
+        end
+        SaberProgress = 6
+        
+    elseif SaberProgress == 6 then
+        -- Step 6: Light torch and get Saber
+        tpTo(CFrame.new(1114, 5, 4350))
+        wait(2)
+        local args = {[1] = "ProQuestProgress", [2] = "FlameTorch"}
+        ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+        wait(3)
+        
+        tpTo(CFrame.new(1613, 7, 4787))
+        wait(2)
+        local args2 = {[1] = "ProQuestProgress", [2] = "SaberExpert"}
+        ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args2))
+        
+        getgenv().Settings.AutoSaber = false
+        SaberProgress = 1
+        print("Saber Quest Completed!")
+    end
 end
 
--- Fruit Stock Function
-local function openFruitStock()
-    local args = {[1] = "GetFruits"}
-    local result = ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+-- Auto second sea quest
+function autoSecondSeaQuest()
+    if not getgenv().Settings.AutoSecondSea or CurrentSea ~= 1 then return end
     
-    if result then
-        print("Current Fruit Stock:")
-        for fruit, data in pairs(result) do
-            print(fruit .. ": " .. data.Price .. " Beli")
+    local level = getPlayerLevel()
+    if level < 700 then return end
+    
+    -- Go to Prison and talk to Detective
+    tpTo(CFrame.new(4875, 6, 734))
+    wait(2)
+    local args = {[1] = "DressrosaQuestProgress", [2] = "Detective"}
+    ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+    wait(3)
+    
+    -- Kill Key Holders
+    for i = 1, 5 do
+        for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+            if string.find(enemy.Name, "Key") and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+                if enemy.Humanoid.Health > 0 then
+                    tpTo(enemy.HumanoidRootPart.CFrame * CFrame.new(0, 20, 0))
+                    while enemy.Parent and enemy.Humanoid.Health > 0 and getgenv().Settings.AutoSecondSea do
+                        meleeAttack()
+                        wait(0.1)
+                    end
+                    break
+                end
+            end
+        end
+        wait(2)
+    end
+    
+    -- Use Key
+    local args2 = {[1] = "DressrosaQuestProgress", [2] = "Key"}
+    ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args2))
+    wait(3)
+    
+    -- Teleport to Second Sea
+    TeleportService:Teleport(4442272183, Player)
+end
+
+-- Open fruit stock function
+function openFruitStock()
+    local fruitShopRemote = ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("CommF_")
+    if fruitShopRemote then
+        local fruits = fruitShopRemote:InvokeServer("GetFruits")
+        if fruits then
+            print("=== FRUIT STOCK ===")
+            for fruitName, fruitData in pairs(fruits) do
+                print(fruitName .. ": $" .. tostring(fruitData.Price))
+            end
+            print("==================")
+        else
+            print("Could not retrieve fruit stock")
         end
     end
 end
 
--- UI Button Creation
+-- Main script loops
+spawn(function()
+    while wait(0.1) do
+        if getgenv().Settings.AutoFarmLevel then
+            autoFarmLevel()
+        end
+    end
+end)
+
+spawn(function()
+    while wait(0.1) do
+        if getgenv().Settings.AutoFarmNearest then
+            autoFarmNearest()
+        end
+    end
+end)
+
+spawn(function()
+    while wait(1) do
+        if getgenv().Settings.AutoSaber then
+            autoSaberQuest()
+        end
+    end
+end)
+
+spawn(function()
+    while wait(1) do
+        if getgenv().Settings.AutoSecondSea then
+            autoSecondSeaQuest()
+        end
+    end
+end)
+
+-- Button UI
 local ScreenGui = Instance.new("ScreenGui")
 local ImageButton = Instance.new("ImageButton")
 local UICorner = Instance.new("UICorner")
@@ -602,11 +616,11 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 ImageButton.Parent = ScreenGui
 ImageButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-ImageButton.BackgroundTransparency = Button_Transparency
+ImageButton.BackgroundTransparency = 0.1
 ImageButton.BorderSizePixel = 0
 ImageButton.Position = UDim2.new(0.05, 0, 0.1, 0)
 ImageButton.Size = UDim2.new(0, 70, 0, 70)
-ImageButton.Image = Button_Icon
+ImageButton.Image = "rbxassetid://135671141026630"
 ImageButton.Draggable = true
 ImageButton.ImageTransparency = 0
 
@@ -638,30 +652,25 @@ local function animateButton()
     end)
 end
 
-local isGuiVisible = true
+local guiVisible = true
 ImageButton.MouseButton1Click:Connect(function()
     animateButton()
     wait(0.2)
     
-    if Window and Window.Root then
-        isGuiVisible = not isGuiVisible
-        Window.Root.Visible = isGuiVisible
-        
-        -- Also toggle minimize state
-        if isGuiVisible then
-            Window:Maximize()
+    if Window then
+        guiVisible = not guiVisible
+        if guiVisible then
+            Window.Root.Visible = true
         else
-            Window:Minimize()
+            Window.Root.Visible = false
         end
     end
 end)
 
 wait(3)
 
--- Load Fluent UI
+-- Load Fluent Library
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
     Title = "ENCHANTED HUB | BLOX FRUIT",
@@ -673,59 +682,42 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- Create all tabs
-local Tabs = {
-    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
-    AutoFarm = Window:AddTab({ Title = "Auto Farm", Icon = "zap" }),
-    Raid = Window:AddTab({ Title = "Raid", Icon = "shield" }),
-    V4 = Window:AddTab({ Title = "V4 Awakening", Icon = "star" }),
-    PvP = Window:AddTab({ Title = "PvP", Icon = "sword" }),
-    Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
-    Sea = Window:AddTab({ Title = "Sea", Icon = "anchor" }),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
-}
+-- Create Tabs
+local MainTab = Window:AddTab({ Title = "Main", Icon = "home" })
+local AutoFarmTab = Window:AddTab({ Title = "Auto Farm", Icon = "zap" })
+local RaidTab = Window:AddTab({ Title = "Raid", Icon = "shield" })
+local V4Tab = Window:AddTab({ Title = "V4 Awakening", Icon = "star" })
+local PvPTab = Window:AddTab({ Title = "PvP", Icon = "sword" })
+local TeleportTab = Window:AddTab({ Title = "Teleport", Icon = "map-pin" })
+local SeaTab = Window:AddTab({ Title = "Sea", Icon = "anchor" })
+local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "settings" })
 
 -- MAIN TAB
-local WeaponDropdown = Tabs.Main:AddDropdown("WeaponDropdown", {
+local WeaponDropdown = MainTab:AddDropdown("WeaponDropdown", {
     Title = "Choose Weapon",
     Values = {"Melee", "Sword", "Blox Fruit", "Gun"},
     Multi = false,
     Default = 1,
 })
 WeaponDropdown:OnChanged(function(Value)
-    Settings.SelectedWeapon = Value
+    getgenv().Settings.SelectedWeapon = Value
 end)
 
-Tabs.Main:AddToggle("FastAttack", {Title = "Fast Attack", Default = false}):OnChanged(function(Value)
-    Settings.FastAttack = Value
-    if Value then
-        startFastAttack()
-    elseif FastAttackConnection then
-        FastAttackConnection:Disconnect()
-    end
+MainTab:AddToggle("FastAttack", {Title = "Fast Attack", Default = false}):OnChanged(function(Value)
+    getgenv().Settings.FastAttack = Value
 end)
 
-Tabs.Main:AddToggle("BringMob", {Title = "Bring Mob", Default = false}):OnChanged(function(Value)
-    Settings.BringMob = Value
-    if Value then
-        startBringMob()
-    elseif BringMobConnection then
-        BringMobConnection:Disconnect()
-    end
+MainTab:AddToggle("BringMob", {Title = "Bring Mob", Default = false}):OnChanged(function(Value)
+    getgenv().Settings.BringMob = Value
 end)
 
-Tabs.Main:AddToggle("AutoBuso", {Title = "Auto Buso Haki", Default = false}):OnChanged(function(Value)
-    Settings.AutoBuso = Value
-    if Value then
-        startAutoHaki()
-    elseif HakiConnection then
-        HakiConnection:Disconnect()
-    end
+MainTab:AddToggle("AutoBuso", {Title = "Auto Buso Haki", Default = false}):OnChanged(function(Value)
+    getgenv().Settings.AutoBuso = Value
 end)
 
-Tabs.Main:AddParagraph({Title = "SPECIAL", Content = "Special features and utilities"})
+MainTab:AddParagraph({Title = "SPECIAL", Content = "Special features and utilities"})
 
-Tabs.Main:AddButton({
+MainTab:AddButton({
     Title = "Open Fruit Stock",
     Description = "Check current fruit stock",
     Callback = function()
@@ -733,50 +725,44 @@ Tabs.Main:AddButton({
     end
 })
 
-Tabs.Main:AddToggle("ESPFruit", {Title = "ESP Fruit", Default = false}):OnChanged(function(Value)
-    Settings.ESPFruit = Value
+MainTab:AddToggle("ESPFruit", {Title = "ESP Fruit", Default = false}):OnChanged(function(Value)
+    getgenv().Settings.ESPFruit = Value
 end)
 
-Tabs.Main:AddToggle("FruitNotif", {Title = "Fruit Notification", Default = false}):OnChanged(function(Value)
-    Settings.FruitNotification = Value
+MainTab:AddToggle("FruitNotif", {Title = "Fruit Notification", Default = false}):OnChanged(function(Value)
+    getgenv().Settings.FruitNotif = Value
 end)
 
-Tabs.Main:AddToggle("BringFruit", {Title = "Bring Fruit", Default = false}):OnChanged(function(Value)
-    Settings.BringFruit = Value
+MainTab:AddToggle("BringFruit", {Title = "Bring Fruit", Default = false}):OnChanged(function(Value)
+    getgenv().Settings.BringFruit = Value
 end)
 
-Tabs.Main:AddToggle("StoreFruit", {Title = "Store Fruit", Default = false}):OnChanged(function(Value)
-    Settings.StoreFruit = Value
+MainTab:AddToggle("StoreFruit", {Title = "Store Fruit", Default = false}):OnChanged(function(Value)
+    getgenv().Settings.StoreFruit = Value
 end)
 
 -- Sea-specific features
 if CurrentSea == 1 then
-    Tabs.Main:AddToggle("AutoSaber", {Title = "Auto Saber Sword", Default = false}):OnChanged(function(Value)
-        Settings.AutoSaber = Value
-        if Value then
-            autoSaber()
-        end
+    MainTab:AddToggle("AutoSaber", {Title = "Auto Saber Sword", Default = false}):OnChanged(function(Value)
+        getgenv().Settings.AutoSaber = Value
     end)
     
-    Tabs.Main:AddToggle("AutoSecondSea", {Title = "Auto Second Sea Quest", Default = false}):OnChanged(function(Value)
-        Settings.AutoSecondSea = Value
-        if Value then
-            autoSecondSea()
-        end
+    MainTab:AddToggle("AutoSecondSea", {Title = "Auto Second Sea Quest", Default = false}):OnChanged(function(Value)
+        getgenv().Settings.AutoSecondSea = Value
     end)
 elseif CurrentSea == 2 then
-    Tabs.Main:AddToggle("AutoRaceV2", {Title = "Auto Race V2", Default = false}):OnChanged(function(Value)
-        Settings.AutoRaceV2 = Value
+    MainTab:AddToggle("AutoRaceV2", {Title = "Auto Race V2", Default = false}):OnChanged(function(Value)
+        getgenv().Settings.AutoRaceV2 = Value
     end)
     
-    Tabs.Main:AddToggle("AutoRaceV3", {Title = "Auto Race V3", Default = false}):OnChanged(function(Value)
-        Settings.AutoRaceV3 = Value
+    MainTab:AddToggle("AutoRaceV3", {Title = "Auto Race V3", Default = false}):OnChanged(function(Value)
+        getgenv().Settings.AutoRaceV3 = Value
     end)
 end
 
 -- Player Stats
-Tabs.Main:AddParagraph({Title = "STATS", Content = "Player Statistics"})
-local function updateStatsDisplay()
+MainTab:AddParagraph({Title = "STATS", Content = "Player Statistics"})
+local function getStatsText()
     local level = getPlayerLevel()
     local money = Player.Data.Beli.Value or 0
     local fragments = Player.Data.Fragments.Value or 0
@@ -787,165 +773,135 @@ local function updateStatsDisplay()
         level, tostring(money), fragments, race, tostring(bounty), CurrentSea)
 end
 
-local StatsLabel = Tabs.Main:AddParagraph({Title = "Current Stats", Content = updateStatsDisplay()})
+local StatsLabel = MainTab:AddParagraph({Title = "Current Stats", Content = getStatsText()})
 
 -- AUTO FARM TAB
-Tabs.AutoFarm:AddToggle("AutoFarmLevel", {Title = "Auto Farm Level", Default = false}):OnChanged(function(Value)
-    Settings.AutoFarmLevel = Value
-    if Value then
-        startAutoFarmLevel()
-    elseif AutoFarmConnection then
-        AutoFarmConnection:Disconnect()
-    end
+AutoFarmTab:AddToggle("AutoFarmLevel", {Title = "Auto Farm Level", Default = false}):OnChanged(function(Value)
+    getgenv().Settings.AutoFarmLevel = Value
 end)
 
-Tabs.AutoFarm:AddToggle("AutoFarmNearest", {Title = "Auto Farm Nearest Mobs", Default = false}):OnChanged(function(Value)
-    Settings.AutoFarmNearest = Value
-    if Value then
-        startAutoFarmNearest()
-    elseif AutoFarmNearestConnection then
-        AutoFarmNearestConnection:Disconnect()
-    end
+AutoFarmTab:AddToggle("AutoFarmNearest", {Title = "Auto Farm Nearest Mobs", Default = false}):OnChanged(function(Value)
+    getgenv().Settings.AutoFarmNearest = Value
 end)
 
-Tabs.AutoFarm:AddParagraph({Title = "Boss Section", Content = "Boss farming features"})
+AutoFarmTab:AddParagraph({Title = "Boss Section", Content = "Boss farming features"})
 
-local BossDropdown = Tabs.AutoFarm:AddDropdown("BossDropdown", {
+local BossDropdown = AutoFarmTab:AddDropdown("BossDropdown", {
     Title = "Select Boss",
-    Values = BossData[CurrentSea] or {},
+    Values = BossLists[CurrentSea] or {},
     Multi = false,
     Default = 1,
 })
 BossDropdown:OnChanged(function(Value)
-    Settings.SelectedBoss = Value
+    getgenv().Settings.SelectedBoss = Value
 end)
 
-Tabs.AutoFarm:AddButton({
+AutoFarmTab:AddButton({
     Title = "Kill Selected Boss",
-    Description = "Farm the selected boss with quest",
+    Description = "Farm the selected boss",
     Callback = function()
-        if Settings.SelectedBoss then
-            print("Killing boss: " .. Settings.SelectedBoss)
+        if getgenv().Settings.SelectedBoss then
+            print("Killing boss: " .. getgenv().Settings.SelectedBoss)
         end
     end
 })
 
-Tabs.AutoFarm:AddToggle("KillAllBosses", {Title = "Kill All Bosses", Default = false}):OnChanged(function(Value)
-    -- Kill all bosses logic
+AutoFarmTab:AddToggle("KillAllBosses", {Title = "Kill All Bosses", Default = false}):OnChanged(function(Value)
+    -- Implementation here
 end)
 
-Tabs.AutoFarm:AddParagraph({Title = "SPECIAL FARM", Content = "Special farming features"})
+AutoFarmTab:AddParagraph({Title = "SPECIAL FARM", Content = "Special farming features"})
 
-Tabs.AutoFarm:AddToggle("AutoBones", {Title = "Auto Farm Bones", Default = false}):OnChanged(function(Value)
-    Settings.AutoBones = Value
+AutoFarmTab:AddToggle("AutoBones", {Title = "Auto Farm Bones", Default = false}):OnChanged(function(Value)
+    getgenv().Settings.AutoBones = Value
 end)
 
-Tabs.AutoFarm:AddToggle("AutoRipIndra", {Title = "Auto Rip Indra", Default = false}):OnChanged(function(Value)
-    -- Auto rip indra logic
+AutoFarmTab:AddToggle("AutoRipIndra", {Title = "Auto Rip Indra", Default = false}):OnChanged(function(Value)
+    -- Implementation here
 end)
 
-Tabs.AutoFarm:AddToggle("AutoDoughPrince", {Title = "Auto Dough Prince", Default = false}):OnChanged(function(Value)
-    -- Auto dough prince logic
+AutoFarmTab:AddToggle("AutoDoughPrince", {Title = "Auto Dough Prince", Default = false}):OnChanged(function(Value)
+    -- Implementation here
 end)
 
-Tabs.AutoFarm:AddToggle("AutoDoughKing", {Title = "Auto Dough King", Default = false}):OnChanged(function(Value)
-    -- Auto dough king logic
+AutoFarmTab:AddToggle("AutoDoughKing", {Title = "Auto Dough King", Default = false}):OnChanged(function(Value)
+    -- Implementation here
 end)
 
 -- RAID TAB
 if CurrentSea >= 2 then
-    local ChipDropdown = Tabs.Raid:AddDropdown("ChipDropdown", {
+    local ChipDropdown = RaidTab:AddDropdown("ChipDropdown", {
         Title = "Buy Chip",
         Values = {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Barrier", "Rubber", "Magma", "Door", "Buddha", "Love", "Spider", "Sound", "Phoenix", "Portal", "Rumble", "Pain", "Blizzard", "Gravity", "Mammoth", "T-Rex", "Dough", "Shadow", "Venom", "Control", "Spirit", "Dragon", "Leopard", "Kitsune"},
         Multi = false,
         Default = 1,
     })
-    ChipDropdown:OnChanged(function(Value)
-        Settings.SelectedChip = Value
-    end)
     
-    Tabs.Raid:AddButton({
+    RaidTab:AddButton({
         Title = "Buy Selected Chip",
-        Description = "Purchase the selected raid chip",
+        Description = "Purchase raid chip",
         Callback = function()
-            if Settings.SelectedChip then
-                local args = {[1] = "RaidsNpc", [2] = "Select", [3] = Settings.SelectedChip}
-                ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
-            end
+            -- Implementation here
         end
     })
     
-    Tabs.Raid:AddToggle("KillAura", {Title = "Kill Aura", Default = false}):OnChanged(function(Value)
-        Settings.KillAura = Value
+    RaidTab:AddToggle("KillAura", {Title = "Kill Aura", Default = false}):OnChanged(function(Value)
+        getgenv().Settings.KillAura = Value
     end)
 else
-    Tabs.Raid:AddParagraph({Title = "Access Restricted", Content = "You need to be in Second Sea to access this tab features"})
+    RaidTab:AddParagraph({Title = "Access Restricted", Content = "You need to be in Second Sea to access this tab features"})
 end
 
 -- V4 TAB
 if CurrentSea >= 3 then
-    Tabs.V4:AddParagraph({Title = "V4 Awakening", Content = "V4 race awakening features"})
-    Tabs.V4:AddButton({
-        Title = "Complete Race Trial",
-        Description = "Complete the race trial",
-        Callback = function()
-            -- V4 trial logic
-        end
-    })
+    V4Tab:AddParagraph({Title = "V4 Awakening", Content = "V4 race awakening features"})
 else
-    Tabs.V4:AddParagraph({Title = "Access Restricted", Content = "You need to be in Third Sea to access this tab features"})
+    V4Tab:AddParagraph({Title = "Access Restricted", Content = "You need to be in Third Sea to access this tab features"})
 end
 
 -- PVP TAB
-Tabs.PvP:AddParagraph({Title = "PvP Features", Content = "Player vs Player combat features"})
+PvPTab:AddParagraph({Title = "PvP Features", Content = "Player vs Player combat features"})
 
-Tabs.PvP:AddToggle("AimNearestPlayer", {Title = "Aim Nearest Player", Default = false}):OnChanged(function(Value)
-    -- Aim nearest player logic
+PvPTab:AddToggle("AimNearestPlayer", {Title = "Aim Nearest Player", Default = false}):OnChanged(function(Value)
+    -- Implementation here
 end)
 
-Tabs.PvP:AddToggle("AutoAim", {Title = "Auto Aim All Skills", Default = false}):OnChanged(function(Value)
-    -- Auto aim skills logic
+PvPTab:AddToggle("AutoAim", {Title = "Auto Aim All Skills", Default = false}):OnChanged(function(Value)
+    -- Implementation here
 end)
 
-Tabs.PvP:AddToggle("PvPKillAura", {Title = "PvP Kill Aura", Default = false}):OnChanged(function(Value)
-    -- PvP kill aura logic
+PvPTab:AddToggle("PvPKillAura", {Title = "PvP Kill Aura", Default = false}):OnChanged(function(Value)
+    -- Implementation here
 end)
 
-Tabs.PvP:AddToggle("AutoBounty", {Title = "Auto Bounty Hunt", Default = false}):OnChanged(function(Value)
-    -- Auto bounty hunt logic
+PvPTab:AddToggle("AutoBounty", {Title = "Auto Bounty Hunt", Default = false}):OnChanged(function(Value)
+    -- Implementation here
 end)
 
 -- TELEPORT TAB
-local currentSeaLocations = {}
-if LocationData[CurrentSea] then
-    for locationName, _ in pairs(LocationData[CurrentSea]) do
-        table.insert(currentSeaLocations, locationName)
-    end
-end
-
-local LocationDropdown = Tabs.Teleport:AddDropdown("LocationDropdown", {
+local LocationDropdown = TeleportTab:AddDropdown("LocationDropdown", {
     Title = "Select Location",
-    Values = currentSeaLocations,
+    Values = TeleportLocations[CurrentSea] or {},
     Multi = false,
     Default = 1,
 })
 LocationDropdown:OnChanged(function(Value)
-    Settings.SelectedLocation = Value
+    getgenv().Settings.SelectedLocation = Value
 end)
 
-Tabs.Teleport:AddButton({
+TeleportTab:AddButton({
     Title = "Teleport to Selected Place",
-    Description = "Teleport to the selected location",
+    Description = "Teleport to location",
     Callback = function()
-        if Settings.SelectedLocation and LocationData[CurrentSea][Settings.SelectedLocation] then
-            safeTeleport(LocationData[CurrentSea][Settings.SelectedLocation])
+        if getgenv().Settings.SelectedLocation and TeleportCFrames[CurrentSea][getgenv().Settings.SelectedLocation] then
+            tpTo(TeleportCFrames[CurrentSea][getgenv().Settings.SelectedLocation])
         end
     end
 })
 
 -- Sea teleport buttons
 if CurrentSea ~= 1 then
-    Tabs.Teleport:AddButton({
+    TeleportTab:AddButton({
         Title = "Teleport to First Sea",
         Description = "Go to First Sea",
         Callback = function()
@@ -955,7 +911,7 @@ if CurrentSea ~= 1 then
 end
 
 if CurrentSea ~= 2 and getPlayerLevel() >= 700 then
-    Tabs.Teleport:AddButton({
+    TeleportTab:AddButton({
         Title = "Teleport to Second Sea",
         Description = "Go to Second Sea",
         Callback = function()
@@ -965,7 +921,7 @@ if CurrentSea ~= 2 and getPlayerLevel() >= 700 then
 end
 
 if CurrentSea ~= 3 and getPlayerLevel() >= 1500 then
-    Tabs.Teleport:AddButton({
+    TeleportTab:AddButton({
         Title = "Teleport to Third Sea",
         Description = "Go to Third Sea",
         Callback = function()
@@ -976,80 +932,61 @@ end
 
 -- SEA TAB
 if CurrentSea >= 3 then
-    local SeaEventDropdown = Tabs.Sea:AddDropdown("SeaEventDropdown", {
-        Title = "Choose Sea Event",
-        Values = {"Kitsune Island", "Azure Ember", "Leviathan", "Sea Beast", "Mirage Island"},
-        Multi = false,
-        Default = 1,
-    })
+    SeaTab:AddParagraph({Title = "Special Sea Events", Content = "Automated sea event farming"})
     
-    Tabs.Sea:AddParagraph({Title = "Special Sea Events", Content = "Automated sea event farming"})
-    
-    Tabs.Sea:AddToggle("AutoKitsune", {Title = "Auto Kitsune Island", Default = false}):OnChanged(function(Value)
-        -- Auto kitsune island logic
+    SeaTab:AddToggle("AutoKitsune", {Title = "Auto Kitsune Island", Default = false}):OnChanged(function(Value)
+        -- Implementation here
     end)
     
-    Tabs.Sea:AddToggle("AutoAzure", {Title = "Auto Collect Azure", Default = false}):OnChanged(function(Value)
-        -- Auto collect azure logic
+    SeaTab:AddToggle("AutoAzure", {Title = "Auto Collect Azure", Default = false}):OnChanged(function(Value)
+        -- Implementation here
     end)
     
-    Tabs.Sea:AddToggle("AutoLeviathan", {Title = "Auto Kill Leviathan", Default = false}):OnChanged(function(Value)
-        -- Auto kill leviathan logic
+    SeaTab:AddToggle("AutoLeviathan", {Title = "Auto Kill Leviathan", Default = false}):OnChanged(function(Value)
+        -- Implementation here
     end)
 else
-    Tabs.Sea:AddParagraph({Title = "Access Restricted", Content = "You need to be in Third Sea to access this tab features"})
+    SeaTab:AddParagraph({Title = "Access Restricted", Content = "You need to be in Third Sea to access this tab features"})
 end
 
 -- SETTINGS TAB
-Tabs.Settings:AddParagraph({Title = "Script Settings", Content = "Configure script behavior and preferences"})
+SettingsTab:AddParagraph({Title = "Script Settings", Content = "Configure script behavior"})
 
-local TeleportHeightSlider = Tabs.Settings:AddSlider("TeleportHeight", {
+SettingsTab:AddSlider("TeleportHeight", {
     Title = "Teleport Height",
-    Description = "Height above mobs when teleporting",
+    Description = "Height above mobs",
     Default = 20,
     Min = 5,
     Max = 50,
     Rounding = 1,
     Callback = function(Value)
-        Settings.TeleportHeight = Value
+        getgenv().Settings.TeleportHeight = Value
     end
 })
 
-local ClickDelaySlider = Tabs.Settings:AddSlider("ClickDelay", {
-    Title = "Click Delay",
-    Description = "Delay between attacks (seconds)",
-    Default = 0.1,
-    Min = 0.05,
-    Max = 1,
-    Rounding = 2,
+SettingsTab:AddSlider("FarmDistance", {
+    Title = "Farm Distance",
+    Description = "Bring mob distance",
+    Default = 25,
+    Min = 10,
+    Max = 50,
+    Rounding = 1,
     Callback = function(Value)
-        Settings.ClickDelay = Value
+        getgenv().Settings.FarmDistance = Value
     end
 })
 
--- Save Manager
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("FluentScriptHub")
-SaveManager:SetFolder("FluentScriptHub/BloxFruits")
-
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
-
-Window:SelectTab(1)
-SaveManager:LoadAutoloadConfig()
-
--- Update stats periodically
+-- Update stats every 5 seconds
 spawn(function()
     while wait(5) do
         if StatsLabel then
-            StatsLabel:SetDesc(updateStatsDisplay())
+            StatsLabel:SetDesc(getStatsText())
         end
     end
 end)
 
-print("ENCHANTED HUB | BLOX FRUITS V3.0 loaded successfully!")
+Window:SelectTab(1)
+
+print("ENCHANTED HUB | BLOX FRUITS loaded successfully!")
 print("Current Sea: " .. CurrentSea)
 print("Player Level: " .. getPlayerLevel())
