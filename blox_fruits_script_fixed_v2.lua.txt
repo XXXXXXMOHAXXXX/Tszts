@@ -36,19 +36,16 @@ local Character
 local Humanoid
 local RootPart
 
--- Character handler
 function updatePlayerCharacter()
     Character = Player.Character or Player.CharacterAdded:Wait()
     Humanoid = Character:WaitForChild("Humanoid")
     RootPart = Character:WaitForChild("HumanoidRootPart")
 end
-
 Player.CharacterAdded:Connect(updatePlayerCharacter)
 if Player.Character then
     updatePlayerCharacter()
 end
 
--- Get current sea
 function getCurrentSea()
     local placeId = game.PlaceId
     if placeId == 2753915549 then
@@ -60,34 +57,28 @@ function getCurrentSea()
     end
     return 1
 end
-
 local CurrentSea = getCurrentSea()
 
--- Player level function
 function getPlayerLevel()
     return Player.Data.Level.Value or 1
 end
 
--- Teleport function
 function tpTo(pos)
     if Character and Character:FindFirstChild("HumanoidRootPart") then
         Character.HumanoidRootPart.CFrame = pos
     end
 end
 
--- Attack function for melee
 function meleeAttack()
     local combat = ReplicatedStorage:FindFirstChild("Combat")
     if combat then
         combat:FireServer()
     end
-    
-    -- Manual click simulation
     VirtualUser:CaptureController()
     VirtualUser:ClickButton1(Vector2.new(1280, 672))
 end
 
--- Quest data for all levels
+-- [QUEST DATA] -- (All data included, do not edit!)
 local QuestData = {
     [1] = {
         {1, 9, "BanditQuest1", 1, "Bandit", CFrame.new(1059, 17, 1549)},
@@ -185,7 +176,6 @@ local QuestData = {
     }
 }
 
--- Teleport locations
 local TeleportLocations = {
     [1] = {
         "Starter Island", "Jungle", "Pirate Village", "Desert", "Frozen Village", 
@@ -255,18 +245,15 @@ local TeleportCFrames = {
     }
 }
 
--- Boss lists
 local BossLists = {
     [1] = {"The Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg"},
     [2] = {"Diamond", "Jeremy", "Fajita", "Don Swan", "Smoke Admiral", "Cursed Captain", "Darkbeard", "Order", "Awakened Ice Admiral"},
     [3] = {"Stone", "Island Empress", "Kilo Admiral", "Captain Elephant", "Beautiful Pirate", "rip_indra True Form", "Longma", "Soul Reaper", "Cake Queen", "Dough King", "Dough Prince"}
 }
 
--- Get current quest for level
 function getCurrentQuestForLevel()
     local level = getPlayerLevel()
     local quests = QuestData[CurrentSea]
-    
     if quests then
         for _, questInfo in ipairs(quests) do
             if level >= questInfo[1] and level <= questInfo[2] then
@@ -284,27 +271,21 @@ function getCurrentQuestForLevel()
     return nil
 end
 
--- Take quest function
 function takeQuest(questData)
     if not questData then return end
-    
     tpTo(questData.Location)
     wait(2)
-    
     local args = {
         [1] = "StartQuest",
         [2] = questData.Quest,
         [3] = questData.QuestNumber
     }
-    
     ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
 end
 
--- Get nearest enemy
 function getNearestEnemy(enemyName)
     local nearestEnemy = nil
     local shortestDistance = math.huge
-    
     for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
         if enemy.Name == enemyName and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
             if enemy.Humanoid.Health > 0 then
@@ -316,14 +297,11 @@ function getNearestEnemy(enemyName)
             end
         end
     end
-    
     return nearestEnemy
 end
 
--- Bring mobs function
 function bringMobs()
     if not getgenv().Settings.BringMob or not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
-    
     for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
         if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
             if enemy.Humanoid.Health > 0 then
@@ -345,7 +323,6 @@ function bringMobs()
     end
 end
 
--- Auto haki function
 function autoHaki()
     if getgenv().Settings.AutoBuso then
         local args = {[1] = "Buso"}
@@ -353,31 +330,25 @@ function autoHaki()
     end
 end
 
--- Fast attack function
 function fastAttack()
     if getgenv().Settings.FastAttack then
         meleeAttack()
     end
 end
 
--- Auto farm level main function
 function autoFarmLevel()
     if not getgenv().Settings.AutoFarmLevel then return end
-    
     local questData = getCurrentQuestForLevel()
     if not questData then return end
-    
     local hasQuest = Player.PlayerGui.Main.Quest.Visible
     if not hasQuest then
         takeQuest(questData)
         wait(3)
     end
-    
     local enemy = getNearestEnemy(questData.NPC)
     if enemy then
         local attackPos = enemy.HumanoidRootPart.CFrame * CFrame.new(0, getgenv().Settings.TeleportHeight, 0)
         tpTo(attackPos)
-        
         while enemy.Parent and enemy.Humanoid.Health > 0 and getgenv().Settings.AutoFarmLevel do
             bringMobs()
             autoHaki()
@@ -387,13 +358,10 @@ function autoFarmLevel()
     end
 end
 
--- Auto farm nearest function
 function autoFarmNearest()
     if not getgenv().Settings.AutoFarmNearest or not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
-    
     local nearestEnemy = nil
     local shortestDistance = math.huge
-    
     for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
         if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
             if enemy.Humanoid.Health > 0 then
@@ -405,11 +373,9 @@ function autoFarmNearest()
             end
         end
     end
-    
     if nearestEnemy then
         local attackPos = nearestEnemy.HumanoidRootPart.CFrame * CFrame.new(0, getgenv().Settings.TeleportHeight, 0)
         tpTo(attackPos)
-        
         while nearestEnemy.Parent and nearestEnemy.Humanoid.Health > 0 and getgenv().Settings.AutoFarmNearest do
             bringMobs()
             autoHaki()
@@ -419,25 +385,19 @@ function autoFarmNearest()
     end
 end
 
--- Auto saber quest
 local SaberProgress = 1
 function autoSaberQuest()
     if not getgenv().Settings.AutoSaber or CurrentSea ~= 1 then return end
-    
     local level = getPlayerLevel()
     if level < 200 then return end
-    
     if SaberProgress == 1 then
-        -- Step 1: Talk to Puzzle NPC
         tpTo(CFrame.new(-1405, 30, -132))
         wait(2)
         local args = {[1] = "ProQuestProgress", [2] = "SaberExpert"}
         ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
         wait(3)
         SaberProgress = 2
-        
     elseif SaberProgress == 2 then
-        -- Step 2: Kill Jungle Pirates
         local piratesKilled = 0
         while piratesKilled < 5 and getgenv().Settings.AutoSaber do
             for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
@@ -456,18 +416,14 @@ function autoSaberQuest()
             wait(1)
         end
         SaberProgress = 3
-        
     elseif SaberProgress == 3 then
-        -- Step 3: Get Cup
         tpTo(CFrame.new(-910, 17, 4040))
         wait(2)
         local args = {[1] = "ProQuestProgress", [2] = "RichSon"}
         ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
         wait(3)
         SaberProgress = 4
-        
     elseif SaberProgress == 4 then
-        -- Step 4: Kill Mob Leader
         for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
             if enemy.Name == "Mob Leader" and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
                 if enemy.Humanoid.Health > 0 then
@@ -481,9 +437,7 @@ function autoSaberQuest()
             end
         end
         SaberProgress = 5
-        
     elseif SaberProgress == 5 then
-        -- Step 5: Get Torch
         tpTo(CFrame.new(1114, 5, 4350))
         wait(2)
         for _, torch in pairs(Workspace:GetChildren()) do
@@ -492,41 +446,31 @@ function autoSaberQuest()
             end
         end
         SaberProgress = 6
-        
     elseif SaberProgress == 6 then
-        -- Step 6: Light torch and get Saber
         tpTo(CFrame.new(1114, 5, 4350))
         wait(2)
         local args = {[1] = "ProQuestProgress", [2] = "FlameTorch"}
         ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
         wait(3)
-        
         tpTo(CFrame.new(1613, 7, 4787))
         wait(2)
         local args2 = {[1] = "ProQuestProgress", [2] = "SaberExpert"}
         ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args2))
-        
         getgenv().Settings.AutoSaber = false
         SaberProgress = 1
         print("Saber Quest Completed!")
     end
 end
 
--- Auto second sea quest
 function autoSecondSeaQuest()
     if not getgenv().Settings.AutoSecondSea or CurrentSea ~= 1 then return end
-    
     local level = getPlayerLevel()
     if level < 700 then return end
-    
-    -- Go to Prison and talk to Detective
     tpTo(CFrame.new(4875, 6, 734))
     wait(2)
     local args = {[1] = "DressrosaQuestProgress", [2] = "Detective"}
     ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
     wait(3)
-    
-    -- Kill Key Holders
     for i = 1, 5 do
         for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
             if string.find(enemy.Name, "Key") and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
@@ -542,17 +486,12 @@ function autoSecondSeaQuest()
         end
         wait(2)
     end
-    
-    -- Use Key
     local args2 = {[1] = "DressrosaQuestProgress", [2] = "Key"}
     ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args2))
     wait(3)
-    
-    -- Teleport to Second Sea
     TeleportService:Teleport(4442272183, Player)
 end
 
--- Open fruit stock function
 function openFruitStock()
     local fruitShopRemote = ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("CommF_")
     if fruitShopRemote then
@@ -577,7 +516,6 @@ spawn(function()
         end
     end
 end)
-
 spawn(function()
     while wait(0.1) do
         if getgenv().Settings.AutoFarmNearest then
@@ -585,7 +523,6 @@ spawn(function()
         end
     end
 end)
-
 spawn(function()
     while wait(1) do
         if getgenv().Settings.AutoSaber then
@@ -593,7 +530,6 @@ spawn(function()
         end
     end
 end)
-
 spawn(function()
     while wait(1) do
         if getgenv().Settings.AutoSecondSea then
@@ -609,11 +545,9 @@ local UICorner = Instance.new("UICorner")
 local UIStroke = Instance.new("UIStroke")
 local UIGradient = Instance.new("UIGradient")
 local UIScale = Instance.new("UIScale")
-
 ScreenGui.Name = "SpaceHubButton"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
 ImageButton.Parent = ScreenGui
 ImageButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 ImageButton.BackgroundTransparency = 0.1
@@ -623,7 +557,6 @@ ImageButton.Size = UDim2.new(0, 70, 0, 70)
 ImageButton.Image = "rbxassetid://135671141026630"
 ImageButton.Draggable = true
 ImageButton.ImageTransparency = 0
-
 UICorner.CornerRadius = UDim.new(0, 20)
 UICorner.Parent = ImageButton
 UIStroke.Parent = ImageButton
@@ -656,7 +589,6 @@ local guiVisible = true
 ImageButton.MouseButton1Click:Connect(function()
     animateButton()
     wait(0.2)
-    
     if Window then
         guiVisible = not guiVisible
         if guiVisible then
@@ -682,7 +614,6 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- Create Tabs
 local MainTab = Window:AddTab({ Title = "Main", Icon = "home" })
 local AutoFarmTab = Window:AddTab({ Title = "Auto Farm", Icon = "zap" })
 local RaidTab = Window:AddTab({ Title = "Raid", Icon = "shield" })
@@ -692,7 +623,6 @@ local TeleportTab = Window:AddTab({ Title = "Teleport", Icon = "map-pin" })
 local SeaTab = Window:AddTab({ Title = "Sea", Icon = "anchor" })
 local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "settings" })
 
--- MAIN TAB
 local WeaponDropdown = MainTab:AddDropdown("WeaponDropdown", {
     Title = "Choose Weapon",
     Values = {"Melee", "Sword", "Blox Fruit", "Gun"},
@@ -702,21 +632,16 @@ local WeaponDropdown = MainTab:AddDropdown("WeaponDropdown", {
 WeaponDropdown:OnChanged(function(Value)
     getgenv().Settings.SelectedWeapon = Value
 end)
-
 MainTab:AddToggle("FastAttack", {Title = "Fast Attack", Default = false}):OnChanged(function(Value)
     getgenv().Settings.FastAttack = Value
 end)
-
 MainTab:AddToggle("BringMob", {Title = "Bring Mob", Default = false}):OnChanged(function(Value)
     getgenv().Settings.BringMob = Value
 end)
-
 MainTab:AddToggle("AutoBuso", {Title = "Auto Buso Haki", Default = false}):OnChanged(function(Value)
     getgenv().Settings.AutoBuso = Value
 end)
-
 MainTab:AddParagraph({Title = "SPECIAL", Content = "Special features and utilities"})
-
 MainTab:AddButton({
     Title = "Open Fruit Stock",
     Description = "Check current fruit stock",
@@ -724,29 +649,22 @@ MainTab:AddButton({
         openFruitStock()
     end
 })
-
 MainTab:AddToggle("ESPFruit", {Title = "ESP Fruit", Default = false}):OnChanged(function(Value)
     getgenv().Settings.ESPFruit = Value
 end)
-
 MainTab:AddToggle("FruitNotif", {Title = "Fruit Notification", Default = false}):OnChanged(function(Value)
     getgenv().Settings.FruitNotif = Value
 end)
-
 MainTab:AddToggle("BringFruit", {Title = "Bring Fruit", Default = false}):OnChanged(function(Value)
     getgenv().Settings.BringFruit = Value
 end)
-
 MainTab:AddToggle("StoreFruit", {Title = "Store Fruit", Default = false}):OnChanged(function(Value)
     getgenv().Settings.StoreFruit = Value
 end)
-
--- Sea-specific features
 if CurrentSea == 1 then
     MainTab:AddToggle("AutoSaber", {Title = "Auto Saber Sword", Default = false}):OnChanged(function(Value)
         getgenv().Settings.AutoSaber = Value
     end)
-    
     MainTab:AddToggle("AutoSecondSea", {Title = "Auto Second Sea Quest", Default = false}):OnChanged(function(Value)
         getgenv().Settings.AutoSecondSea = Value
     end)
@@ -754,13 +672,10 @@ elseif CurrentSea == 2 then
     MainTab:AddToggle("AutoRaceV2", {Title = "Auto Race V2", Default = false}):OnChanged(function(Value)
         getgenv().Settings.AutoRaceV2 = Value
     end)
-    
     MainTab:AddToggle("AutoRaceV3", {Title = "Auto Race V3", Default = false}):OnChanged(function(Value)
         getgenv().Settings.AutoRaceV3 = Value
     end)
 end
-
--- Player Stats
 MainTab:AddParagraph({Title = "STATS", Content = "Player Statistics"})
 local function getStatsText()
     local level = getPlayerLevel()
@@ -768,24 +683,18 @@ local function getStatsText()
     local fragments = Player.Data.Fragments.Value or 0
     local race = Player.Data.Race.Value or "Human"
     local bounty = Player.Data.Bounty.Value or 0
-    
     return string.format("Level: %d\nMoney: %s\nFragments: %d\nRace: %s\nBounty: %s\nSea: %d", 
         level, tostring(money), fragments, race, tostring(bounty), CurrentSea)
 end
-
 local StatsLabel = MainTab:AddParagraph({Title = "Current Stats", Content = getStatsText()})
 
--- AUTO FARM TAB
 AutoFarmTab:AddToggle("AutoFarmLevel", {Title = "Auto Farm Level", Default = false}):OnChanged(function(Value)
     getgenv().Settings.AutoFarmLevel = Value
 end)
-
 AutoFarmTab:AddToggle("AutoFarmNearest", {Title = "Auto Farm Nearest Mobs", Default = false}):OnChanged(function(Value)
     getgenv().Settings.AutoFarmNearest = Value
 end)
-
 AutoFarmTab:AddParagraph({Title = "Boss Section", Content = "Boss farming features"})
-
 local BossDropdown = AutoFarmTab:AddDropdown("BossDropdown", {
     Title = "Select Boss",
     Values = BossLists[CurrentSea] or {},
@@ -795,7 +704,6 @@ local BossDropdown = AutoFarmTab:AddDropdown("BossDropdown", {
 BossDropdown:OnChanged(function(Value)
     getgenv().Settings.SelectedBoss = Value
 end)
-
 AutoFarmTab:AddButton({
     Title = "Kill Selected Boss",
     Description = "Farm the selected boss",
@@ -805,30 +713,19 @@ AutoFarmTab:AddButton({
         end
     end
 })
-
 AutoFarmTab:AddToggle("KillAllBosses", {Title = "Kill All Bosses", Default = false}):OnChanged(function(Value)
-    -- Implementation here
 end)
-
 AutoFarmTab:AddParagraph({Title = "SPECIAL FARM", Content = "Special farming features"})
-
 AutoFarmTab:AddToggle("AutoBones", {Title = "Auto Farm Bones", Default = false}):OnChanged(function(Value)
     getgenv().Settings.AutoBones = Value
 end)
-
 AutoFarmTab:AddToggle("AutoRipIndra", {Title = "Auto Rip Indra", Default = false}):OnChanged(function(Value)
-    -- Implementation here
 end)
-
 AutoFarmTab:AddToggle("AutoDoughPrince", {Title = "Auto Dough Prince", Default = false}):OnChanged(function(Value)
-    -- Implementation here
 end)
-
 AutoFarmTab:AddToggle("AutoDoughKing", {Title = "Auto Dough King", Default = false}):OnChanged(function(Value)
-    -- Implementation here
 end)
 
--- RAID TAB
 if CurrentSea >= 2 then
     local ChipDropdown = RaidTab:AddDropdown("ChipDropdown", {
         Title = "Buy Chip",
@@ -836,15 +733,12 @@ if CurrentSea >= 2 then
         Multi = false,
         Default = 1,
     })
-    
     RaidTab:AddButton({
         Title = "Buy Selected Chip",
         Description = "Purchase raid chip",
         Callback = function()
-            -- Implementation here
         end
     })
-    
     RaidTab:AddToggle("KillAura", {Title = "Kill Aura", Default = false}):OnChanged(function(Value)
         getgenv().Settings.KillAura = Value
     end)
@@ -852,33 +746,22 @@ else
     RaidTab:AddParagraph({Title = "Access Restricted", Content = "You need to be in Second Sea to access this tab features"})
 end
 
--- V4 TAB
 if CurrentSea >= 3 then
     V4Tab:AddParagraph({Title = "V4 Awakening", Content = "V4 race awakening features"})
 else
     V4Tab:AddParagraph({Title = "Access Restricted", Content = "You need to be in Third Sea to access this tab features"})
 end
 
--- PVP TAB
 PvPTab:AddParagraph({Title = "PvP Features", Content = "Player vs Player combat features"})
-
 PvPTab:AddToggle("AimNearestPlayer", {Title = "Aim Nearest Player", Default = false}):OnChanged(function(Value)
-    -- Implementation here
 end)
-
 PvPTab:AddToggle("AutoAim", {Title = "Auto Aim All Skills", Default = false}):OnChanged(function(Value)
-    -- Implementation here
 end)
-
 PvPTab:AddToggle("PvPKillAura", {Title = "PvP Kill Aura", Default = false}):OnChanged(function(Value)
-    -- Implementation here
 end)
-
 PvPTab:AddToggle("AutoBounty", {Title = "Auto Bounty Hunt", Default = false}):OnChanged(function(Value)
-    -- Implementation here
 end)
 
--- TELEPORT TAB
 local LocationDropdown = TeleportTab:AddDropdown("LocationDropdown", {
     Title = "Select Location",
     Values = TeleportLocations[CurrentSea] or {},
@@ -888,7 +771,6 @@ local LocationDropdown = TeleportTab:AddDropdown("LocationDropdown", {
 LocationDropdown:OnChanged(function(Value)
     getgenv().Settings.SelectedLocation = Value
 end)
-
 TeleportTab:AddButton({
     Title = "Teleport to Selected Place",
     Description = "Teleport to location",
@@ -898,8 +780,6 @@ TeleportTab:AddButton({
         end
     end
 })
-
--- Sea teleport buttons
 if CurrentSea ~= 1 then
     TeleportTab:AddButton({
         Title = "Teleport to First Sea",
@@ -909,7 +789,6 @@ if CurrentSea ~= 1 then
         end
     })
 end
-
 if CurrentSea ~= 2 and getPlayerLevel() >= 700 then
     TeleportTab:AddButton({
         Title = "Teleport to Second Sea",
@@ -919,7 +798,6 @@ if CurrentSea ~= 2 and getPlayerLevel() >= 700 then
         end
     })
 end
-
 if CurrentSea ~= 3 and getPlayerLevel() >= 1500 then
     TeleportTab:AddButton({
         Title = "Teleport to Third Sea",
@@ -930,28 +808,19 @@ if CurrentSea ~= 3 and getPlayerLevel() >= 1500 then
     })
 end
 
--- SEA TAB
 if CurrentSea >= 3 then
     SeaTab:AddParagraph({Title = "Special Sea Events", Content = "Automated sea event farming"})
-    
     SeaTab:AddToggle("AutoKitsune", {Title = "Auto Kitsune Island", Default = false}):OnChanged(function(Value)
-        -- Implementation here
     end)
-    
     SeaTab:AddToggle("AutoAzure", {Title = "Auto Collect Azure", Default = false}):OnChanged(function(Value)
-        -- Implementation here
     end)
-    
     SeaTab:AddToggle("AutoLeviathan", {Title = "Auto Kill Leviathan", Default = false}):OnChanged(function(Value)
-        -- Implementation here
     end)
 else
     SeaTab:AddParagraph({Title = "Access Restricted", Content = "You need to be in Third Sea to access this tab features"})
 end
 
--- SETTINGS TAB
 SettingsTab:AddParagraph({Title = "Script Settings", Content = "Configure script behavior"})
-
 SettingsTab:AddSlider("TeleportHeight", {
     Title = "Teleport Height",
     Description = "Height above mobs",
@@ -963,7 +832,6 @@ SettingsTab:AddSlider("TeleportHeight", {
         getgenv().Settings.TeleportHeight = Value
     end
 })
-
 SettingsTab:AddSlider("FarmDistance", {
     Title = "Farm Distance",
     Description = "Bring mob distance",
@@ -976,7 +844,6 @@ SettingsTab:AddSlider("FarmDistance", {
     end
 })
 
--- Update stats every 5 seconds
 spawn(function()
     while wait(5) do
         if StatsLabel then
@@ -986,7 +853,6 @@ spawn(function()
 end)
 
 Window:SelectTab(1)
-
 print("ENCHANTED HUB | BLOX FRUITS loaded successfully!")
 print("Current Sea: " .. CurrentSea)
 print("Player Level: " .. getPlayerLevel())
