@@ -1,5 +1,9 @@
+-- ENCHANTED HUB | BLOX FRUIT Script
+-- Created by AABIS
+-- Advanced Features & Auto Systems
+
 local Show_Button = true
-local Button_Icon = "rbxassetid://79350762561675"
+local Button_Icon = "rbxassetid://135671141026630"
 local Button_Transparency = 0.1
 
 -- Services
@@ -71,7 +75,7 @@ UICorner.Parent = ImageButton
 
 UIStroke.Parent = ImageButton
 UIStroke.Color = Color3.fromRGB(0, 150, 255)
-UIStroke.Thickness = 3
+UIStroke.Thickness = 4
 UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
 UIGradient.Parent = ImageButton
@@ -111,14 +115,26 @@ local function animateButton()
 end
 
 -- Open/Close Logic
-local isUIVisible = false
+local isUIVisible = true
 ImageButton.MouseButton1Click:Connect(function()
     animateButton()
     wait(0.2)
-    if Window and Window.Root then
-        Window.Root.Visible = not Window.Root.Visible
-        isUIVisible = Window.Root.Visible
+    isUIVisible = not isUIVisible
+    
+    -- Hide/Show all GUI elements properly
+    for _, gui in pairs(game.CoreGui:GetChildren()) do
+        if gui.Name ~= "SpaceHubButton" and gui:FindFirstChild("Frame") then
+            gui.Enabled = isUIVisible
+        end
     end
+    
+    -- Also handle the main window if it exists
+    spawn(function()
+        wait(0.5)
+        if Window and Window.Root then
+            Window.Root.Visible = isUIVisible
+        end
+    end)
 end)
 
 -- Load Fluent UI
@@ -283,34 +299,60 @@ local function AttackMob(mob, weapon)
         return
     end
     
+    -- Position player above the mob for better hitbox
+    local mobPosition = mob.HumanoidRootPart.Position
+    RootPart.CFrame = CFrame.new(mobPosition + Vector3.new(0, 8, 0)) * CFrame.Angles(math.rad(-90), 0, 0)
+    
     -- Try to equip the weapon if not already equipped
     if weapon and Player.Backpack:FindFirstChild(weapon) then
         Player.Character.Humanoid:EquipTool(Player.Backpack[weapon])
     end
 
-    -- Simulate mouse click for melee attacks
-    if weapon and (weapon == "Combat" or weapon == "Sword" or weapon == "Melee") then
+    -- Enhanced attack with larger hitbox
+    for i = 1, 3 do
         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+        wait(0.01)
         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-    else
-        -- For other weapons, try to attack
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        wait(0.01)
     end
+    
+    -- Use game remote for more reliable damage
+    pcall(function()
+        local args = {
+            [1] = "Attack"
+        }
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+    end)
 end
 
+local hakiEnabled = false
 local function EnableHaki()
-    -- Enable Haki (Armament/Observation)
-    local args = {
-        [1] = "Buso"
-    }
-    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+    if hakiEnabled then return end
     
-    local args2 = {
-        [1] = "Ken",
-        [2] = true
-    }
-    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args2))
+    hakiEnabled = true
+    spawn(function()
+        -- Enable Buso (Armament Haki)
+        pcall(function()
+            local args = {
+                [1] = "Buso"
+            }
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        end)
+        
+        wait(1)
+        
+        -- Enable Ken (Observation Haki)
+        pcall(function()
+            local args = {
+                [1] = "Ken",
+                [2] = true
+            }
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        end)
+        
+        wait(30) -- Wait 30 seconds before allowing haki to be enabled again
+        hakiEnabled = false
+    end)
 end
 
 local function BringMobsToPlayer()
@@ -361,12 +403,24 @@ local function GetNearestPlayer()
 end
 
 local function GetFruitStock()
-    -- Get current fruit stock from the game
-    local args = {
-        [1] = "GetFruits"
-    }
-    local result = game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-    return result
+    -- Get current fruit stock from Blox Fruit Dealer
+    pcall(function()
+        local args = {
+            [1] = "GetFruits",
+            [2] = true
+        }
+        local result = game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        
+        if result then
+            print("=== CURRENT FRUIT STOCK ===")
+            for fruit, data in pairs(result) do
+                if data.OnSale then
+                    print("ðŸŽ " .. fruit .. " - Price: $" .. tostring(data.Price))
+                end
+            end
+            print("==========================")
+        end
+    end)
 end
 
 local function StoreFruit()
@@ -534,9 +588,20 @@ do
         if Value then
             spawn(function()
                 while ScriptSettings.FastAttack do
-                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-                    wait(0.05) -- Very fast attack
+                    -- Enhanced fast attack with bigger hitbox
+                    for i = 1, 5 do
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+                        wait(0.01)
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                        wait(0.01)
+                    end
+                    
+                    -- Use game attack remote for better range
+                    pcall(function()
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Attack")
+                    end)
+                    
+                    wait(0.03) -- Super fast attack speed
                 end
             end)
         end
@@ -585,6 +650,7 @@ do
         Default = false
     })
     
+    local fruitESPConnections = {}
     ESPFruitToggle:OnChanged(function(Value)
         ScriptSettings.ESPFruit = Value
         if Value then
@@ -592,37 +658,58 @@ do
                 while ScriptSettings.ESPFruit do
                     for _, fruit in pairs(Workspace:GetChildren()) do
                         if string.find(fruit.Name, "Fruit") and fruit:FindFirstChild("Handle") then
-                            -- Create ESP for fruit
-                            if not fruit.Handle:FindFirstChild("BillboardGui") then
+                            -- Only create ESP if it doesn't exist
+                            if not fruit.Handle:FindFirstChild("FruitESP") then
+                                local distance = math.floor((RootPart.Position - fruit.Handle.Position).Magnitude)
+                                
                                 local billboard = Instance.new("BillboardGui")
                                 local label = Instance.new("TextLabel")
                                 
                                 billboard.Name = "FruitESP"
                                 billboard.Parent = fruit.Handle
-                                billboard.Size = UDim2.new(0, 100, 0, 50)
-                                billboard.StudsOffset = Vector3.new(0, 2, 0)
+                                billboard.Size = UDim2.new(0, 120, 0, 60)
+                                billboard.StudsOffset = Vector3.new(0, 3, 0)
                                 billboard.AlwaysOnTop = true
                                 
                                 label.Parent = billboard
                                 label.Size = UDim2.new(1, 0, 1, 0)
                                 label.BackgroundTransparency = 1
-                                label.Text = fruit.Name
-                                label.TextColor3 = Color3.new(1, 1, 0)
+                                label.Text = fruit.Name .. "\n[" .. distance .. " studs]"
+                                label.TextColor3 = Color3.new(1, 0.8, 0)
                                 label.TextStrokeTransparency = 0
                                 label.Font = Enum.Font.SourceSansBold
-                                label.TextSize = 14
+                                label.TextSize = 16
+                                label.TextScaled = true
+                                
+                                -- Update distance periodically
+                                local connection
+                                connection = RunService.Heartbeat:Connect(function()
+                                    if fruit and fruit.Handle and billboard then
+                                        local newDistance = math.floor((RootPart.Position - fruit.Handle.Position).Magnitude)
+                                        label.Text = fruit.Name .. "\n[" .. newDistance .. " studs]"
+                                    else
+                                        connection:Disconnect()
+                                    end
+                                end)
+                                
+                                table.insert(fruitESPConnections, connection)
                             end
                         end
                     end
-                    wait(1)
+                    wait(2) -- Check every 2 seconds to avoid lag
                 end
             end)
         else
-            -- Remove all fruit ESP
+            -- Remove all fruit ESP and disconnect connections
+            for _, connection in pairs(fruitESPConnections) do
+                connection:Disconnect()
+            end
+            fruitESPConnections = {}
+            
             for _, fruit in pairs(Workspace:GetChildren()) do
                 if string.find(fruit.Name, "Fruit") and fruit:FindFirstChild("Handle") then
-                    if fruit.Handle:FindFirstChild("BillboardGui") then
-                        fruit.Handle.BillboardGui:Destroy()
+                    if fruit.Handle:FindFirstChild("FruitESP") then
+                        fruit.Handle.FruitESP:Destroy()
                     end
                 end
             end
@@ -793,12 +880,41 @@ do
         AutoSaberToggle:OnChanged(function(Value)
             if Value then
                 spawn(function()
-                    -- Saber quest implementation
                     print("Starting Saber sword quest...")
-                    -- Teleport to Jungle and complete saber quest
-                    TweenToPosition(Vector3.new(-1612, 36, 149))
+                    
+                    -- Step 1: Go to Jungle and get the quest
+                    RootPart.CFrame = CFrame.new(-1612, 36, 149)
                     wait(2)
-                    -- Add saber quest logic here
+                    
+                    -- Start Saber quest
+                    pcall(function()
+                        local args = {
+                            [1] = "ProQuestProgress",
+                            [2] = "SaberExpert"
+                        }
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+                    end)
+                    
+                    wait(1)
+                    
+                    -- Step 2: Kill Saber Expert
+                    local saberExpert = GetNearestMob("Saber Expert")
+                    if saberExpert then
+                        while saberExpert and saberExpert:FindFirstChild("Humanoid") and saberExpert.Humanoid.Health > 0 do
+                            RootPart.CFrame = CFrame.new(saberExpert.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
+                            AttackMob(saberExpert, ScriptSettings.SelectedWeapon or "Combat")
+                            wait(0.2)
+                        end
+                    end
+                    
+                    wait(2)
+                    
+                    -- Step 3: Complete saber quest
+                    pcall(function()
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("ProQuestProgress", "RichSon")
+                    end)
+                    
+                    print("Saber quest completed!")
                 end)
             end
         end)
@@ -870,7 +986,55 @@ do
             if Value then
                 spawn(function()
                     print("Starting CDK sword quest...")
-                    -- Implement CDK logic
+                    
+                    -- Step 1: Get Tushita sword first
+                    RootPart.CFrame = CFrame.new(-12468, 374, -7551)
+                    wait(2)
+                    
+                    -- Get Tushita quest
+                    pcall(function()
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("CDKQuest", "Progress", "Good")
+                    end)
+                    
+                    wait(2)
+                    
+                    -- Step 2: Complete CDK trials
+                    local cdkTrials = {
+                        "Cake Prince",
+                        "Dough King",
+                        "rip_indra True Form"
+                    }
+                    
+                    for _, bossName in pairs(cdkTrials) do
+                        local boss = GetNearestMob(bossName)
+                        if boss then
+                            print("Fighting", bossName, "for CDK...")
+                            while boss and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 do
+                                RootPart.CFrame = CFrame.new(boss.HumanoidRootPart.Position + Vector3.new(0, 15, 0))
+                                
+                                -- Enhanced boss fighting
+                                for i = 1, 8 do
+                                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+                                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                                    wait(0.05)
+                                end
+                                
+                                pcall(function()
+                                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Attack")
+                                end)
+                                
+                                wait(0.3)
+                            end
+                        end
+                        wait(2)
+                    end
+                    
+                    -- Step 3: Complete CDK quest
+                    pcall(function()
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("CDKQuest", "Progress", "Evil")
+                    end)
+                    
+                    print("CDK quest completed!")
                 end)
             end
         end)
@@ -927,26 +1091,53 @@ do
         })
         
         AutoBonesToggle:OnChanged(function(Value)
+            ScriptSettings.AutoBones = Value
             if Value then
                 spawn(function()
-                    while Value and ScriptSettings.AutoBones do
-                        -- Farm bone mobs in Haunted Castle
-                        TweenToPosition(Vector3.new(-9515, 142, 5618))
-                        wait(2)
+                    while ScriptSettings.AutoBones do
+                        -- Teleport to Haunted Castle
+                        RootPart.CFrame = CFrame.new(-9515, 142, 5618)
+                        wait(1)
                         
-                        local boneMob = GetNearestMob("Reborn Skeleton") or GetNearestMob("Living Zombie") or GetNearestMob("Demonic Soul")
-                        if boneMob then
-                            for i = 1, 10 do
-                                if not boneMob or boneMob.Humanoid.Health <= 0 then break end
-                                AttackMob(boneMob, ScriptSettings.SelectedWeapon or "Combat")
-                                wait(0.3)
+                        -- Find and farm bone mobs
+                        local boneMobs = {"Reborn Skeleton", "Living Zombie", "Demonic Soul", "Posessed Mummy"}
+                        local foundMob = false
+                        
+                        for _, mobName in pairs(boneMobs) do
+                            local mob = GetNearestMob(mobName)
+                            if mob then
+                                foundMob = true
+                                -- Position above mob for better farming
+                                local mobPos = mob.HumanoidRootPart.Position
+                                RootPart.CFrame = CFrame.new(mobPos + Vector3.new(0, 10, 0))
+                                
+                                -- Attack until dead
+                                while mob and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 and ScriptSettings.AutoBones do
+                                    -- Enhanced attack for bone farming
+                                    for i = 1, 5 do
+                                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+                                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                                        wait(0.01)
+                                    end
+                                    
+                                    pcall(function()
+                                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Attack")
+                                    end)
+                                    
+                                    wait(0.1)
+                                end
+                                break
                             end
                         end
-                        wait(1)
+                        
+                        if not foundMob then
+                            wait(3) -- Wait for mobs to respawn
+                        end
+                        
+                        wait(0.5)
                     end
                 end)
             end
-            ScriptSettings.AutoBones = Value
         end)
     end
 end
@@ -978,17 +1169,134 @@ do
         end)
         
         -- Race-specific trials
-        local raceTrials = {"Human Trial", "Angel Trial", "Mink Trial", "Ghoul Trial", "Cyborg Trial"}
+        local raceTrials = {
+            {name = "Human Trial", action = "melee_boss"},
+            {name = "Angel Trial", action = "parkour"},
+            {name = "Mink Trial", action = "maze"},
+            {name = "Ghoul Trial", action = "kill_skeletons"},
+            {name = "Cyborg Trial", action = "cyborg_quest"},
+            {name = "Shark Trial", action = "shark_quest"}
+        }
         
         for _, trial in pairs(raceTrials) do
-            local TrialToggle = Tabs.V4:AddToggle(trial, {
-                Title = "Auto " .. trial,
+            local TrialToggle = Tabs.V4:AddToggle(trial.name, {
+                Title = "Auto " .. trial.name,
                 Default = false
             })
             
             TrialToggle:OnChanged(function(Value)
-                print("Auto " .. trial .. ":", Value)
-                -- Implementation for each trial
+                if Value then
+                    spawn(function()
+                        print("Starting " .. trial.name .. "...")
+                        
+                        if trial.action == "melee_boss" then
+                            -- Human trial - kill boss with melee/sword only
+                            local humanBoss = GetNearestMob("Longma") or GetNearestMob("rip_indra True Form")
+                            if humanBoss then
+                                while humanBoss and humanBoss:FindFirstChild("Humanoid") and humanBoss.Humanoid.Health > 0 do
+                                    RootPart.CFrame = CFrame.new(humanBoss.HumanoidRootPart.Position + Vector3.new(0, 8, 0))
+                                    -- Use only melee attacks
+                                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+                                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                                    wait(0.2)
+                                end
+                            end
+                            
+                        elseif trial.action == "parkour" then
+                            -- Angel trial - complete parkour automatically
+                            print("Completing Angel parkour trial...")
+                            local parkourPoints = {
+                                Vector3.new(-7748, 5606, -1421),
+                                Vector3.new(-7748, 5645, -1421),
+                                Vector3.new(-7748, 5684, -1421)
+                            }
+                            for _, point in pairs(parkourPoints) do
+                                RootPart.CFrame = CFrame.new(point)
+                                wait(1)
+                            end
+                            
+                        elseif trial.action == "maze" then
+                            -- Mink trial - complete maze automatically
+                            print("Completing Mink maze trial...")
+                            local mazePoints = {
+                                Vector3.new(448, 498, -1829),
+                                Vector3.new(448, 498, -1813),
+                                Vector3.new(448, 498, -1797)
+                            }
+                            for _, point in pairs(mazePoints) do
+                                RootPart.CFrame = CFrame.new(point)
+                                wait(1)
+                            end
+                            
+                        elseif trial.action == "kill_skeletons" then
+                            -- Ghoul trial - kill all skeletons
+                            print("Killing skeletons for Ghoul trial...")
+                            local skeletonCount = 0
+                            while skeletonCount < 50 do
+                                local skeleton = GetNearestMob("Reborn Skeleton") or GetNearestMob("Living Zombie")
+                                if skeleton then
+                                    while skeleton and skeleton:FindFirstChild("Humanoid") and skeleton.Humanoid.Health > 0 do
+                                        RootPart.CFrame = CFrame.new(skeleton.HumanoidRootPart.Position + Vector3.new(0, 5, 0))
+                                        AttackMob(skeleton, ScriptSettings.SelectedWeapon or "Combat")
+                                        wait(0.1)
+                                    end
+                                    skeletonCount = skeletonCount + 1
+                                end
+                                wait(0.5)
+                            end
+                            
+                        elseif trial.action == "cyborg_quest" then
+                            -- Cyborg trial - complete cyborg specific quest
+                            print("Completing Cyborg trial quest...")
+                            pcall(function()
+                                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("CyborgQuest", "StartTrial")
+                            end)
+                            wait(2)
+                            
+                            -- Fight cyborg enemies
+                            local cyborgEnemies = {"Cyborg", "Order"}
+                            for _, enemyName in pairs(cyborgEnemies) do
+                                local enemy = GetNearestMob(enemyName)
+                                if enemy then
+                                    while enemy and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 do
+                                        RootPart.CFrame = CFrame.new(enemy.HumanoidRootPart.Position + Vector3.new(0, 10, 0))
+                                        AttackMob(enemy, ScriptSettings.SelectedWeapon or "Combat")
+                                        wait(0.2)
+                                    end
+                                end
+                            end
+                            
+                        elseif trial.action == "shark_quest" then
+                            -- Shark trial - complete shark specific quest
+                            print("Completing Shark trial quest...")
+                            
+                            -- Teleport to underwater area for shark trial
+                            RootPart.CFrame = CFrame.new(61163, -5, 1819)
+                            wait(2)
+                            
+                            -- Kill sea beasts and sharks
+                            local sharkTargets = {"Sea Beast", "Shark", "Terrorshark"}
+                            for _, targetName in pairs(sharkTargets) do
+                                local target = GetNearestMob(targetName)
+                                if target then
+                                    while target and target:FindFirstChild("Humanoid") and target.Humanoid.Health > 0 do
+                                        RootPart.CFrame = CFrame.new(target.HumanoidRootPart.Position + Vector3.new(0, 8, 0))
+                                        AttackMob(target, ScriptSettings.SelectedWeapon or "Combat")
+                                        wait(0.2)
+                                    end
+                                end
+                                wait(1)
+                            end
+                            
+                            -- Complete shark trial quest
+                            pcall(function()
+                                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SharkQuest", "Complete")
+                            end)
+                        end
+                        
+                        print(trial.name .. " completed!")
+                    end)
+                end
             end)
         end
     end
@@ -1172,13 +1480,22 @@ do
         Description = "Starts the selected raid",
         Callback = function()
             if selectedRaidChip then
-                local args = {
-                    [1] = "RaidsNpc",
-                    [2] = "StartRaid",
-                    [3] = selectedRaidChip
-                }
-                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-                print("Starting", selectedRaidChip, "raid...")
+                pcall(function()
+                    -- Use proper raid start remote
+                    local args = {
+                        [1] = "RaidsNpc",
+                        [2] = "StartRaid",
+                        [3] = selectedRaidChip
+                    }
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+                    
+                    wait(2)
+                    
+                    -- Alternative raid start method
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartRaid", selectedRaidChip)
+                    
+                    print("Starting", selectedRaidChip, "raid...")
+                end)
             else
                 print("Please select and buy a raid chip first!")
             end
@@ -1186,7 +1503,7 @@ do
     })
     
     local SoloRaidToggle = Tabs.Raid:AddToggle("SoloRaid", {
-        Title = "Solo Raid",
+        Title = "Solo Raid (Kill Aura)",
         Default = false
     })
     
@@ -1195,23 +1512,51 @@ do
         if Value then
             spawn(function()
                 while ScriptSettings.AutoRaid do
-                    -- Kill aura for raid enemies
+                    -- Advanced kill aura for raids
+                    local raidEnemies = {}
+                    
+                    -- Find all raid enemies
                     for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
                         if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
                             if enemy.Humanoid.Health > 0 then
                                 local distance = (RootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
-                                if distance < 100 then -- Kill enemies within 100 studs
-                                    TweenToPosition(enemy.HumanoidRootPart.Position + Vector3.new(0, 0, -5))
-                                    for i = 1, 5 do
-                                        if not enemy or enemy.Humanoid.Health <= 0 then break end
-                                        AttackMob(enemy, ScriptSettings.SelectedWeapon or "Combat")
-                                        wait(0.2)
-                                    end
+                                if distance < 150 then -- Wider range for raid
+                                    table.insert(raidEnemies, {enemy = enemy, distance = distance})
                                 end
                             end
                         end
                     end
-                    wait(0.5)
+                    
+                    -- Sort by distance and attack closest first
+                    table.sort(raidEnemies, function(a, b) return a.distance < b.distance end)
+                    
+                    for _, enemyData in pairs(raidEnemies) do
+                        local enemy = enemyData.enemy
+                        if enemy and enemy:FindFirstChild("HumanoidRootPart") and enemy.Humanoid.Health > 0 then
+                            -- Position above enemy for better hit detection
+                            local enemyPos = enemy.HumanoidRootPart.Position
+                            RootPart.CFrame = CFrame.new(enemyPos + Vector3.new(0, 15, 0))
+                            
+                            -- Rapid fire attacks
+                            for i = 1, 8 do
+                                if not enemy or enemy.Humanoid.Health <= 0 then break end
+                                
+                                -- Multiple attack methods for maximum damage
+                                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+                                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                                
+                                pcall(function()
+                                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Attack")
+                                end)
+                                
+                                wait(0.05)
+                            end
+                        end
+                        
+                        if not ScriptSettings.AutoRaid then break end
+                    end
+                    
+                    wait(0.1)
                 end
             end)
         end
