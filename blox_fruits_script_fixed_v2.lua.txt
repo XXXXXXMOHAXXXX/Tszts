@@ -1,5 +1,5 @@
 local Show_Button = true
-local Button_Icon = "rbxassetid://135671141026630"
+local Button_Icon = "rbxassetid://79350762561675"
 local Button_Transparency = 0.1
 
 -- Services
@@ -71,7 +71,7 @@ UICorner.Parent = ImageButton
 
 UIStroke.Parent = ImageButton
 UIStroke.Color = Color3.fromRGB(0, 150, 255)
-UIStroke.Thickness = 4
+UIStroke.Thickness = 3
 UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
 UIGradient.Parent = ImageButton
@@ -278,6 +278,167 @@ local function GetPlayerStats()
     return stats
 end
 
+local function AttackMob(mob, weapon)
+    if not mob or not mob:FindFirstChild("Humanoid") or mob.Humanoid.Health <= 0 then
+        return
+    end
+    
+    -- Try to equip the weapon if not already equipped
+    if weapon and Player.Backpack:FindFirstChild(weapon) then
+        Player.Character.Humanoid:EquipTool(Player.Backpack[weapon])
+    end
+
+    -- Simulate mouse click for melee attacks
+    if weapon and (weapon == "Combat" or weapon == "Sword" or weapon == "Melee") then
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+    else
+        -- For other weapons, try to attack
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+    end
+end
+
+local function EnableHaki()
+    -- Enable Haki (Armament/Observation)
+    local args = {
+        [1] = "Buso"
+    }
+    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+    
+    local args2 = {
+        [1] = "Ken",
+        [2] = true
+    }
+    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args2))
+end
+
+local function BringMobsToPlayer()
+    if not ScriptSettings.BringMobs then return end
+    
+    for _, mob in pairs(Workspace.Enemies:GetChildren()) do
+        if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") then
+            if mob.Humanoid.Health > 0 then
+                local distance = (RootPart.Position - mob.HumanoidRootPart.Position).Magnitude
+                if distance < 500 then -- Only bring mobs within 500 studs
+                    mob.HumanoidRootPart.CFrame = RootPart.CFrame * CFrame.new(0, 0, -10)
+                    mob.HumanoidRootPart.CanCollide = false
+                    mob.HumanoidRootPart.Size = Vector3.new(1, 1, 1)
+                    if mob:FindFirstChild("Body") then
+                        mob.Body:Destroy()
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function GetAllPlayers()
+    local playerList = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= Player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            table.insert(playerList, player.Name)
+        end
+    end
+    return playerList
+end
+
+local function GetNearestPlayer()
+    local nearestPlayer = nil
+    local nearestDistance = math.huge
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= Player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (RootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+            if distance < nearestDistance then
+                nearestDistance = distance
+                nearestPlayer = player
+            end
+        end
+    end
+    
+    return nearestPlayer
+end
+
+local function GetFruitStock()
+    -- Get current fruit stock from the game
+    local args = {
+        [1] = "GetFruits"
+    }
+    local result = game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+    return result
+end
+
+local function StoreFruit()
+    local args = {
+        [1] = "StoreFruit",
+        [2] = Player.Character:FindFirstChild("Fruit") and Player.Character.Fruit.Name or nil
+    }
+    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+end
+
+local function RollFruit()
+    local args = {
+        [1] = "Cousin",
+        [2] = "Buy"
+    }
+    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+end
+
+-- Teleport locations with coordinates
+local TeleportLocations = {
+    [1] = { -- First Sea
+        ["Middle Town"] = CFrame.new(1068, 16, 1429),
+        ["Pirate Village"] = CFrame.new(-345, 7, 263),
+        ["Marine Base"] = CFrame.new(-2573, 7, -326),
+        ["Jungle"] = CFrame.new(-1612, 36, 149),
+        ["Desert"] = CFrame.new(944, 20, 4373),
+        ["Frozen Village"] = CFrame.new(1347, 104, -1319),
+        ["Marine Fortress"] = CFrame.new(-4914, 50, 4040),
+        ["Sky Island"] = CFrame.new(-4970, 717, -2622),
+        ["Prison"] = CFrame.new(4854, 5, 734),
+        ["Colosseum"] = CFrame.new(-1427, 7, -2792),
+        ["Magma Village"] = CFrame.new(-5247, 12, -4445),
+        ["Under Water City"] = CFrame.new(61163, 11, 1819),
+        ["Fountain City"] = CFrame.new(5127, 59, 4105),
+        ["Shank Room"] = CFrame.new(-1442, 29, -12),
+        ["Mob Island"] = CFrame.new(-2850, 7, -253)
+    },
+    [2] = { -- Second Sea
+        ["The Cafe"] = CFrame.new(-380, 77, 251),
+        ["Frist Spot"] = CFrame.new(-11, 29, 2771),
+        ["Dark Area"] = CFrame.new(3780, 22, -3498),
+        ["Flamingo Mansion"] = CFrame.new(-483, 332, 595),
+        ["Flamingo Room"] = CFrame.new(2284, 15, 905),
+        ["Green Zone"] = CFrame.new(-2448, 72, -3262),
+        ["Factory"] = CFrame.new(424, 211, -427),
+        ["Colossuim"] = CFrame.new(-1503, 219, 1369),
+        ["Zombie Island"] = CFrame.new(-5622, 492, -781),
+        ["Two Snow Mountain"] = CFrame.new(753, 408, -5274),
+        ["Punk Hazard"] = CFrame.new(-6127, 15, -5420),
+        ["Cursed Ship"] = CFrame.new(923, 125, 32885),
+        ["Ice Castle"] = CFrame.new(6148, 294, -6741),
+        ["Forgotten Island"] = CFrame.new(-3032, 317, -10075),
+        ["Ussop Island"] = CFrame.new(4816, 8, 2863),
+        ["Mini Sky Island"] = CFrame.new(-288, 306, -2394)
+    },
+    [3] = { -- Third Sea
+        ["Mansion"] = CFrame.new(-12468, 374, -7551),
+        ["Port Town"] = CFrame.new(-290, 43, 5343),
+        ["Great Tree"] = CFrame.new(2681, 1682, -7190),
+        ["Castle On The Sea"] = CFrame.new(-5074, 314, -2991),
+        ["MiniSky"] = CFrame.new(-260, 1968, -431),
+        ["Hydra Island"] = CFrame.new(5228, 604, -345),
+        ["Floating Turtle"] = CFrame.new(-13274, 531, -7579),
+        ["Haunted Castle"] = CFrame.new(-9515, 142, 5618),
+        ["Ice Cream Island"] = CFrame.new(-902, 79, -10988),
+        ["Peanut Island"] = CFrame.new(-2062, 50, -10232),
+        ["Cocoa Island"] = CFrame.new(87, 73, -12297),
+        ["Candy Island"] = CFrame.new(-1049, 13, -14822),
+        ["Tiki Outpost"] = CFrame.new(-16234, 9, 439)
+    }
+}
+
 local function GetCurrentMobsForLevel()
     local playerLevel = Player.leaderstats and Player.leaderstats.Level.Value or 1
     local seaMobs = SeaData[CurrentSea].mobs
@@ -353,6 +514,14 @@ do
     
     BringMobsToggle:OnChanged(function(Value)
         ScriptSettings.BringMobs = Value
+        if Value then
+            spawn(function()
+                while ScriptSettings.BringMobs do
+                    BringMobsToPlayer()
+                    wait(0.1)
+                end
+            end)
+        end
     end)
     
     local FastAttackToggle = Tabs.Main:AddToggle("FastAttack", {
@@ -362,6 +531,32 @@ do
     
     FastAttackToggle:OnChanged(function(Value)
         ScriptSettings.FastAttack = Value
+        if Value then
+            spawn(function()
+                while ScriptSettings.FastAttack do
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                    wait(0.05) -- Very fast attack
+                end
+            end)
+        end
+    end)
+    
+    local AutoHakiToggle = Tabs.Main:AddToggle("AutoHaki", {
+        Title = "Auto Haki",
+        Default = false
+    })
+    
+    AutoHakiToggle:OnChanged(function(Value)
+        ScriptSettings.AutoHaki = Value
+        if Value then
+            spawn(function()
+                while ScriptSettings.AutoHaki do
+                    EnableHaki()
+                    wait(10) -- Enable haki every 10 seconds
+                end
+            end)
+        end
     end)
     
     -- Fruits Section
@@ -369,10 +564,19 @@ do
     
     local OpenFruitStock = Tabs.Main:AddButton({
         Title = "Open Fruit Stock",
-        Description = "Opens the fruit inventory",
+        Description = "Shows current fruit stock available",
         Callback = function()
-            -- Implementation for opening fruit stock
-            print("Opening fruit stock...")
+            local stock = GetFruitStock()
+            print("Current Fruit Stock:")
+            if stock then
+                for fruit, available in pairs(stock) do
+                    if available then
+                        print("- " .. fruit .. ": Available")
+                    end
+                end
+            else
+                print("Could not retrieve fruit stock")
+            end
         end
     })
     
@@ -382,8 +586,47 @@ do
     })
     
     ESPFruitToggle:OnChanged(function(Value)
-        -- Implementation for fruit ESP
-        print("Fruit ESP:", Value)
+        ScriptSettings.ESPFruit = Value
+        if Value then
+            spawn(function()
+                while ScriptSettings.ESPFruit do
+                    for _, fruit in pairs(Workspace:GetChildren()) do
+                        if string.find(fruit.Name, "Fruit") and fruit:FindFirstChild("Handle") then
+                            -- Create ESP for fruit
+                            if not fruit.Handle:FindFirstChild("BillboardGui") then
+                                local billboard = Instance.new("BillboardGui")
+                                local label = Instance.new("TextLabel")
+                                
+                                billboard.Name = "FruitESP"
+                                billboard.Parent = fruit.Handle
+                                billboard.Size = UDim2.new(0, 100, 0, 50)
+                                billboard.StudsOffset = Vector3.new(0, 2, 0)
+                                billboard.AlwaysOnTop = true
+                                
+                                label.Parent = billboard
+                                label.Size = UDim2.new(1, 0, 1, 0)
+                                label.BackgroundTransparency = 1
+                                label.Text = fruit.Name
+                                label.TextColor3 = Color3.new(1, 1, 0)
+                                label.TextStrokeTransparency = 0
+                                label.Font = Enum.Font.SourceSansBold
+                                label.TextSize = 14
+                            end
+                        end
+                    end
+                    wait(1)
+                end
+            end)
+        else
+            -- Remove all fruit ESP
+            for _, fruit in pairs(Workspace:GetChildren()) do
+                if string.find(fruit.Name, "Fruit") and fruit:FindFirstChild("Handle") then
+                    if fruit.Handle:FindFirstChild("BillboardGui") then
+                        fruit.Handle.BillboardGui:Destroy()
+                    end
+                end
+            end
+        end
     end)
     
     local BringFruitToggle = Tabs.Main:AddToggle("BringFruit", {
@@ -392,16 +635,27 @@ do
     })
     
     BringFruitToggle:OnChanged(function(Value)
-        -- Implementation for bringing fruits
-        print("Bring Fruit:", Value)
+        ScriptSettings.BringFruit = Value
+        if Value then
+            spawn(function()
+                while ScriptSettings.BringFruit do
+                    for _, fruit in pairs(Workspace:GetChildren()) do
+                        if string.find(fruit.Name, "Fruit") and fruit:FindFirstChild("Handle") then
+                            fruit.Handle.CFrame = RootPart.CFrame * CFrame.new(0, 5, -5)
+                        end
+                    end
+                    wait(0.5)
+                end
+            end)
+        end
     end)
     
     local StoreFruitButton = Tabs.Main:AddButton({
         Title = "Store Fruit",
-        Description = "Stores current fruit",
+        Description = "Stores current fruit in backpack",
         Callback = function()
-            -- Implementation for storing fruit
-            print("Storing fruit...")
+            StoreFruit()
+            print("Fruit stored!")
         end
     })
     
@@ -409,8 +663,8 @@ do
         Title = "Roll Random Fruit",
         Description = "Rolls a random fruit from gacha",
         Callback = function()
-            -- Implementation for rolling fruit
-            print("Rolling random fruit...")
+            RollFruit()
+            print("Rolling fruit from gacha...")
         end
     })
     
@@ -460,12 +714,21 @@ do
                         local targetMob = suitableMobs[1]
                         local mob = GetNearestMob(targetMob)
                         if mob then
-                            -- Farm the mob
-                            TweenToPosition(mob.HumanoidRootPart.Position)
-                            -- Add attack logic here
+                            -- Move to mob
+                            TweenToPosition(mob.HumanoidRootPart.Position + Vector3.new(0, 0, -5))
+                            wait(1)
+                            
+                            -- Attack the mob repeatedly until it dies
+                            for i = 1, 15 do
+                                if not mob or not mob:FindFirstChild("Humanoid") or mob.Humanoid.Health <= 0 then
+                                    break
+                                end
+                                AttackMob(mob, ScriptSettings.SelectedWeapon or "Combat")
+                                wait(0.2)
+                            end
                         end
                     end
-                    wait(0.1)
+                    wait(0.5)
                 end
             end)
         end
@@ -492,20 +755,198 @@ do
     
     AutoBossToggle:OnChanged(function(Value)
         ScriptSettings.AutoBoss = Value
+        if Value then
+            spawn(function()
+                while ScriptSettings.AutoBoss do
+                    if ScriptSettings.SelectedBoss then
+                        local boss = GetNearestMob(ScriptSettings.SelectedBoss)
+                        if boss then
+                            TweenToPosition(boss.HumanoidRootPart.Position + Vector3.new(0, 0, -10))
+                            wait(1)
+                            
+                            -- Attack boss repeatedly
+                            for i = 1, 20 do
+                                if not boss or not boss:FindFirstChild("Humanoid") or boss.Humanoid.Health <= 0 then
+                                    break
+                                end
+                                AttackMob(boss, ScriptSettings.SelectedWeapon or "Combat")
+                                wait(0.3)
+                            end
+                        end
+                    end
+                    wait(1)
+                end
+            end)
+        end
     end)
     
     -- Special Farm Section
     Tabs.AutoFarm:AddSection("Special Farm")
     
-    for _, specialFarm in pairs(SeaData[CurrentSea].specialFarms) do
-        local SpecialFarmToggle = Tabs.AutoFarm:AddToggle(specialFarm, {
-            Title = specialFarm,
+    if CurrentSea == 1 then
+        -- AUTO SABER SWORD
+        local AutoSaberToggle = Tabs.AutoFarm:AddToggle("AutoSaber", {
+            Title = "AUTO SABER SWORD",
             Default = false
         })
         
-        SpecialFarmToggle:OnChanged(function(Value)
-            print(specialFarm .. ":", Value)
-            -- Implementation for each special farm
+        AutoSaberToggle:OnChanged(function(Value)
+            if Value then
+                spawn(function()
+                    -- Saber quest implementation
+                    print("Starting Saber sword quest...")
+                    -- Teleport to Jungle and complete saber quest
+                    TweenToPosition(Vector3.new(-1612, 36, 149))
+                    wait(2)
+                    -- Add saber quest logic here
+                end)
+            end
+        end)
+        
+        -- AUTO 2 SEA QUEST
+        local Auto2SeaToggle = Tabs.AutoFarm:AddToggle("Auto2Sea", {
+            Title = "AUTO 2 SEA QUEST",
+            Default = false
+        })
+        
+        Auto2SeaToggle:OnChanged(function(Value)
+            if Value then
+                spawn(function()
+                    local playerLevel = Player.leaderstats and Player.leaderstats.Level.Value or 1
+                    if playerLevel >= 700 then
+                        print("Starting 2nd Sea quest...")
+                        -- Implement 2nd sea quest logic
+                        local args = {
+                            [1] = "DressrosaQuestProgress",
+                            [2] = "Detective"
+                        }
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+                    else
+                        print("Need level 700+ for 2nd Sea quest!")
+                    end
+                end)
+            end
+        end)
+        
+    elseif CurrentSea == 2 then
+        -- AUTO RACE V2
+        local AutoRace2Toggle = Tabs.AutoFarm:AddToggle("AutoRace2", {
+            Title = "AUTO RACE V2",
+            Default = false
+        })
+        
+        AutoRace2Toggle:OnChanged(function(Value)
+            if Value then
+                spawn(function()
+                    print("Starting Race V2 quest...")
+                    -- Implement race v2 logic
+                end)
+            end
+        end)
+        
+        -- AUTO RACE V3
+        local AutoRace3Toggle = Tabs.AutoFarm:AddToggle("AutoRace3", {
+            Title = "AUTO RACE V3",
+            Default = false
+        })
+        
+        AutoRace3Toggle:OnChanged(function(Value)
+            if Value then
+                spawn(function()
+                    print("Starting Race V3 quest...")
+                    -- Implement race v3 logic
+                end)
+            end
+        end)
+        
+    elseif CurrentSea == 3 then
+        -- AUTO CDK SWORD
+        local AutoCDKToggle = Tabs.AutoFarm:AddToggle("AutoCDK", {
+            Title = "AUTO CDK SWORD",
+            Default = false
+        })
+        
+        AutoCDKToggle:OnChanged(function(Value)
+            if Value then
+                spawn(function()
+                    print("Starting CDK sword quest...")
+                    -- Implement CDK logic
+                end)
+            end
+        end)
+        
+        -- AUTO YAMA
+        local AutoYamaToggle = Tabs.AutoFarm:AddToggle("AutoYama", {
+            Title = "AUTO YAMA",
+            Default = false
+        })
+        
+        AutoYamaToggle:OnChanged(function(Value)
+            if Value then
+                spawn(function()
+                    print("Starting Yama quest...")
+                    -- Implement Yama logic
+                end)
+            end
+        end)
+        
+        -- AUTO TUSHITA
+        local AutoTushitaToggle = Tabs.AutoFarm:AddToggle("AutoTushita", {
+            Title = "AUTO TUSHITA",
+            Default = false
+        })
+        
+        AutoTushitaToggle:OnChanged(function(Value)
+            if Value then
+                spawn(function()
+                    print("Starting Tushita quest...")
+                    -- Implement Tushita logic
+                end)
+            end
+        end)
+        
+        -- AUTO ELITE HUNTER
+        local AutoEliteToggle = Tabs.AutoFarm:AddToggle("AutoElite", {
+            Title = "AUTO ELITE HUNTER",
+            Default = false
+        })
+        
+        AutoEliteToggle:OnChanged(function(Value)
+            if Value then
+                spawn(function()
+                    print("Starting Elite Hunter quest...")
+                    -- Implement Elite Hunter logic
+                end)
+            end
+        end)
+        
+        -- AUTO FARM BONES
+        local AutoBonesToggle = Tabs.AutoFarm:AddToggle("AutoBones", {
+            Title = "AUTO FARM BONES",
+            Default = false
+        })
+        
+        AutoBonesToggle:OnChanged(function(Value)
+            if Value then
+                spawn(function()
+                    while Value and ScriptSettings.AutoBones do
+                        -- Farm bone mobs in Haunted Castle
+                        TweenToPosition(Vector3.new(-9515, 142, 5618))
+                        wait(2)
+                        
+                        local boneMob = GetNearestMob("Reborn Skeleton") or GetNearestMob("Living Zombie") or GetNearestMob("Demonic Soul")
+                        if boneMob then
+                            for i = 1, 10 do
+                                if not boneMob or boneMob.Humanoid.Health <= 0 then break end
+                                AttackMob(boneMob, ScriptSettings.SelectedWeapon or "Combat")
+                                wait(0.3)
+                            end
+                        end
+                        wait(1)
+                    end
+                end)
+            end
+            ScriptSettings.AutoBones = Value
         end)
     end
 end
@@ -562,6 +1003,20 @@ do
     
     AimbotToggle:OnChanged(function(Value)
         ScriptSettings.PlayerAimbot = Value
+        if Value then
+            spawn(function()
+                while ScriptSettings.PlayerAimbot do
+                    local nearestPlayer = GetNearestPlayer()
+                    if nearestPlayer and nearestPlayer.Character and nearestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        -- Aim at the nearest player
+                        local targetPosition = nearestPlayer.Character.HumanoidRootPart.Position
+                        local direction = (targetPosition - RootPart.Position).Unit
+                        RootPart.CFrame = CFrame.lookAt(RootPart.Position, targetPosition)
+                    end
+                    wait(0.1)
+                end
+            end)
+        end
     end)
     
     local SkillAimbotToggle = Tabs.PvP:AddToggle("SkillAimbot", {
@@ -571,14 +1026,66 @@ do
     
     SkillAimbotToggle:OnChanged(function(Value)
         ScriptSettings.SkillAimbot = Value
+        if Value then
+            spawn(function()
+                while ScriptSettings.SkillAimbot do
+                    local nearestPlayer = GetNearestPlayer()
+                    if nearestPlayer and nearestPlayer.Character and nearestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        -- Auto-cast skills towards nearest player
+                        local keys = {"Z", "X", "C", "V", "F"}
+                        for _, key in pairs(keys) do
+                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode[key], false, game)
+                            wait(0.1)
+                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode[key], false, game)
+                            wait(0.5)
+                        end
+                    end
+                    wait(2)
+                end
+            end)
+        end
     end)
     
-    local SpectateButton = Tabs.PvP:AddButton({
-        Title = "Spectate/Unspectate Player",
-        Description = "Toggle spectating nearest player",
+    -- Player Spectate Dropdown
+    local playerList = GetAllPlayers()
+    local SpectateDropdown = Tabs.PvP:AddDropdown("SpectateDropdown", {
+        Title = "Select Player to Spectate",
+        Values = playerList,
+        Multi = false,
+        Default = 1,
+    })
+    
+    local selectedSpectatePlayer = nil
+    SpectateDropdown:OnChanged(function(Value)
+        selectedSpectatePlayer = Value
+    end)
+    
+    local SpectateToggle = Tabs.PvP:AddToggle("SpectatePlayer", {
+        Title = "Spectate Selected Player",
+        Default = false
+    })
+    
+    SpectateToggle:OnChanged(function(Value)
+        if Value and selectedSpectatePlayer then
+            local targetPlayer = Players:FindFirstChild(selectedSpectatePlayer)
+            if targetPlayer then
+                Workspace.CurrentCamera.CameraSubject = targetPlayer.Character.Humanoid
+                print("Now spectating:", selectedSpectatePlayer)
+            end
+        else
+            Workspace.CurrentCamera.CameraSubject = Player.Character.Humanoid
+            print("Stopped spectating")
+        end
+    end)
+    
+    -- Refresh player list button
+    local RefreshPlayersButton = Tabs.PvP:AddButton({
+        Title = "Refresh Player List",
+        Description = "Updates the player dropdown list",
         Callback = function()
-            -- Implementation for spectating
-            print("Toggle spectate...")
+            playerList = GetAllPlayers()
+            SpectateDropdown:SetValues(playerList)
+            print("Player list refreshed!")
         end
     })
 end
@@ -601,8 +1108,26 @@ do
         Description = "Smoothly travels to the selected location",
         Callback = function()
             if ScriptSettings.SelectedLocation then
-                print("Tweening to:", ScriptSettings.SelectedLocation)
-                -- Implementation for tweening to location
+                local targetCFrame = TeleportLocations[CurrentSea][ScriptSettings.SelectedLocation]
+                if targetCFrame then
+                    -- Special handling for mansion and sea castles - direct teleport
+                    if string.find(ScriptSettings.SelectedLocation:lower(), "mansion") or 
+                       string.find(ScriptSettings.SelectedLocation:lower(), "castle") then
+                        RootPart.CFrame = targetCFrame
+                        print("Teleported to:", ScriptSettings.SelectedLocation)
+                    else
+                        -- Tween from above for other locations
+                        local abovePosition = targetCFrame.Position + Vector3.new(0, 50, 0)
+                        TweenToPosition(abovePosition)
+                        wait(2)
+                        TweenToPosition(targetCFrame.Position)
+                        print("Tweened to:", ScriptSettings.SelectedLocation)
+                    end
+                else
+                    print("Location coordinates not found!")
+                end
+            else
+                print("Please select a location first!")
             end
         end
     })
@@ -612,19 +1137,51 @@ end
 do
     local RaidChips = {"Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble", "Magma", "Buddha", "Sand"}
     
+    local selectedRaidChip = nil
     local RaidChipDropdown = Tabs.Raid:AddDropdown("RaidChipDropdown", {
-        Title = "Buy Raid Chip",
+        Title = "Choose Raid Chip",
         Values = RaidChips,
         Multi = false,
         Default = 1,
+    })
+    
+    RaidChipDropdown:OnChanged(function(Value)
+        selectedRaidChip = Value
+    end)
+    
+    local BuyChipButton = Tabs.Raid:AddButton({
+        Title = "Buy Chip",
+        Description = "Purchases the selected raid chip",
+        Callback = function()
+            if selectedRaidChip then
+                local args = {
+                    [1] = "RaidsNpc",
+                    [2] = "Select",
+                    [3] = selectedRaidChip
+                }
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+                print("Bought", selectedRaidChip, "raid chip!")
+            else
+                print("Please select a raid chip first!")
+            end
+        end
     })
     
     local StartRaidButton = Tabs.Raid:AddButton({
         Title = "Start Raid",
         Description = "Starts the selected raid",
         Callback = function()
-            print("Starting raid...")
-            -- Implementation for starting raid
+            if selectedRaidChip then
+                local args = {
+                    [1] = "RaidsNpc",
+                    [2] = "StartRaid",
+                    [3] = selectedRaidChip
+                }
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+                print("Starting", selectedRaidChip, "raid...")
+            else
+                print("Please select and buy a raid chip first!")
+            end
         end
     })
     
@@ -634,8 +1191,30 @@ do
     })
     
     SoloRaidToggle:OnChanged(function(Value)
-        print("Solo Raid:", Value)
-        -- Implementation for solo raid with kill aura
+        ScriptSettings.AutoRaid = Value
+        if Value then
+            spawn(function()
+                while ScriptSettings.AutoRaid do
+                    -- Kill aura for raid enemies
+                    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+                        if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+                            if enemy.Humanoid.Health > 0 then
+                                local distance = (RootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+                                if distance < 100 then -- Kill enemies within 100 studs
+                                    TweenToPosition(enemy.HumanoidRootPart.Position + Vector3.new(0, 0, -5))
+                                    for i = 1, 5 do
+                                        if not enemy or enemy.Humanoid.Health <= 0 then break end
+                                        AttackMob(enemy, ScriptSettings.SelectedWeapon or "Combat")
+                                        wait(0.2)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    wait(0.5)
+                end
+            end)
+        end
     end)
 end
 
@@ -652,15 +1231,47 @@ do
     
     Tabs.Sea:AddSection("Special Events")
     
-    local KitsuneToggle = Tabs.Sea:AddToggle("AutoKitsune", {
-        Title = "Auto Kitsune Island",
-        Default = false
-    })
-    
-    local AzureToggle = Tabs.Sea:AddToggle("AutoAzure", {
-        Title = "Auto Azure",
-        Default = false
-    })
+    if CurrentSea < 3 then
+        Tabs.Sea:AddParagraph({
+            Title = "Access Denied",
+            Content = "You need to be in 3rd Sea to access special sea events!"
+        })
+    else
+        local KitsuneToggle = Tabs.Sea:AddToggle("AutoKitsune", {
+            Title = "Auto Kitsune Island",
+            Default = false
+        })
+        
+        KitsuneToggle:OnChanged(function(Value)
+            if Value then
+                spawn(function()
+                    while Value do
+                        -- Auto Kitsune Island logic
+                        print("Searching for Kitsune Island...")
+                        -- Look for Kitsune Island and teleport
+                        wait(5)
+                    end
+                end)
+            end
+        end)
+        
+        local AzureToggle = Tabs.Sea:AddToggle("AutoAzure", {
+            Title = "Auto Azure",
+            Default = false
+        })
+        
+        AzureToggle:OnChanged(function(Value)
+            if Value then
+                spawn(function()
+                    while Value do
+                        -- Auto Azure logic
+                        print("Looking for Azure Ember...")
+                        wait(5)
+                    end
+                end)
+            end
+        end)
+    end
 end
 
 -- Settings Tab (will be implemented by user)
