@@ -312,16 +312,63 @@ local function equipWeapon(weaponName)
     local weapon = Player.Backpack:FindFirstChild(weaponName)
     if weapon then
         Humanoid:EquipTool(weapon)
-        wait(0.3)
+        wait(math.random(200, 400) / 1000) -- Human-like delay
     end
 end
 
-local function useWeaponSkill(skillNumber)
-    local weapon = getWeaponEquipped()
-    if weapon then
-        local tool = Player.Character:FindFirstChildOfClass("Tool")
-        if tool and tool:FindFirstChild("RemoteFunctionShoot") then
-            tool.RemoteFunctionShoot:InvokeServer()
+-- Enhanced M1 Attack System with Very High Range
+local function performM1Attack(targetEnemy)
+    if not targetEnemy then return end
+    
+    local tool = getWeaponEquipped()
+    if tool then
+        -- Enhanced hitbox detection
+        local distance = (RootPart.Position - targetEnemy.HumanoidRootPart.Position).Magnitude
+        
+        if distance <= AttackRange then
+            -- Multiple attack methods for human-like behavior
+            spawn(function()
+                -- Method 1: Direct tool activation
+                tool:Activate()
+                
+                -- Method 2: Combat framework
+                pcall(function()
+                    local CombatFramework = debug.getupvalues(require(Player.PlayerScripts.CombatFramework))
+                    local CameraShaker = require(game.ReplicatedStorage.Util.CameraShaker)
+                    CameraShaker:Start()
+                    CombatFramework[2].activeController.hitboxMagnitude = AttackRange
+                    CombatFramework[2].activeController.active = true
+                    CombatFramework[2].activeController.timeToNextAttack = 0
+                    CombatFramework[2].activeController:attack()
+                end)
+                
+                -- Method 3: Game remotes
+                pcall(function()
+                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange", tool.Name)
+                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", targetEnemy.HumanoidRootPart, 1, "")
+                end)
+            end)
+        end
+    end
+end
+
+-- Human-like movement patterns
+local function humanMovement(targetPosition, height)
+    if not RootPart or not targetPosition then return end
+    
+    local distance = (RootPart.Position - targetPosition).Magnitude
+    
+    if distance > 300 then
+        -- Instant teleport for long distances
+        RootPart.CFrame = CFrame.new(targetPosition + Vector3.new(0, height, 0))
+    else
+        -- Smooth movement for shorter distances
+        local steps = math.ceil(distance / 50)
+        for i = 1, steps do
+            local progress = i / steps
+            local currentPos = RootPart.Position:lerp(targetPosition + Vector3.new(0, height, 0), progress)
+            RootPart.CFrame = CFrame.new(currentPos)
+            wait(math.random(50, 100) / 1000) -- Human-like movement speed
         end
     end
 end
@@ -523,7 +570,7 @@ local Sea1Islands = {
     ["Desert"] = Vector3.new(924, 7, 4481),
     ["Snow Island"] = Vector3.new(1354, 87, -1392),
     ["Marine Fortress"] = Vector3.new(-4881, 21, 4093),
-    ["Sky Island"] = Color3.new(-4970, 717, -2622),
+    ["Sky Island"] = Vector3.new(-4970, 717, -2622),
     ["Prison"] = Vector3.new(4854, 5, 740),
     ["Colosseum"] = Vector3.new(-1427, 7, 1878),
     ["Magma Village"] = Vector3.new(-5850, 22, 8550),
@@ -533,6 +580,11 @@ local Sea1Islands = {
     ["Sky Island 3"] = Vector3.new(-7836, 5658, -1637),
     ["Fountain City"] = Vector3.new(5127, 59, 4105)
 }
+
+-- Enhanced Attack System Variables
+local OriginalHitbox = nil
+local AttackRange = 60 -- Very high M1 range
+local AttackHeight = 30 -- Attack from above height
 
 -- Auto Farm Function
 local function startAutoFarm()
@@ -637,76 +689,144 @@ local function startAutoObservation()
     end)
 end
 
--- Main Auto Farm Functions
+-- Enhanced Main Auto Farm Function with Human Behavior
 local function startMainAutoFarm()
     spawn(function()
         while AutoFarm do
-            wait(0.1)
+            wait(math.random(80, 150) / 1000) -- Human-like main loop delay
             
             local playerLevel = getPlayerStats().Level
             local questData = getQuestForLevel(playerLevel)
             
             if not questData then
+                print("No suitable quest found for level " .. playerLevel)
                 wait(5)
                 continue
             end
             
-            -- Check if we have the right quest
+            -- Human-like quest checking behavior
             local currentQuest = checkQuest()
             if not currentQuest or not string.find(currentQuest, questData.Enemy) then
+                print("Taking quest for: " .. questData.Enemy)
                 takeQuest(questData)
-                wait(1)
+                wait(math.random(800, 1200) / 1000) -- Human delay after quest
             end
             
-            -- Find target enemy
-            local targetEnemy = getNearestEnemy(questData.Enemy)
+            -- Enhanced enemy detection with preference for groups
+            local enemies = getAllEnemies(questData.Enemy)
+            local targetEnemy = nil
             
-            if targetEnemy and targetEnemy:FindFirstChild("HumanoidRootPart") and targetEnemy.Humanoid.Health > 0 then
-                -- Equip weapon
-                equipWeapon(SelectedWeapon)
+            if #enemies > 0 then
+                -- Prefer enemies that are close together (human behavior)
+                local bestEnemy = nil
+                local bestScore = 0
                 
-                -- Bring mobs if enabled
-                bringMobsToPlayer(questData.Enemy)
-                
-                -- Position based on farm method
-                local targetPosition
-                if FarmMethod == "Above" then
-                    targetPosition = targetEnemy.HumanoidRootPart.CFrame + Vector3.new(0, 20, 0)
-                elseif FarmMethod == "Behind" then
-                    targetPosition = targetEnemy.HumanoidRootPart.CFrame + Vector3.new(0, 0, -15)
-                else
-                    targetPosition = targetEnemy.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0)
+                for _, enemy in pairs(enemies) do
+                    if enemy:FindFirstChild("HumanoidRootPart") and enemy.Humanoid.Health > 0 then
+                        local nearbyCount = 0
+                        for _, otherEnemy in pairs(enemies) do
+                            if otherEnemy ~= enemy and otherEnemy:FindFirstChild("HumanoidRootPart") then
+                                local distance = (enemy.HumanoidRootPart.Position - otherEnemy.HumanoidRootPart.Position).Magnitude
+                                if distance < 50 then
+                                    nearbyCount = nearbyCount + 1
+                                end
+                            end
+                        end
+                        
+                        if nearbyCount > bestScore then
+                            bestScore = nearbyCount
+                            bestEnemy = enemy
+                        end
+                    end
                 end
                 
-                -- Teleport to enemy with large hitbox positioning
-                RootPart.CFrame = targetPosition
+                targetEnemy = bestEnemy or enemies[1]
+            end
+            
+            if targetEnemy and targetEnemy:FindFirstChild("HumanoidRootPart") and targetEnemy.Humanoid.Health > 0 then
+                -- Equip weapon with human delay
+                if getWeaponEquipped() == nil or getWeaponEquipped().Name ~= SelectedWeapon then
+                    equipWeapon(SelectedWeapon)
+                end
                 
-                -- Enhanced fast attack
+                -- Bring mobs if enabled (human-like grouping)
+                if BringMobs then
+                    bringMobsToPlayer(questData.Enemy)
+                    wait(math.random(200, 400) / 1000)
+                end
+                
+                -- Always position ABOVE enemy for large hitbox (only above method)
+                local enemyPos = targetEnemy.HumanoidRootPart.Position
+                local abovePosition = Vector3.new(enemyPos.X, enemyPos.Y + AttackHeight, enemyPos.Z)
+                
+                -- Human-like positioning with slight randomization
+                local randomOffset = Vector3.new(
+                    math.random(-3, 3),
+                    math.random(25, 35), -- Always above
+                    math.random(-3, 3)
+                )
+                
+                local finalPosition = enemyPos + randomOffset
+                humanMovement(finalPosition, 0)
+                
+                -- Enhanced M1 attack system with very high range
+                performM1Attack(targetEnemy)
+                
+                -- Fast attack enhancement
                 if FastAttack then
                     spawn(function()
-                        pcall(function()
-                            game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange", tostring(getWeaponEquipped()))
-                            game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", targetEnemy.HumanoidRootPart, 2, "")
-                        end)
+                        for i = 1, math.random(2, 4) do -- Human-like attack bursts
+                            pcall(function()
+                                local CombatFramework = debug.getupvalues(require(Player.PlayerScripts.CombatFramework))
+                                if CombatFramework and CombatFramework[2] then
+                                    CombatFramework[2].activeController.hitboxMagnitude = AttackRange
+                                    CombatFramework[2].activeController.active = true
+                                    CombatFramework[2].activeController.timeToNextAttack = 0
+                                    CombatFramework[2].activeController:attack()
+                                end
+                            end)
+                            wait(math.random(30, 60) / 1000)
+                        end
                     end)
                 end
                 
-                -- Regular attack
-                local tool = getWeaponEquipped()
-                if tool then
-                    tool:Activate()
+                -- Auto dodge with human-like patterns
+                if AutoDodge and targetEnemy.Humanoid.Health > 0 then
+                    if math.random(1, 100) <= 25 then -- 25% chance to dodge (human behavior)
+                        local dodgeDirection = math.random(1, 4)
+                        local dodgeDistance = math.random(5, 12)
+                        local dodgePos = RootPart.Position
+                        
+                        if dodgeDirection == 1 then
+                            dodgePos = dodgePos + Vector3.new(dodgeDistance, 0, 0)
+                        elseif dodgeDirection == 2 then
+                            dodgePos = dodgePos + Vector3.new(-dodgeDistance, 0, 0)
+                        elseif dodgeDirection == 3 then
+                            dodgePos = dodgePos + Vector3.new(0, 0, dodgeDistance)
+                        else
+                            dodgePos = dodgePos + Vector3.new(0, 0, -dodgeDistance)
+                        end
+                        
+                        RootPart.CFrame = CFrame.new(dodgePos + Vector3.new(0, AttackHeight, 0))
+                        wait(math.random(200, 500) / 1000)
+                    end
                 end
                 
-                -- Auto dodge
-                if AutoDodge and targetEnemy.Humanoid.Health > 0 then
-                    local dodgePos = RootPart.CFrame + Vector3.new(math.random(-10, 10), 0, math.random(-10, 10))
-                    RootPart.CFrame = dodgePos
+                -- Check if enemy is dead and add human delay
+                if targetEnemy.Humanoid.Health <= 0 then
+                    wait(math.random(300, 600) / 1000) -- Human delay after kill
                 end
                 
             else
-                -- Go to enemy spawn location
-                fastTeleport(questData.Position)
-                wait(2)
+                -- Go to enemy spawn location with human behavior
+                print("Going to enemy location: " .. questData.Enemy)
+                humanMovement(questData.Position, 10)
+                wait(math.random(2000, 4000) / 1000) -- Human wait time for spawns
+            end
+            
+            -- Random breaks (very human-like)
+            if math.random(1, 100) <= 3 then -- 3% chance for short break
+                wait(math.random(2, 5))
             end
         end
     end)
@@ -946,30 +1066,49 @@ local PlayerStatsLabel = Tabs.Main:AddParagraph({
 spawn(function()
     while true do
         wait(5)
-        PlayerStatsLabel:SetDesc(updatePlayerStats())
+        pcall(function()
+            PlayerStatsLabel:SetDesc(updatePlayerStats())
+        end)
     end
 end)
 
 local WeaponSection = Tabs.Main:AddSection("Weapon Selection")
 
+local initialWeapons = {"Combat"}
+pcall(function()
+    initialWeapons = getAllWeapons()
+    if #initialWeapons == 0 then
+        initialWeapons = {"Combat", "Sword", "Blox Fruit"}
+    end
+end)
+
 local WeaponDropdown = Tabs.Main:AddDropdown("WeaponSelect", {
     Title = "Choose Weapon",
-    Values = getAllWeapons(),
+    Values = initialWeapons,
     Multi = false,
     Default = 1,
 })
 
 WeaponDropdown:OnChanged(function(Value)
     SelectedWeapon = Value
+    print("Selected weapon: " .. Value)
 end)
 
 Tabs.Main:AddButton({
     Title = "Refresh Weapons",
     Description = "Update weapon list",
     Callback = function()
-        WeaponDropdown:SetValues(getAllWeapons())
+        local weapons = getAllWeapons()
+        if #weapons > 0 then
+            WeaponDropdown:SetValues(weapons)
+            print("Weapons refreshed: " .. #weapons .. " found")
+        else
+            print("No weapons found in inventory")
+        end
     end
 })
+
+local ControlsSection = Tabs.Main:AddSection("Farm Controls")
 
 local BringMobsToggle = Tabs.Main:AddToggle("BringMobs", {
     Title = "Bring Mobs",
@@ -979,23 +1118,60 @@ local BringMobsToggle = Tabs.Main:AddToggle("BringMobs", {
 
 BringMobsToggle:OnChanged(function(Value)
     BringMobs = Value
+    print("Bring Mobs: " .. tostring(Value))
 end)
 
--- Auto Farm Tab
-local AutoFarmSection = Tabs.AutoFarm:AddSection("Level-Based Auto Farm")
-
-local AutoFarmToggle = Tabs.AutoFarm:AddToggle("AutoFarm", {
-    Title = "Auto Farm",
+local MainAutoFarmToggle = Tabs.Main:AddToggle("MainAutoFarm", {
+    Title = "Auto Farm (Level Based)",
     Description = "Automatically farm enemies based on your level with quest system",
     Default = false
 })
 
-AutoFarmToggle:OnChanged(function(Value)
+MainAutoFarmToggle:OnChanged(function(Value)
     AutoFarm = Value
     if Value then
+        print("Starting enhanced auto farm with human behavior...")
         startMainAutoFarm()
+    else
+        print("Auto farm stopped")
     end
 end)
+
+-- Auto Farm Tab
+local AutoFarmSection = Tabs.AutoFarm:AddSection("Advanced Farming Features")
+
+local FarmSettingsSection = Tabs.AutoFarm:AddSection("Farm Settings")
+
+Tabs.AutoFarm:AddParagraph({
+    Title = "Positioning Method",
+    Content = "This script uses ABOVE positioning with very high M1 range (60 studs) for maximum efficiency and human-like behavior"
+})
+
+local AttackRangeSlider = Tabs.AutoFarm:AddSlider("AttackRange", {
+    Title = "Attack Range",
+    Description = "M1 attack range in studs",
+    Default = 60,
+    Min = 30,
+    Max = 100,
+    Rounding = 1,
+    Callback = function(Value)
+        AttackRange = Value
+        print("Attack range set to: " .. Value)
+    end
+})
+
+local AttackHeightSlider = Tabs.AutoFarm:AddSlider("AttackHeight", {
+    Title = "Attack Height",
+    Description = "Height above enemies for farming",
+    Default = 30,
+    Min = 15,
+    Max = 50,
+    Rounding = 1,
+    Callback = function(Value)
+        AttackHeight = Value
+        print("Attack height set to: " .. Value)
+    end
+})
 
 local AutoQuestToggle = Tabs.AutoFarm:AddToggle("AutoQuest", {
     Title = "Auto Quest",
@@ -1006,19 +1182,11 @@ local AutoQuestToggle = Tabs.AutoFarm:AddToggle("AutoQuest", {
 AutoQuestToggle:OnChanged(function(Value)
     AutoQuest = Value
     if Value then
+        print("Auto Quest enabled")
         startAutoQuest()
+    else
+        print("Auto Quest disabled")
     end
-end)
-
-local FarmMethodDropdown = Tabs.AutoFarm:AddDropdown("FarmMethod", {
-    Title = "Farm Method",
-    Values = {"Above", "Behind", "Front"},
-    Multi = false,
-    Default = 1,
-})
-
-FarmMethodDropdown:OnChanged(function(Value)
-    FarmMethod = Value
 end)
 
 local SpecialQuestsSection = Tabs.AutoFarm:AddSection("Special Quests & Features")
@@ -1032,7 +1200,10 @@ local AutoSaberToggle = Tabs.AutoFarm:AddToggle("AutoSaber", {
 AutoSaberToggle:OnChanged(function(Value)
     AutoSaber = Value
     if Value then
+        print("Auto Saber quest enabled")
         startAutoSaber()
+    else
+        print("Auto Saber quest disabled")
     end
 end)
 
@@ -1045,7 +1216,10 @@ local Auto2ndSeaToggle = Tabs.AutoFarm:AddToggle("Auto2ndSea", {
 Auto2ndSeaToggle:OnChanged(function(Value)
     Auto2ndSeaQuest = Value
     if Value then
+        print("Auto 2nd Sea quest enabled")
         startAuto2ndSeaQuest()
+    else
+        print("Auto 2nd Sea quest disabled")
     end
 end)
 
@@ -1058,7 +1232,10 @@ local AutoBossToggle = Tabs.AutoFarm:AddToggle("AutoBoss", {
 AutoBossToggle:OnChanged(function(Value)
     AutoBoss = Value
     if Value then
+        print("Auto Boss farming enabled")
         startAutoBoss()
+    else
+        print("Auto Boss farming disabled")
     end
 end)
 
@@ -1073,7 +1250,10 @@ local AutoFruitFinderToggle = Tabs.AutoFarm:AddToggle("AutoFruitFinder", {
 AutoFruitFinderToggle:OnChanged(function(Value)
     AutoFruitFinder = Value
     if Value then
+        print("Auto Fruit Finder enabled")
         startAutoFruitFinder()
+    else
+        print("Auto Fruit Finder disabled")
     end
 end)
 
@@ -1086,7 +1266,10 @@ local ChestFinderToggle = Tabs.AutoFarm:AddToggle("ChestFinder", {
 ChestFinderToggle:OnChanged(function(Value)
     ChestFinder = Value
     if Value then
+        print("Chest Finder enabled")
         startChestFinder()
+    else
+        print("Chest Finder disabled")
     end
 end)
 
@@ -1101,6 +1284,7 @@ local FastAttackToggle = Tabs.Combat:AddToggle("FastAttack", {
 
 FastAttackToggle:OnChanged(function(Value)
     FastAttack = Value
+    print("Fast Attack: " .. tostring(Value))
 end)
 
 local AutoDodgeToggle = Tabs.Combat:AddToggle("AutoDodge", {
@@ -1111,7 +1295,10 @@ local AutoDodgeToggle = Tabs.Combat:AddToggle("AutoDodge", {
 
 AutoDodgeToggle:OnChanged(function(Value)
     AutoDodge = Value
+    print("Auto Dodge: " .. tostring(Value))
 end)
+
+local HakiSection = Tabs.Combat:AddSection("Haki Automation")
 
 local AutoBusoToggle = Tabs.Combat:AddToggle("AutoBuso", {
     Title = "Auto Armament Haki",
@@ -1122,7 +1309,10 @@ local AutoBusoToggle = Tabs.Combat:AddToggle("AutoBuso", {
 AutoBusoToggle:OnChanged(function(Value)
     AutoBuso = Value
     if Value then
+        print("Auto Armament Haki enabled")
         startAutoBuso()
+    else
+        print("Auto Armament Haki disabled")
     end
 end)
 
@@ -1135,7 +1325,10 @@ local AutoObservationToggle = Tabs.Combat:AddToggle("AutoObservation", {
 AutoObservationToggle:OnChanged(function(Value)
     AutoObservation = Value
     if Value then
+        print("Auto Observation Haki enabled")
         startAutoObservation()
+    else
+        print("Auto Observation Haki disabled")
     end
 end)
 
@@ -1151,7 +1344,10 @@ local AutoStatsToggle = Tabs.Stats:AddToggle("AutoStats", {
 AutoStatsToggle:OnChanged(function(Value)
     AutoStats = Value
     if Value then
+        print("Auto Stats enabled")
         startAutoStats()
+    else
+        print("Auto Stats disabled")
     end
 end)
 
@@ -1165,22 +1361,25 @@ Tabs.Stats:AddButton({
             [3] = "1"
         }
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        print("Stats reset attempted")
     end
 })
 
 local StatsInfoSection = Tabs.Stats:AddSection("Stat Information")
 
 local function updateStatsInfo()
-    if Player:FindFirstChild("Data") and Player.Data:FindFirstChild("Stats") then
-        local melee = Player.Data.Stats.Melee.Level.Value or 0
-        local defense = Player.Data.Stats.Defense.Level.Value or 0
-        local sword = Player.Data.Stats.Sword.Level.Value or 0
-        local gun = Player.Data.Stats.Gun.Level.Value or 0
-        local fruit = Player.Data.Stats["Demon Fruit"].Level.Value or 0
-        local points = Player.Data.Points.Value or 0
-        
-        return "Melee: " .. melee .. " | Defense: " .. defense .. " | Sword: " .. sword .. " | Gun: " .. gun .. " | Fruit: " .. fruit .. " | Available Points: " .. points
-    end
+    pcall(function()
+        if Player:FindFirstChild("Data") and Player.Data:FindFirstChild("Stats") then
+            local melee = Player.Data.Stats.Melee.Level.Value or 0
+            local defense = Player.Data.Stats.Defense.Level.Value or 0
+            local sword = Player.Data.Stats.Sword.Level.Value or 0
+            local gun = Player.Data.Stats.Gun.Level.Value or 0
+            local fruit = Player.Data.Stats["Demon Fruit"].Level.Value or 0
+            local points = Player.Data.Points.Value or 0
+            
+            return "Melee: " .. melee .. " | Defense: " .. defense .. " | Sword: " .. sword .. " | Gun: " .. gun .. " | Fruit: " .. fruit .. " | Available Points: " .. points
+        end
+    end)
     return "Stats not available"
 end
 
@@ -1192,7 +1391,9 @@ local StatsInfoLabel = Tabs.Stats:AddParagraph({
 spawn(function()
     while true do
         wait(3)
-        StatsInfoLabel:SetDesc(updateStatsInfo())
+        pcall(function()
+            StatsInfoLabel:SetDesc(updateStatsInfo())
+        end)
     end
 end)
 
@@ -1205,6 +1406,7 @@ for i, questData in pairs(QuestData) do
         Description = "Level: " .. questData.Level[1] .. " - " .. questData.Level[2],
         Callback = function()
             teleportTo(questData.Position)
+            print("Teleported to: " .. questData.Enemy)
         end
     })
 end
@@ -1217,6 +1419,7 @@ for bossName, data in pairs(BossTargets) do
         Description = "Required Level: " .. data.Level,
         Callback = function()
             teleportTo(data.Position)
+            print("Teleported to boss: " .. bossName)
         end
     })
 end
@@ -1229,6 +1432,7 @@ for islandName, position in pairs(Sea1Islands) do
         Description = "Teleport to " .. islandName,
         Callback = function()
             teleportTo(position)
+            print("Teleported to: " .. islandName)
         end
     })
 end
@@ -1299,6 +1503,7 @@ local PlayerESPToggle = Tabs.Misc:AddToggle("PlayerESP", {
 PlayerESPToggle:OnChanged(function(Value)
     PlayerESP = Value
     createPlayerESP()
+    print("Player ESP: " .. tostring(Value))
 end)
 
 local AutoRejoinToggle = Tabs.Misc:AddToggle("AutoRejoin", {
@@ -1310,6 +1515,7 @@ local AutoRejoinToggle = Tabs.Misc:AddToggle("AutoRejoin", {
 AutoRejoinToggle:OnChanged(function(Value)
     AutoRejoin = Value
     setupAutoRejoin()
+    print("Auto Rejoin: " .. tostring(Value))
 end)
 
 Tabs.Misc:AddButton({
@@ -1339,6 +1545,7 @@ Tabs.Misc:AddButton({
             [2] = "1"
         }
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        print("Attempted to buy random fruit")
     end
 })
 
@@ -1351,6 +1558,7 @@ Tabs.Misc:AddButton({
             [2] = "Katana"
         }
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        print("Attempted to buy Katana")
     end
 })
 
@@ -1363,58 +1571,9 @@ Tabs.Misc:AddButton({
             [2] = "Slingshot"
         }
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        print("Attempted to buy Slingshot")
     end
 })
-
--- Auto Functions Implementation
-local function startAutoStats()
-    spawn(function()
-        while AutoStats do
-            wait(1)
-            
-            local args = {
-                [1] = "AddPoint",
-                [2] = "Melee",
-                [3] = 1
-            }
-            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-            
-            wait(0.1)
-            
-            local args2 = {
-                [1] = "AddPoint",
-                [2] = "Defense",
-                [3] = 1
-            }
-            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args2))
-        end
-    end)
-end
-
-local function startAutoBuso()
-    spawn(function()
-        while AutoBuso do
-            wait(1)
-            local args = {
-                [1] = "Buso"
-            }
-            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-        end
-    end)
-end
-
-local function startAutoObservation()
-    spawn(function()
-        while AutoObservation do
-            wait(1)
-            local args = {
-                [1] = "Ken",
-                [2] = true
-            }
-            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-        end
-    end)
-end
 
 -- Character update when respawning
 Player.CharacterAdded:Connect(function(newCharacter)
