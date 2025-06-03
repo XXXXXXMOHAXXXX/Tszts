@@ -13,12 +13,23 @@ local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local VirtualUser = game:GetService("VirtualUser")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 -- Variables
 local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Character
+local HumanoidRootPart
+
+-- Update character references safely
+local function UpdateCharacter()
+    Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    if Character then
+        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    end
+end
+
+-- Initialize character
+UpdateCharacter()
+LocalPlayer.CharacterAdded:Connect(UpdateCharacter)
 
 -- Anti-AFK
 spawn(function()
@@ -37,27 +48,18 @@ end
 
 -- Global Settings
 getgenv().Settings = {
-    -- Combat
     SelectedWeapon = "",
     FastAttack = false,
     AutoHaki = false,
     BringMob = false,
-    
-    -- Fruits
     ESPFruit = false,
     BringFruit = false,
     StoreFruit = false,
-    
-    -- Auto Farm
     AutoFarmLevel = false,
     SelectedBoss = "",
     AutoKillBoss = false,
-    
-    -- Special Quests
     AutoSaber = false,
     AutoSecondSea = false,
-    
-    -- Other
     MagnetRange = 25,
     AttackDelay = 0.1
 }
@@ -86,6 +88,7 @@ local function GetDistance(pos1, pos2)
 end
 
 local function TweenTo(targetCFrame, speed)
+    if not HumanoidRootPart then UpdateCharacter() end
     speed = speed or 350
     local distance = GetDistance(HumanoidRootPart.Position, targetCFrame.Position)
     local time = distance / speed
@@ -122,7 +125,7 @@ local function GetAllWeapons()
     return weapons
 end
 
--- Quest Management
+-- Quest Data
 local QuestData = {
     [1] = {Name = "BanditQuest1", Number = 1, Monster = "Bandit", Level = 5, QuestPos = CFrame.new(1059.37195, 15.4495068, 1550.4231)},
     [10] = {Name = "JungleQuest", Number = 1, Monster = "Monkey", Level = 14, QuestPos = CFrame.new(-1598.08911, 35.5501175, 153.377838)},
@@ -208,74 +211,18 @@ local BossData = {
     ["Cyborg"] = {Level = 675, Position = CFrame.new(6041.82373046875, 52.7312507629395, 3907.5)}
 }
 
--- Fast Attack Function
-local CombatFramework = require(game:GetService("Players").LocalPlayer.PlayerScripts.CombatFramework)
-local CombatFrameworkR = getupvalues(CombatFramework)[2]
-local RigController = require(game:GetService("Players").LocalPlayer.PlayerScripts.CombatFramework.RigController)
-local RigControllerR = getupvalues(RigController)[2]
-local realbhit = require(game:GetService("ReplicatedStorage").CombatFramework.RigLib)
-local cooldownfastattack = tick()
-
-function CurrentWeapon()
-    local ac = CombatFrameworkR.activeController
-    local ret = ac.blades[1]
-    if not ret then return game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool").Name end
-    return ret
-end
-
-function getAllBladeHitsPlayers(Sizes)
-    local Hits = {}
-    local Client = game.Players.LocalPlayer
-    local Characters = game:GetService("Workspace").Characters:GetChildren()
-    for i=1,#Characters do local v = Characters[i]
-        local Human = v:FindFirstChildOfClass("Humanoid")
-        if v.Name ~= game.Players.LocalPlayer.Name and Human and Human.RootPart and Human.Health > 0 and Client:DistanceFromCharacter(Human.RootPart.Position) < Sizes+5 then
-            table.insert(Hits,Human.RootPart)
-        end
-    end
-    return Hits
-end
-
-function getAllBladeHits(Sizes)
-    local Hits = {}
-    local Client = game.Players.LocalPlayer
-    local Enemies = game:GetService("Workspace").Enemies:GetChildren()
-    for i=1,#Enemies do local v = Enemies[i]
-        local Human = v:FindFirstChildOfClass("Humanoid")
-        if Human and Human.RootPart and Human.Health > 0 and Client:DistanceFromCharacter(Human.RootPart.Position) < Sizes+5 then
-            table.insert(Hits,Human.RootPart)
-        end
-    end
-    return Hits
-end
-
+-- Attack Functions
 local function AttackFunction()
-    local ac = CombatFrameworkR.activeController
-    if ac and ac.equipped then
-        for indexincrement = 1, 1 do
-            local bladehit = getAllBladeHits(60)
-            if #bladehit > 0 then
-                local AcAttack = CombatFrameworkR.activeController
-                local ret = tick()
-                if tick() - cooldownfastattack > .5 then
-                    AcAttack.timeToNextAttack = 0
-                    AcAttack.attacking = false
-                    AcAttack.blocking = false
-                    AcAttack.timeToNextBlock = 0
-                    cooldownfastattack = tick()
-                end
-                if tick() - cooldownfastattack > 0.1 then
-                    for k, v in pairs(bladehit) do
-                        AcAttack.animator.anims.basic[1]:Play(0.01,0.01,0.01)
-                        game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange",tostring(CurrentWeapon()))
-                        game.ReplicatedStorage.Remotes.Validator:FireServer(math.floor(v.Position.X/3.5)*3.5,math.floor(v.Position.Y/3.5)*3.5,math.floor(v.Position.Z/3.5)*3.5)
-                        game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit",bladehit,indexincrement,"")
-                        wait(0.01)
-                    end
-                end
-            end
+    pcall(function()
+        local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if tool and tool:FindFirstChild("Handle") then
+            tool:Activate()
+            VirtualUser:CaptureController()
+            VirtualUser:Button1Down(Vector2.new(1280, 672))
+            wait(0.1)
+            VirtualUser:Button1Up(Vector2.new(1280, 672))
         end
-    end
+    end)
 end
 
 local function FastAttack()
@@ -291,26 +238,25 @@ end
 
 -- Auto Haki Function
 local function AutoHaki()
-    if not Settings.AutoHaki then return end
-    
     spawn(function()
         while Settings.AutoHaki do
             wait(0.1)
-            if not LocalPlayer.Character:FindFirstChild("HasBuso") then
-                ReplicatedStorage.Remotes.CommF_:InvokeServer("Buso")
-            end
+            pcall(function()
+                if not LocalPlayer.Character:FindFirstChild("HasBuso") then
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer("Buso")
+                end
+            end)
         end
     end)
 end
 
 -- Bring Mobs Function
 local function BringMobs()
-    if not Settings.BringMob then return end
-    
     spawn(function()
         while Settings.BringMob do
             wait()
             pcall(function()
+                if not HumanoidRootPart then UpdateCharacter() end
                 for _, mob in pairs(Workspace.Enemies:GetChildren()) do
                     if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") then
                         if mob.Humanoid.Health > 0 and GetDistance(mob.HumanoidRootPart.Position, HumanoidRootPart.Position) <= Settings.MagnetRange then
@@ -374,12 +320,11 @@ local function CreateESPFruit()
 end
 
 local function BringFruits()
-    if not Settings.BringFruit then return end
-    
     spawn(function()
         while Settings.BringFruit do
             wait(0.5)
             pcall(function()
+                if not HumanoidRootPart then UpdateCharacter() end
                 for _, obj in pairs(Workspace:GetChildren()) do
                     if string.find(obj.Name, "Fruit") and obj:FindFirstChild("Handle") then
                         obj.Handle.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
@@ -391,8 +336,6 @@ local function BringFruits()
 end
 
 local function StoreFruit()
-    if not Settings.StoreFruit then return end
-    
     spawn(function()
         while Settings.StoreFruit do
             wait(1)
@@ -411,14 +354,12 @@ local function AutoFarmLevel()
             pcall(function()
                 local quest = GetCurrentQuest()
                 if quest then
-                    -- Check if we have the quest
                     if not LocalPlayer.PlayerGui.Main.Quest.Visible then
                         TweenTo(quest.QuestPos)
                         wait(2)
                         ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", quest.Name, quest.Number)
                         wait(1)
                     else
-                        -- Find and attack monsters
                         local monsters = {}
                         for _, mob in pairs(Workspace.Enemies:GetChildren()) do
                             if string.find(mob.Name, quest.Monster) and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
@@ -451,7 +392,6 @@ local function AutoFarmLevel()
                                 end
                             until not target.Parent or target.Humanoid.Health <= 0 or not Settings.AutoFarmLevel
                         else
-                            -- Go to monster spawn
                             if MonsterSpawns[quest.Monster] then
                                 TweenTo(MonsterSpawns[quest.Monster])
                             end
@@ -497,7 +437,6 @@ local function AutoKillBoss()
                             until not boss.Parent or boss.Humanoid.Health <= 0 or not Settings.AutoKillBoss
                         end
                     else
-                        -- Go to boss spawn
                         if BossData[Settings.SelectedBoss] then
                             TweenTo(BossData[Settings.SelectedBoss].Position)
                         end
@@ -565,33 +504,34 @@ local function AutoSecondSea()
             wait()
             pcall(function()
                 if LocalPlayer.Data.Level.Value >= 700 then
-                    if game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective") == 0 then
-                        TweenTo(CFrame.new(-5496.17432, 313.768921, -2841.53027, 0.924894512, 7.37058015e-09, 0.380223751, 3.5881019e-08, 1, -1.06665446e-07, -0.380223751, 1.12297109e-07, 0.924894512))
+                    local questProgress = game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective")
+                    if questProgress == 0 then
+                        TweenTo(CFrame.new(-5496.17432, 313.768921, -2841.53027))
                         wait(3)
                         ReplicatedStorage.Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective")
                         wait(1)
-                    elseif game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective") == 1 then
-                        TweenTo(CFrame.new(-5533.86426, 313.800995, -2766.69678, 0.8000192, 0, -0.599974513, 0, 1, 0, 0.599974513, 0, 0.8000192))
+                    elseif questProgress == 1 then
+                        TweenTo(CFrame.new(-5533.86426, 313.800995, -2766.69678))
                         wait(3)
                         ReplicatedStorage.Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective")
                         wait(1)
-                    elseif game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective") == 2 then
-                        TweenTo(CFrame.new(-5607.5, 313.800995, -2851.5, -0.866025567, 0, 0.499999821, 0, 1, 0, -0.499999821, 0, -0.866025567))
+                    elseif questProgress == 2 then
+                        TweenTo(CFrame.new(-5607.5, 313.800995, -2851.5))
                         wait(3)
                         ReplicatedStorage.Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective")
                         wait(1)
-                    elseif game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective") == 3 then
-                        TweenTo(CFrame.new(-5565.86816, 313.800995, -2913.43311, -0.525007963, 0, -0.851020813, 0, 1, 0, 0.851020813, 0, -0.525007963))
+                    elseif questProgress == 3 then
+                        TweenTo(CFrame.new(-5565.86816, 313.800995, -2913.43311))
                         wait(3)
                         ReplicatedStorage.Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective")
                         wait(1)
-                    elseif game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective") == 4 then
-                        TweenTo(CFrame.new(-5444.6001, 313.768921, -2925.11816, 0.0000001, 0, -1, 0, 1, 0, 1, 0, 0.0000001))
+                    elseif questProgress == 4 then
+                        TweenTo(CFrame.new(-5444.6001, 313.768921, -2925.11816))
                         wait(3)
                         ReplicatedStorage.Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective")
                         wait(1)
-                    elseif game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("DressrosaQuestProgress","Detective") == 5 then
-                        TweenTo(CFrame.new(-5763.48438, 298.665588, -2457.56885, -0.173648074, -6.95291173e-08, -0.984807789, -3.7909813e-08, 1, -6.24179745e-08, 0.984807789, 2.66793044e-08, -0.173648074))
+                    elseif questProgress == 5 then
+                        TweenTo(CFrame.new(-5763.48438, 298.665588, -2457.56885))
                         wait(3)
                         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TravelDressrosa") 
                         Settings.AutoSecondSea = false
@@ -611,7 +551,6 @@ local Show_Button = true
 local Button_Icon = "rbxassetid://135671141026630"
 local Button_Transparency = 0.1
 
--- Create Toggle Button
 local ScreenGui = Instance.new("ScreenGui")
 local ImageButton = Instance.new("ImageButton")
 local UICorner = Instance.new("UICorner")
@@ -651,7 +590,6 @@ UIGradient.Rotation = 45
 UIScale.Parent = ImageButton
 UIScale.Scale = 1
 
--- Button Animation
 local function animateButton()
     local tween1 = TweenService:Create(
         UIScale,
@@ -680,9 +618,14 @@ end
 -- Load UI Library
 wait(3)
 
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+local success, Fluent = pcall(function()
+    return loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+end)
+
+if not success then
+    Notification("Error", "Failed to load UI library", 5)
+    return
+end
 
 local Window = Fluent:CreateWindow({
     Title = "ENCHANTED HUB | BLOX FRUIT SEA 1",
@@ -715,7 +658,6 @@ WeaponDropdown:OnChanged(function(Value)
     Settings.SelectedWeapon = Value
 end)
 
--- Update weapon list
 spawn(function()
     while wait(2) do
         local weapons = GetAllWeapons()
@@ -806,19 +748,20 @@ local StatsLabel = Tabs.Main:AddParagraph({
     Content = "Loading..."
 })
 
--- Update stats every 5 seconds
 spawn(function()
     while wait(5) do
-        local stats = GetPlayerStats()
-        local content = string.format(
-            "Level: %d\nMoney: %s\nRace: %s\nBounty: %s\nSea: %s",
-            stats.Level,
-            tostring(stats.Money),
-            stats.Race,
-            tostring(stats.Bounty),
-            stats.Sea
-        )
-        StatsLabel:SetContent(content)
+        pcall(function()
+            local stats = GetPlayerStats()
+            local content = string.format(
+                "Level: %d\nMoney: %s\nRace: %s\nBounty: %s\nSea: %s",
+                stats.Level,
+                tostring(stats.Money),
+                stats.Race,
+                tostring(stats.Bounty),
+                stats.Sea
+            )
+            StatsLabel:SetContent(content)
+        end)
     end
 end)
 
@@ -834,8 +777,8 @@ AutoFarmToggle:OnChanged(function(Value)
     Settings.AutoFarmLevel = Value
     if Value then
         AutoFarmLevel()
-        AutoHaki()
-        BringMobs()
+        if Settings.AutoHaki then AutoHaki() end
+        if Settings.BringMob then BringMobs() end
     end
 end)
 
@@ -849,7 +792,6 @@ local BossDropdown = Tabs.AutoFarm:AddDropdown("BossSelect", {
     Default = "",
 })
 
--- Populate boss dropdown
 local bossList = {}
 for bossName, _ in pairs(BossData) do
     table.insert(bossList, bossName)
@@ -936,7 +878,6 @@ local FPSBoostToggle = Tabs.Settings:AddToggle("FPSBoost", {
 
 FPSBoostToggle:OnChanged(function(Value)
     if Value then
-        -- Boost FPS by reducing visual effects
         local lighting = game:GetService("Lighting")
         lighting.GlobalShadows = false
         lighting.FogEnd = 9e9
@@ -969,21 +910,6 @@ FPSBoostToggle:OnChanged(function(Value)
     end
 end)
 
--- Save/Load Section
-local SaveSection = Tabs.Settings:AddSection("Configuration")
-
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({})
-
-InterfaceManager:SetFolder("EnchantedHub")
-SaveManager:SetFolder("EnchantedHub/configs")
-
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
-
 Window:SelectTab(1)
 
 -- Toggle Button Functionality
@@ -1000,8 +926,4 @@ ImageButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Initialize
 Notification("Enchanted Hub", "Successfully loaded! Sea 1 Only", 5)
-
--- Auto-save configuration
-SaveManager:LoadAutoloadConfig()
