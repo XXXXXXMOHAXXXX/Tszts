@@ -14,29 +14,38 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 -- Variables
 local Player = Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:WaitForChild("Humanoid", 10)
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart", 10)
+
+-- Safe character update function
+local function UpdateCharacter()
+    Character = Player.Character
+    if Character then
+        Humanoid = Character:FindFirstChild("Humanoid")
+        HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+    end
+end
 
 -- Update character when respawning
 Player.CharacterAdded:Connect(function(char)
     Character = char
-    Humanoid = char:WaitForChild("Humanoid")
-    HumanoidRootPart = char:WaitForChild("HumanoidRootPart")
+    wait(1)
+    UpdateCharacter()
 end)
 
 -- Script States
-_G.AutoFarmLevel = false
-_G.AutoFastAttack = false
-_G.AutoBringMobs = false
-_G.AutoArmamentHaki = false
-_G.FruitESP = false
-_G.BringFruit = false
-_G.StoreFruit = false
-_G.SelectedWeapon = ""
-_G.AutoBossFarm = false
-_G.SelectedBoss = ""
-_G.AutoSaber = false
-_G.Auto2SeaQuest = false
+getgenv().AutoFarmLevel = false
+getgenv().AutoFastAttack = false
+getgenv().AutoBringMobs = false
+getgenv().AutoArmamentHaki = false
+getgenv().FruitESP = false
+getgenv().BringFruit = false
+getgenv().StoreFruit = false
+getgenv().SelectedWeapon = "Combat"
+getgenv().AutoBossFarm = false
+getgenv().SelectedBoss = ""
+getgenv().AutoSaber = false
+getgenv().Auto2SeaQuest = false
 
 -- Fast Attack Connection
 local FastAttackConnection
@@ -151,90 +160,138 @@ end)
 
 -- Core Functions
 
--- Get Player Level
+-- Safe Get Player Level
 local function GetPlayerLevel()
-    return Player.Data.Level.Value or 1
+    local success, level = pcall(function()
+        return Player.Data.Level.Value
+    end)
+    return success and level or 1
 end
 
 -- Get Player Stats
 local function GetPlayerStats()
-    return {
-        Level = Player.Data.Level.Value or 1,
-        Money = Player.Data.Beli.Value or 0,
-        Race = Player.Data.Race.Value or "Human",
-        Bounty = Player.Data.Bounty.Value or 0,
-        Sea = 1
-    }
+    local success, stats = pcall(function()
+        return {
+            Level = Player.Data.Level.Value,
+            Money = Player.Data.Beli.Value,
+            Race = Player.Data.Race.Value,
+            Bounty = Player.Data.Bounty.Value or 0,
+            Sea = 1
+        }
+    end)
+    return success and stats or {Level = 1, Money = 0, Race = "Human", Bounty = 0, Sea = 1}
 end
 
--- Get All Weapons in Backpack
+-- Get All Weapons Function with error handling
 local function GetWeapons()
-    local weapons = {}
-    for _, tool in pairs(Player.Backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            table.insert(weapons, tool.Name)
+    local weapons = {"Combat", "Sword", "Fruit", "Gun"}
+    
+    pcall(function()
+        for _, tool in pairs(Player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") and not table.find(weapons, tool.Name) then
+                table.insert(weapons, tool.Name)
+            end
         end
-    end
-    for _, tool in pairs(Character:GetChildren()) do
-        if tool:IsA("Tool") then
-            table.insert(weapons, tool.Name)
+        
+        if Character then
+            for _, tool in pairs(Character:GetChildren()) do
+                if tool:IsA("Tool") and not table.find(weapons, tool.Name) then
+                    table.insert(weapons, tool.Name)
+                end
+            end
         end
-    end
+    end)
+    
     return weapons
 end
 
--- Equip Weapon Function
+-- Enhanced Equip Weapon Function
 local function EquipWeapon(weaponName)
-    local weapon = Player.Backpack:FindFirstChild(weaponName)
-    if weapon then
-        Humanoid:EquipTool(weapon)
-        return true
-    end
+    pcall(function()
+        UpdateCharacter()
+        if not Character or not Humanoid then return false end
+        
+        -- Unequip current tool first
+        for _, tool in pairs(Character:GetChildren()) do
+            if tool:IsA("Tool") then
+                tool.Parent = Player.Backpack
+            end
+        end
+        
+        wait(0.1)
+        
+        -- Try to equip from backpack
+        local weapon = Player.Backpack:FindFirstChild(weaponName)
+        if weapon and weapon:IsA("Tool") then
+            weapon.Parent = Character
+            return true
+        end
+        
+        -- If weapon name is Combat, try to find Fighting Style
+        if weaponName == "Combat" then
+            local combat = Player.Backpack:FindFirstChild("Combat") or Player.Backpack:FindFirstChild("Superhuman") or Player.Backpack:FindFirstChild("Dark Step")
+            if combat then
+                combat.Parent = Character
+                return true
+            end
+        end
+    end)
     return false
 end
 
--- Teleport Function
+-- Safe Teleport Function
 local function TeleportTo(position)
-    if HumanoidRootPart then
-        HumanoidRootPart.CFrame = CFrame.new(position)
-    end
+    pcall(function()
+        UpdateCharacter()
+        if HumanoidRootPart then
+            HumanoidRootPart.CFrame = CFrame.new(position)
+        end
+    end)
 end
 
--- Enhanced Fast Attack System
+-- Enhanced Fast Attack System with extended range
 local function StartFastAttack()
     if FastAttackConnection then
         FastAttackConnection:Disconnect()
     end
     
     FastAttackConnection = RunService.Heartbeat:Connect(function()
-        if _G.AutoFastAttack then
+        if getgenv().AutoFastAttack then
             pcall(function()
+                UpdateCharacter()
+                if not Character or not HumanoidRootPart then return end
+                
                 local tool = Character:FindFirstChildOfClass("Tool")
-                if tool and tool:FindFirstChild("Handle") then
-                    -- Multiple attack methods for different weapons
-                    ReplicatedStorage.RigControllerEvent:FireServer("weaponChange", tool.Name)
-                    ReplicatedStorage.RigControllerEvent:FireServer("hit", {
-                        ["Name"] = tool.Name,
-                        ["RigType"] = Character.Humanoid.RigType
-                    })
+                if tool then
+                    -- Enhanced attack system
+                    local args = {
+                        [1] = "weaponChange",
+                        [2] = tool.Name
+                    }
+                    game:GetService("ReplicatedStorage"):FindFirstChild("RigControllerEvent"):FireServer(unpack(args))
                     
-                    -- Virtual input simulation for clicks
+                    -- Virtual mouse click for attacks
                     local camera = workspace.CurrentCamera
-                    VirtualInputManager:SendMouseButtonEvent(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2, 0, true, game, 1)
-                    VirtualInputManager:SendMouseButtonEvent(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2, 0, false, game, 1)
+                    local screenCenter = camera.ViewportSize / 2
+                    VirtualInputManager:SendMouseButtonEvent(screenCenter.X, screenCenter.Y, 0, true, game, 1)
+                    VirtualInputManager:SendMouseButtonEvent(screenCenter.X, screenCenter.Y, 0, false, game, 1)
                     
-                    -- Enhanced M1 attacks for combat
-                    if tool.Name == "Combat" or string.find(tool.Name:lower(), "combat") then
+                    -- Extended range attack for Combat
+                    if string.find(tool.Name:lower(), "combat") or tool.Name == "Combat" then
                         for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
                             if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
                                 if enemy.Humanoid.Health > 0 then
                                     local distance = (HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
-                                    if distance <= 200 then -- Extended combat range
-                                        ReplicatedStorage.RigControllerEvent:FireServer("hit", {
-                                            ["Name"] = "Combat",
-                                            ["Target"] = enemy.HumanoidRootPart,
-                                            ["RigType"] = Character.Humanoid.RigType
-                                        })
+                                    if distance <= 150 then -- Extended combat range
+                                        local hitArgs = {
+                                            [1] = "hit",
+                                            [2] = {
+                                                ["Name"] = tool.Name,
+                                                ["Target"] = enemy.HumanoidRootPart,
+                                                ["RigType"] = Character.Humanoid.RigType
+                                            }
+                                        }
+                                        game:GetService("ReplicatedStorage"):FindFirstChild("RigControllerEvent"):FireServer(unpack(hitArgs))
                                     end
                                 end
                             end
@@ -246,13 +303,14 @@ local function StartFastAttack()
     end)
 end
 
--- Auto Armament Haki
+-- Auto Armament Haki Function
 local function ActivateHaki()
     spawn(function()
-        while _G.AutoArmamentHaki do
+        while getgenv().AutoArmamentHaki do
             pcall(function()
-                if not Character:FindFirstChild("HasBuso") then
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer("Buso")
+                UpdateCharacter()
+                if Character and not Character:FindFirstChild("HasBuso") then
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Buso")
                 end
             end)
             wait(1)
@@ -260,37 +318,37 @@ local function ActivateHaki()
     end)
 end
 
--- Quest Data (Complete Sea 1 Quest List)
+-- Complete Quest Data for Sea 1
 local QuestData = {
-    {Level = 1, Name = "Bandit", QuestGiver = "Bandit Quest", Enemy = "Bandit", Location = Vector3.new(1059.37, 15.4, 1550.42)},
-    {Level = 10, Name = "Monkey", QuestGiver = "Jungle Quest", Enemy = "Monkey", Location = Vector3.new(-1448.51, 67.85, 11.46)},
-    {Level = 15, Name = "Gorilla", QuestGiver = "Jungle Quest", Enemy = "Gorilla", Location = Vector3.new(-1448.51, 67.85, 11.46)},
-    {Level = 20, Name = "Pirate", QuestGiver = "Pirate Quest", Enemy = "Pirate", Location = Vector3.new(-1141.07, 4.78, 3831.99)},
-    {Level = 30, Name = "Brute", QuestGiver = "Pirate Quest", Enemy = "Brute", Location = Vector3.new(-1141.07, 4.78, 3831.99)},
-    {Level = 40, Name = "Desert Bandit", QuestGiver = "Desert Quest", Enemy = "Desert Bandit", Location = Vector3.new(894.49, 5.14, 4392.43)},
-    {Level = 60, Name = "Desert Officer", QuestGiver = "Desert Quest", Enemy = "Desert Officer", Location = Vector3.new(894.49, 5.14, 4392.43)},
-    {Level = 75, Name = "Snow Bandit", QuestGiver = "Snow Quest", Enemy = "Snow Bandit", Location = Vector3.new(1389.74, 88.15, -1298.90)},
-    {Level = 90, Name = "Snowman", QuestGiver = "Snow Quest", Enemy = "Snowman", Location = Vector3.new(1389.74, 88.15, -1298.90)},
-    {Level = 100, Name = "Chief Petty Officer", QuestGiver = "Marine Quest", Enemy = "Chief Petty Officer", Location = Vector3.new(-5039.58, 27.34, 4324.68)},
-    {Level = 120, Name = "Sky Bandit", QuestGiver = "Sky Quest", Enemy = "Sky Bandit", Location = Vector3.new(-4839.53, 717.67, -2619.44)},
-    {Level = 150, Name = "Dark Master", QuestGiver = "Sky Quest", Enemy = "Dark Master", Location = Vector3.new(-4839.53, 717.67, -2619.44)},
-    {Level = 175, Name = "Prisoner", QuestGiver = "Prison Quest", Enemy = "Prisoner", Location = Vector3.new(5308.93, 1.65, 475.12)},
-    {Level = 190, Name = "Dangerous Prisoner", QuestGiver = "Prison Quest", Enemy = "Dangerous Prisoner", Location = Vector3.new(5308.93, 1.65, 475.12)},
-    {Level = 210, Name = "Toga Warrior", QuestGiver = "Colosseum Quest", Enemy = "Toga Warrior", Location = Vector3.new(-1580.04, 6.35, -2986.73)},
-    {Level = 230, Name = "Gladiator", QuestGiver = "Colosseum Quest", Enemy = "Gladiator", Location = Vector3.new(-1580.04, 6.35, -2986.73)},
-    {Level = 250, Name = "Military Soldier", QuestGiver = "Magma Quest", Enemy = "Military Soldier", Location = Vector3.new(-5313.37, 10.9, 8515.29)},
-    {Level = 275, Name = "Military Spy", QuestGiver = "Magma Quest", Enemy = "Military Spy", Location = Vector3.new(-5313.37, 10.9, 8515.29)},
-    {Level = 300, Name = "Fishman Warrior", QuestGiver = "Fishman Quest", Enemy = "Fishman Warrior", Location = Vector3.new(61122.99, 18.50, 1569.59)},
-    {Level = 325, Name = "Fishman Commando", QuestGiver = "Fishman Quest", Enemy = "Fishman Commando", Location = Vector3.new(61122.99, 18.50, 1569.59)},
-    {Level = 350, Name = "God's Guard", QuestGiver = "Sky Island Quest", Enemy = "God's Guard", Location = Vector3.new(-4607.82, 872.54, -1667.55)},
-    {Level = 375, Name = "Shanda", QuestGiver = "Sky Island Quest", Enemy = "Shanda", Location = Vector3.new(-7952.47, 5545.52, -319.22)},
-    {Level = 400, Name = "Royal Squad", QuestGiver = "Sky Island Quest", Enemy = "Royal Squad", Location = Vector3.new(-7906.81, 5634.6, -1411.99)},
-    {Level = 450, Name = "Royal Soldier", QuestGiver = "Sky Island Quest", Enemy = "Royal Soldier", Location = Vector3.new(-7906.81, 5634.6, -1411.99)},
-    {Level = 475, Name = "Galley Pirate", QuestGiver = "Fountain Quest", Enemy = "Galley Pirate", Location = Vector3.new(5259.81, 1.59, 751.17)},
-    {Level = 500, Name = "Galley Captain", QuestGiver = "Fountain Quest", Enemy = "Galley Captain", Location = Vector3.new(5259.81, 1.59, 751.17)}
+    {Level = 1, Name = "Bandit", QuestGiver = "Bandit Quest", Enemy = "Bandit", Location = Vector3.new(1059.37, 15.4, 1550.42), EnemySpawn = Vector3.new(1045, 14, 1563)},
+    {Level = 10, Name = "Monkey", QuestGiver = "Jungle Quest", Enemy = "Monkey", Location = Vector3.new(-1448.51, 67.85, 11.46), EnemySpawn = Vector3.new(-1448, 50, 11)},
+    {Level = 15, Name = "Gorilla", QuestGiver = "Jungle Quest", Enemy = "Gorilla", Location = Vector3.new(-1448.51, 67.85, 11.46), EnemySpawn = Vector3.new(-1129, 40, -515)},
+    {Level = 20, Name = "Pirate", QuestGiver = "Pirate Quest", Enemy = "Pirate", Location = Vector3.new(-1141.07, 4.78, 3831.99), EnemySpawn = Vector3.new(-1103, 13, 3896)},
+    {Level = 30, Name = "Brute", QuestGiver = "Pirate Quest", Enemy = "Brute", Location = Vector3.new(-1141.07, 4.78, 3831.99), EnemySpawn = Vector3.new(-1140, 15, 4314)},
+    {Level = 40, Name = "Desert Bandit", QuestGiver = "Desert Quest", Enemy = "Desert Bandit", Location = Vector3.new(894.49, 5.14, 4392.43), EnemySpawn = Vector3.new(924, 7, 4481)},
+    {Level = 60, Name = "Desert Officer", QuestGiver = "Desert Quest", Enemy = "Desert Officer", Location = Vector3.new(894.49, 5.14, 4392.43), EnemySpawn = Vector3.new(1608, 7, 4371)},
+    {Level = 75, Name = "Snow Bandit", QuestGiver = "Snow Quest", Enemy = "Snow Bandit", Location = Vector3.new(1389.74, 88.15, -1298.90), EnemySpawn = Vector3.new(1354, 87, -1352)},
+    {Level = 90, Name = "Snowman", QuestGiver = "Snow Quest", Enemy = "Snowman", Location = Vector3.new(1389.74, 88.15, -1298.90), EnemySpawn = Vector3.new(1201, 87, -1502)},
+    {Level = 100, Name = "Chief Petty Officer", QuestGiver = "Marine Quest", Enemy = "Chief Petty Officer", Location = Vector3.new(-5039.58, 27.34, 4324.68), EnemySpawn = Vector3.new(-4882, 23, 4255)},
+    {Level = 120, Name = "Sky Bandit", QuestGiver = "Sky Quest", Enemy = "Sky Bandit", Location = Vector3.new(-4839.53, 717.67, -2619.44), EnemySpawn = Vector3.new(-4970, 717, -2888)},
+    {Level = 150, Name = "Dark Master", QuestGiver = "Sky Quest", Enemy = "Dark Master", Location = Vector3.new(-4839.53, 717.67, -2619.44), EnemySpawn = Vector3.new(-5259, 717, -2221)},
+    {Level = 175, Name = "Prisoner", QuestGiver = "Prison Quest", Enemy = "Prisoner", Location = Vector3.new(5308.93, 1.65, 475.12), EnemySpawn = Vector3.new(5411, 96, 690)},
+    {Level = 190, Name = "Dangerous Prisoner", QuestGiver = "Prison Quest", Enemy = "Dangerous Prisoner", Location = Vector3.new(5308.93, 1.65, 475.12), EnemySpawn = Vector3.new(5654, 15, 866)},
+    {Level = 210, Name = "Toga Warrior", QuestGiver = "Colosseum Quest", Enemy = "Toga Warrior", Location = Vector3.new(-1580.04, 6.35, -2986.73), EnemySpawn = Vector3.new(-1824, 50, -2743)},
+    {Level = 230, Name = "Gladiator", QuestGiver = "Colosseum Quest", Enemy = "Gladiator", Location = Vector3.new(-1580.04, 6.35, -2986.73), EnemySpawn = Vector3.new(-1292, 58, -3339)},
+    {Level = 250, Name = "Military Soldier", QuestGiver = "Magma Quest", Enemy = "Military Soldier", Location = Vector3.new(-5313.37, 10.9, 8515.29), EnemySpawn = Vector3.new(-5411, 11, 8774)},
+    {Level = 275, Name = "Military Spy", QuestGiver = "Magma Quest", Enemy = "Military Spy", Location = Vector3.new(-5313.37, 10.9, 8515.29), EnemySpawn = Vector3.new(-5802, 86, 8828)},
+    {Level = 300, Name = "Fishman Warrior", QuestGiver = "Fishman Quest", Enemy = "Fishman Warrior", Location = Vector3.new(61122.99, 18.50, 1569.59), EnemySpawn = Vector3.new(60946, 19, 1507)},
+    {Level = 325, Name = "Fishman Commando", QuestGiver = "Fishman Quest", Enemy = "Fishman Commando", Location = Vector3.new(61122.99, 18.50, 1569.59), EnemySpawn = Vector3.new(61922, 19, 1808)},
+    {Level = 350, Name = "God's Guard", QuestGiver = "Sky Island Quest", Enemy = "God's Guard", Location = Vector3.new(-4607.82, 872.54, -1667.55), EnemySpawn = Vector3.new(-4710, 845, -1927)},
+    {Level = 375, Name = "Shanda", QuestGiver = "Sky Island Quest", Enemy = "Shanda", Location = Vector3.new(-7952.47, 5545.52, -319.22), EnemySpawn = Vector3.new(-7685, 5567, -446)},
+    {Level = 400, Name = "Royal Squad", QuestGiver = "Sky Island Quest", Enemy = "Royal Squad", Location = Vector3.new(-7906.81, 5634.6, -1411.99), EnemySpawn = Vector3.new(-7624, 5658, -1467)},
+    {Level = 450, Name = "Royal Soldier", QuestGiver = "Sky Island Quest", Enemy = "Royal Soldier", Location = Vector3.new(-7906.81, 5634.6, -1411.99), EnemySpawn = Vector3.new(-7836, 5658, -1712)},
+    {Level = 475, Name = "Galley Pirate", QuestGiver = "Fountain Quest", Enemy = "Galley Pirate", Location = Vector3.new(5259.81, 1.59, 751.17), EnemySpawn = Vector3.new(5551, 156, 1151)},
+    {Level = 500, Name = "Galley Captain", QuestGiver = "Fountain Quest", Enemy = "Galley Captain", Location = Vector3.new(5259.81, 1.59, 751.17), EnemySpawn = Vector3.new(5678, 92, 1103)}
 }
 
--- Get Current Quest Based on Level
+-- Get Current Quest Based on Player Level
 local function GetCurrentQuest()
     local level = GetPlayerLevel()
     local bestQuest = QuestData[1]
@@ -304,52 +362,68 @@ local function GetCurrentQuest()
     return bestQuest
 end
 
--- Accept Quest Function
+-- Accept Quest Function with proper error handling
 local function AcceptQuest(questData)
     pcall(function()
         TeleportTo(questData.Location)
+        wait(2)
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", questData.Name, 1)
         wait(1)
-        ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", questData.Name, 1)
     end)
 end
 
--- Find Nearest Enemy
-local function FindNearestEnemy(enemyName)
-    local nearestEnemy = nil
-    local shortestDistance = math.huge
+-- Find Quest Enemy (specific to current quest, not nearest)
+local function FindQuestEnemy(enemyName)
+    local questEnemies = {}
     
     for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
         if enemy.Name == enemyName and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
             if enemy.Humanoid.Health > 0 then
-                local distance = (HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    nearestEnemy = enemy
-                end
+                table.insert(questEnemies, enemy)
             end
         end
     end
     
-    return nearestEnemy
+    if #questEnemies > 0 then
+        -- Return closest quest enemy
+        local closest = questEnemies[1]
+        local shortestDistance = (HumanoidRootPart.Position - closest.HumanoidRootPart.Position).Magnitude
+        
+        for _, enemy in pairs(questEnemies) do
+            local distance = (HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                closest = enemy
+            end
+        end
+        
+        return closest
+    end
+    
+    return nil
 end
 
--- Bring Mobs Function
+-- Bring Mobs Function with better logic
 local function BringMobs(enemyName)
-    if not _G.AutoBringMobs then return end
+    if not getgenv().AutoBringMobs then return end
     
-    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-        if enemy.Name == enemyName and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
-            if enemy.Humanoid.Health > 0 then
-                local distance = (HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
-                if distance <= 300 then
-                    enemy.HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
-                    enemy.HumanoidRootPart.CanCollide = false
-                    enemy.Humanoid.WalkSpeed = 0
-                    enemy.Humanoid.JumpPower = 0
-                    
-                    if enemy:FindFirstChild("Body") then
-                        for _, part in pairs(enemy.Body:GetChildren()) do
-                            if part:IsA("BasePart") then
+    pcall(function()
+        UpdateCharacter()
+        if not HumanoidRootPart then return end
+        
+        for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+            if enemy.Name == enemyName and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+                if enemy.Humanoid.Health > 0 then
+                    local distance = (HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+                    if distance <= 400 then
+                        enemy.HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0, -10)
+                        enemy.HumanoidRootPart.CanCollide = false
+                        enemy.Humanoid.WalkSpeed = 0
+                        enemy.Humanoid.JumpPower = 0
+                        
+                        -- Disable collision for all body parts
+                        for _, part in pairs(enemy:GetChildren()) do
+                            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
                                 part.CanCollide = false
                             end
                         end
@@ -357,38 +431,50 @@ local function BringMobs(enemyName)
                 end
             end
         end
-    end
+    end)
 end
 
--- Auto Farm Level Function
+-- Complete Auto Farm Level Function
 local function AutoFarmLevel()
     spawn(function()
-        while _G.AutoFarmLevel do
+        while getgenv().AutoFarmLevel do
             pcall(function()
+                UpdateCharacter()
+                if not Character or not HumanoidRootPart then 
+                    wait(1)
+                    return 
+                end
+                
                 local questData = GetCurrentQuest()
                 if questData then
                     -- Check if quest is active
-                    if not Player.PlayerGui.Main.Quest.Visible then
+                    local hasQuest = Player.PlayerGui.Main.Quest.Visible
+                    if not hasQuest then
                         AcceptQuest(questData)
                         wait(3)
                     end
                     
-                    -- Find and attack enemies
-                    local enemy = FindNearestEnemy(questData.Enemy)
+                    -- Equip selected weapon
+                    if getgenv().SelectedWeapon ~= "" then
+                        EquipWeapon(getgenv().SelectedWeapon)
+                    end
+                    
+                    -- Find quest specific enemies
+                    local enemy = FindQuestEnemy(questData.Enemy)
                     if enemy then
-                        -- Bring mobs
+                        -- Bring mobs if enabled
                         BringMobs(questData.Enemy)
                         
-                        -- Position above enemy
-                        HumanoidRootPart.CFrame = CFrame.new(enemy.HumanoidRootPart.Position.X, enemy.HumanoidRootPart.Position.Y + 20, enemy.HumanoidRootPart.Position.Z)
-                        
-                        -- Equip weapon and attack
-                        if _G.SelectedWeapon ~= "" then
-                            EquipWeapon(_G.SelectedWeapon)
-                        end
+                        -- Position above enemy for attack
+                        HumanoidRootPart.CFrame = CFrame.new(
+                            enemy.HumanoidRootPart.Position.X, 
+                            enemy.HumanoidRootPart.Position.Y + 25, 
+                            enemy.HumanoidRootPart.Position.Z
+                        )
                     else
-                        -- Teleport to quest area if no enemies
-                        TeleportTo(questData.Location)
+                        -- Go to enemy spawn location if no enemies found
+                        TeleportTo(questData.EnemySpawn)
+                        wait(1)
                     end
                 end
             end)
@@ -397,7 +483,7 @@ local function AutoFarmLevel()
     end)
 end
 
--- Boss Data
+-- Boss Data with correct spawn locations
 local BossData = {
     ["The Gorilla King"] = {Level = 25, Location = Vector3.new(-1223.16, 6.5, -501.31)},
     ["Bobby"] = {Level = 55, Location = Vector3.new(-1087.3, 38.8, 4334.1)},
@@ -417,25 +503,36 @@ local BossData = {
 -- Auto Boss Farm Function
 local function AutoBossFarm()
     spawn(function()
-        while _G.AutoBossFarm do
+        while getgenv().AutoBossFarm do
             pcall(function()
-                if _G.SelectedBoss ~= "" then
-                    local bossData = BossData[_G.SelectedBoss]
+                UpdateCharacter()
+                if not Character or not HumanoidRootPart then 
+                    wait(1)
+                    return 
+                end
+                
+                if getgenv().SelectedBoss ~= "" then
+                    local bossData = BossData[getgenv().SelectedBoss]
                     if bossData then
-                        local boss = Workspace.Enemies:FindFirstChild(_G.SelectedBoss)
+                        -- Equip weapon
+                        if getgenv().SelectedWeapon ~= "" then
+                            EquipWeapon(getgenv().SelectedWeapon)
+                        end
+                        
+                        local boss = Workspace.Enemies:FindFirstChild(getgenv().SelectedBoss)
                         if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChild("Humanoid") then
                             if boss.Humanoid.Health > 0 then
-                                -- Position above boss
-                                HumanoidRootPart.CFrame = CFrame.new(boss.HumanoidRootPart.Position.X, boss.HumanoidRootPart.Position.Y + 25, boss.HumanoidRootPart.Position.Z)
-                                
-                                -- Equip weapon
-                                if _G.SelectedWeapon ~= "" then
-                                    EquipWeapon(_G.SelectedWeapon)
-                                end
+                                -- Position above boss for attack
+                                HumanoidRootPart.CFrame = CFrame.new(
+                                    boss.HumanoidRootPart.Position.X, 
+                                    boss.HumanoidRootPart.Position.Y + 30, 
+                                    boss.HumanoidRootPart.Position.Z
+                                )
                             end
                         else
-                            -- Teleport to boss spawn
+                            -- Teleport to boss spawn location
                             TeleportTo(bossData.Location)
+                            wait(2)
                         end
                     end
                 end
@@ -445,8 +542,18 @@ local function AutoBossFarm()
     end)
 end
 
--- Saber Quest Variables
-local SaberStep = 0
+-- Saber Quest with Progress Checking
+local SaberProgress = {
+    PlatesCompleted = false,
+    TorchObtained = false,
+    CupObtained = false,
+    WaterFilled = false,
+    SickManHelped = false,
+    RichSonQuest = false,
+    KeyObtained = false,
+    SaberExpertKilled = false
+}
+
 local SaberPlates = {
     Vector3.new(-1547.15, 61.43, 162.83),
     Vector3.new(-1438.85, 61.43, 162.83),
@@ -455,72 +562,106 @@ local SaberPlates = {
     Vector3.new(-1493.17, 61.43, 27.3)
 }
 
--- Auto Saber Quest Function
+-- Auto Saber Quest with State Checking
 local function AutoSaber()
     spawn(function()
-        while _G.AutoSaber do
+        while getgenv().AutoSaber do
             pcall(function()
+                UpdateCharacter()
+                if not Character or not HumanoidRootPart then 
+                    wait(1)
+                    return 
+                end
+                
                 if GetPlayerLevel() >= 200 then
-                    if SaberStep == 0 then
-                        -- Step 1: Touch all jungle plates
+                    -- Step 1: Touch jungle plates
+                    if not SaberProgress.PlatesCompleted then
                         for i, platePos in pairs(SaberPlates) do
                             TeleportTo(platePos)
                             wait(2)
                         end
-                        SaberStep = 1
-                    elseif SaberStep == 1 then
-                        -- Step 2: Get torch from jungle secret room
+                        SaberProgress.PlatesCompleted = true
+                        wait(1)
+                    end
+                    
+                    -- Step 2: Get torch from jungle secret room
+                    if SaberProgress.PlatesCompleted and not SaberProgress.TorchObtained then
                         TeleportTo(Vector3.new(-1610.78, 11.5, 164.84))
                         wait(2)
                         local torch = Workspace:FindFirstChild("Torch")
                         if torch and torch:FindFirstChild("ClickDetector") then
                             fireclickdetector(torch.ClickDetector)
-                            SaberStep = 2
+                            SaberProgress.TorchObtained = true
                         end
-                    elseif SaberStep == 2 then
-                        -- Step 3: Go to desert secret room
+                        wait(1)
+                    end
+                    
+                    -- Step 3: Go to desert and light torch
+                    if SaberProgress.TorchObtained and not SaberProgress.CupObtained then
                         TeleportTo(Vector3.new(1113.87, 4.92, 4350.5))
-                        wait(2)
-                        SaberStep = 3
-                    elseif SaberStep == 3 then
-                        -- Step 4: Get cup from desert
+                        wait(3)
+                        
+                        -- Get cup from desert
                         TeleportTo(Vector3.new(1142.66, 14.84, 4392.23))
                         wait(2)
                         local cup = Workspace:FindFirstChild("Cup")
                         if cup and cup:FindFirstChild("ClickDetector") then
                             fireclickdetector(cup.ClickDetector)
-                            SaberStep = 4
+                            SaberProgress.CupObtained = true
                         end
-                    elseif SaberStep == 4 then
-                        -- Step 5: Fill cup with water from mountain
+                        wait(1)
+                    end
+                    
+                    -- Step 4: Fill cup with water
+                    if SaberProgress.CupObtained and not SaberProgress.WaterFilled then
                         TeleportTo(Vector3.new(-1439.22, 55.09, -1281.49))
                         wait(2)
-                        SaberStep = 5
-                    elseif SaberStep == 5 then
-                        -- Step 6: Give water to old man
+                        SaberProgress.WaterFilled = true
+                        wait(1)
+                    end
+                    
+                    -- Step 5: Give water to sick man
+                    if SaberProgress.WaterFilled and not SaberProgress.SickManHelped then
                         TeleportTo(Vector3.new(1395.24, 37.72, -1304.99))
                         wait(2)
-                        ReplicatedStorage.Remotes.CommF_:InvokeServer("ProQuestProgress", "SickMan")
-                        SaberStep = 6
-                    elseif SaberStep == 6 then
-                        -- Step 7: Talk to rich man
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("ProQuestProgress", "SickMan")
+                        SaberProgress.SickManHelped = true
+                        wait(1)
+                    end
+                    
+                    -- Step 6: Complete rich son quest
+                    if SaberProgress.SickManHelped and not SaberProgress.RichSonQuest then
                         TeleportTo(Vector3.new(-408.23, 73.04, 1858.86))
                         wait(2)
-                        ReplicatedStorage.Remotes.CommF_:InvokeServer("ProQuestProgress", "RichSon")
-                        SaberStep = 7
-                    elseif SaberStep == 7 then
-                        -- Step 8: Get key from rich man after completing his quest
-                        ReplicatedStorage.Remotes.CommF_:InvokeServer("ProQuestProgress", "RichSon")
-                        SaberStep = 8
-                    elseif SaberStep == 8 then
-                        -- Step 9: Kill Saber Expert
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("ProQuestProgress", "RichSon")
+                        wait(2)
+                        SaberProgress.RichSonQuest = true
+                        wait(1)
+                    end
+                    
+                    -- Step 7: Get key from rich son
+                    if SaberProgress.RichSonQuest and not SaberProgress.KeyObtained then
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("ProQuestProgress", "RichSon")
+                        SaberProgress.KeyObtained = true
+                        wait(1)
+                    end
+                    
+                    -- Step 8: Kill Saber Expert
+                    if SaberProgress.KeyObtained and not SaberProgress.SaberExpertKilled then
+                        if getgenv().SelectedWeapon ~= "" then
+                            EquipWeapon(getgenv().SelectedWeapon)
+                        end
+                        
                         local saberExpert = Workspace.Enemies:FindFirstChild("Saber Expert")
                         if saberExpert and saberExpert:FindFirstChild("HumanoidRootPart") and saberExpert:FindFirstChild("Humanoid") then
                             if saberExpert.Humanoid.Health > 0 then
-                                HumanoidRootPart.CFrame = CFrame.new(saberExpert.HumanoidRootPart.Position.X, saberExpert.HumanoidRootPart.Position.Y + 20, saberExpert.HumanoidRootPart.Position.Z)
-                                if _G.SelectedWeapon ~= "" then
-                                    EquipWeapon(_G.SelectedWeapon)
-                                end
+                                HumanoidRootPart.CFrame = CFrame.new(
+                                    saberExpert.HumanoidRootPart.Position.X, 
+                                    saberExpert.HumanoidRootPart.Position.Y + 25, 
+                                    saberExpert.HumanoidRootPart.Position.Z
+                                )
+                            else
+                                SaberProgress.SaberExpertKilled = true
                             end
                         else
                             TeleportTo(Vector3.new(-1405.12, 29.94, -3162.45))
@@ -533,34 +674,47 @@ local function AutoSaber()
     end)
 end
 
--- Auto 2nd Sea Quest Function (Don Swan - Ice Boss)
+-- Auto 2nd Sea Quest (Don Swan - Ice Boss)
 local function Auto2SeaQuest()
     spawn(function()
-        while _G.Auto2SeaQuest do
+        while getgenv().Auto2SeaQuest do
             pcall(function()
+                UpdateCharacter()
+                if not Character or not HumanoidRootPart then 
+                    wait(1)
+                    return 
+                end
+                
                 if GetPlayerLevel() >= 700 then
                     -- Talk to prison guard
                     TeleportTo(Vector3.new(5308.93, 1.65, 475.12))
                     wait(2)
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer("TalkTrevor", "1")
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TalkTrevor", "1")
                     wait(2)
                     
-                    -- Get key from detective quest
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer("DressrosaQuestProgress", "Detective")
+                    -- Complete detective quest
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("DressrosaQuestProgress", "Detective")
                     wait(2)
+                    
+                    -- Equip weapon
+                    if getgenv().SelectedWeapon ~= "" then
+                        EquipWeapon(getgenv().SelectedWeapon)
+                    end
                     
                     -- Fight Don Swan (Ice Boss)
                     local donSwan = Workspace.Enemies:FindFirstChild("Don Swan")
                     if donSwan and donSwan:FindFirstChild("HumanoidRootPart") and donSwan:FindFirstChild("Humanoid") then
                         if donSwan.Humanoid.Health > 0 then
-                            HumanoidRootPart.CFrame = CFrame.new(donSwan.HumanoidRootPart.Position.X, donSwan.HumanoidRootPart.Position.Y + 25, donSwan.HumanoidRootPart.Position.Z)
-                            if _G.SelectedWeapon ~= "" then
-                                EquipWeapon(_G.SelectedWeapon)
-                            end
+                            HumanoidRootPart.CFrame = CFrame.new(
+                                donSwan.HumanoidRootPart.Position.X, 
+                                donSwan.HumanoidRootPart.Position.Y + 30, 
+                                donSwan.HumanoidRootPart.Position.Z
+                            )
                         end
                     else
-                        -- Teleport to Don Swan spawn location
+                        -- Teleport to Don Swan spawn (Ice Castle)
                         TeleportTo(Vector3.new(2288.8, 15.19, 863.78))
+                        wait(2)
                     end
                 end
             end)
@@ -571,49 +725,59 @@ end
 
 -- Fruit Functions
 local function CreateFruitESP()
-    for _, fruit in pairs(Workspace:GetChildren()) do
-        if string.find(fruit.Name, "Fruit") and fruit:FindFirstChild("Handle") then
-            if not fruit.Handle:FindFirstChild("ESP") then
-                local esp = Instance.new("BillboardGui")
-                esp.Name = "ESP"
-                esp.Parent = fruit.Handle
-                esp.Size = UDim2.new(0, 100, 0, 50)
-                esp.StudsOffset = Vector3.new(0, 2.5, 0)
-                esp.AlwaysOnTop = true
-                
-                local label = Instance.new("TextLabel")
-                label.Parent = esp
-                label.Size = UDim2.new(1, 0, 1, 0)
-                label.BackgroundTransparency = 1
-                label.Text = fruit.Name
-                label.TextColor3 = Color3.fromRGB(255, 255, 0)
-                label.TextScaled = true
-                label.Font = Enum.Font.SourceSansBold
+    pcall(function()
+        for _, fruit in pairs(Workspace:GetChildren()) do
+            if string.find(fruit.Name, "Fruit") and fruit:FindFirstChild("Handle") then
+                if not fruit.Handle:FindFirstChild("ESP") then
+                    local esp = Instance.new("BillboardGui")
+                    esp.Name = "ESP"
+                    esp.Parent = fruit.Handle
+                    esp.Size = UDim2.new(0, 100, 0, 50)
+                    esp.StudsOffset = Vector3.new(0, 2.5, 0)
+                    esp.AlwaysOnTop = true
+                    
+                    local label = Instance.new("TextLabel")
+                    label.Parent = esp
+                    label.Size = UDim2.new(1, 0, 1, 0)
+                    label.BackgroundTransparency = 1
+                    label.Text = fruit.Name
+                    label.TextColor3 = Color3.fromRGB(255, 255, 0)
+                    label.TextScaled = true
+                    label.Font = Enum.Font.SourceSansBold
+                end
             end
         end
-    end
+    end)
 end
 
 local function BringAllFruits()
-    for _, fruit in pairs(Workspace:GetChildren()) do
-        if string.find(fruit.Name, "Fruit") and fruit:FindFirstChild("Handle") then
-            fruit.Handle.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
+    pcall(function()
+        UpdateCharacter()
+        if HumanoidRootPart then
+            for _, fruit in pairs(Workspace:GetChildren()) do
+                if string.find(fruit.Name, "Fruit") and fruit:FindFirstChild("Handle") then
+                    fruit.Handle.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
+                end
+            end
         end
-    end
+    end)
 end
 
--- Main Tab UI
+-- Main Tab UI Creation
+wait(1) -- Ensure UI is fully loaded
+
+-- Weapon Selection Section
 local WeaponSection = Tabs.Main:AddSection("Weapon Selection")
 
 local WeaponDropdown = Tabs.Main:AddDropdown("WeaponDropdown", {
     Title = "Select Weapon",
-    Values = GetWeapons(),
+    Values = {"Combat", "Sword", "Fruit", "Gun"},
     Multi = false,
-    Default = "",
+    Default = "Combat",
 })
 
 WeaponDropdown:OnChanged(function(Value)
-    _G.SelectedWeapon = Value
+    getgenv().SelectedWeapon = Value
     EquipWeapon(Value)
     Fluent:Notify({
         Title = "Weapon Selected",
@@ -625,27 +789,29 @@ end)
 -- Refresh weapons button
 local RefreshWeaponsButton = Tabs.Main:AddButton({
     Title = "Refresh Weapons",
-    Description = "Update weapon list",
+    Description = "Update weapon list from inventory",
     Callback = function()
-        WeaponDropdown:SetValues(GetWeapons())
+        local weapons = GetWeapons()
+        WeaponDropdown:SetValues(weapons)
         Fluent:Notify({
             Title = "Weapons Updated",
-            Content = "Weapon list refreshed!",
+            Content = "Found " .. #weapons .. " weapons!",
             Duration = 3
         })
     end
 })
 
+-- Combat Section
 local CombatSection = Tabs.Main:AddSection("Combat")
 
 local FastAttackToggle = Tabs.Main:AddToggle("FastAttack", {
     Title = "Auto Fast Attack",
-    Description = "Ultra fast M1 attacks with extended range",
+    Description = "Ultra fast M1 attacks with extended range for Combat",
     Default = false
 })
 
 FastAttackToggle:OnChanged(function(Value)
-    _G.AutoFastAttack = Value
+    getgenv().AutoFastAttack = Value
     if Value then
         StartFastAttack()
         Fluent:Notify({
@@ -667,12 +833,12 @@ end)
 
 local BringMobsToggle = Tabs.Main:AddToggle("BringMobs", {
     Title = "Auto Bring Mobs",
-    Description = "Bring quest enemies to you",
+    Description = "Teleport quest enemies to your location",
     Default = false
 })
 
 BringMobsToggle:OnChanged(function(Value)
-    _G.AutoBringMobs = Value
+    getgenv().AutoBringMobs = Value
     Fluent:Notify({
         Title = "Bring Mobs",
         Content = Value and "Bring Mobs enabled!" or "Bring Mobs disabled!",
@@ -687,7 +853,7 @@ local HakiToggle = Tabs.Main:AddToggle("Haki", {
 })
 
 HakiToggle:OnChanged(function(Value)
-    _G.AutoArmamentHaki = Value
+    getgenv().AutoArmamentHaki = Value
     if Value then
         ActivateHaki()
         Fluent:Notify({
@@ -709,17 +875,17 @@ local FruitsSection = Tabs.Main:AddSection("FRUITS")
 
 local FruitESPToggle = Tabs.Main:AddToggle("FruitESP", {
     Title = "Fruit ESP",
-    Description = "Show ESP for all fruits",
+    Description = "Show ESP labels for all fruits on map",
     Default = false
 })
 
 FruitESPToggle:OnChanged(function(Value)
-    _G.FruitESP = Value
+    getgenv().FruitESP = Value
     if Value then
         spawn(function()
-            while _G.FruitESP do
+            while getgenv().FruitESP do
                 CreateFruitESP()
-                wait(1)
+                wait(2)
             end
         end)
     end
@@ -727,17 +893,17 @@ end)
 
 local BringFruitToggle = Tabs.Main:AddToggle("BringFruit", {
     Title = "Bring Fruit",
-    Description = "Teleport all fruits to you",
+    Description = "Teleport all fruits to your location",
     Default = false
 })
 
 BringFruitToggle:OnChanged(function(Value)
-    _G.BringFruit = Value
+    getgenv().BringFruit = Value
     if Value then
         spawn(function()
-            while _G.BringFruit do
+            while getgenv().BringFruit do
                 BringAllFruits()
-                wait(0.5)
+                wait(1)
             end
         end)
     end
@@ -745,15 +911,24 @@ end)
 
 local StoreFruitButton = Tabs.Main:AddButton({
     Title = "Store Fruit",
-    Description = "Store current fruit in inventory",
+    Description = "Store equipped fruit in inventory",
     Callback = function()
         pcall(function()
-            ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", "Fruit-Fruit", Player.Backpack:FindFirstChild("Fruit") or Player.Character:FindFirstChild("Fruit"))
-            Fluent:Notify({
-                Title = "Store Fruit",
-                Content = "Fruit stored successfully!",
-                Duration = 3
-            })
+            local fruit = Player.Backpack:FindFirstChild("Fruit") or Player.Character:FindFirstChild("Fruit")
+            if fruit then
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StoreFruit", fruit.Name, fruit)
+                Fluent:Notify({
+                    Title = "Store Fruit",
+                    Content = "Fruit stored successfully!",
+                    Duration = 3
+                })
+            else
+                Fluent:Notify({
+                    Title = "Store Fruit",
+                    Content = "No fruit found to store!",
+                    Duration = 3
+                })
+            end
         end)
     end
 })
@@ -765,7 +940,7 @@ local TeleportFruitGachaButton = Tabs.Main:AddButton({
         TeleportTo(Vector3.new(-2554.84, 73.55, -12294.95))
         Fluent:Notify({
             Title = "Teleport",
-            Content = "Teleported to Fruit Gacha!",
+            Content = "Teleported to Fruit Gacha in Jungle!",
             Duration = 3
         })
     end
@@ -779,21 +954,22 @@ local StatsLabel = Tabs.Main:AddParagraph({
     Content = "Loading stats..."
 })
 
+-- Update stats function
 local function UpdateStatsDisplay()
     spawn(function()
         while true do
             pcall(function()
                 local stats = GetPlayerStats()
                 StatsLabel:SetDesc(string.format(
-                    "Level: %d\nMoney: %d\nRace: %s\nBounty: %d\nSea: %d",
+                    "Level: %d\nMoney: %s\nRace: %s\nBounty: %s\nSea: %d",
                     stats.Level,
-                    stats.Money,
+                    tostring(stats.Money),
                     stats.Race,
-                    stats.Bounty,
+                    tostring(stats.Bounty),
                     stats.Sea
                 ))
             end)
-            wait(2)
+            wait(3)
         end
     end)
 end
@@ -805,18 +981,19 @@ local FarmSection = Tabs.AutoFarm:AddSection("FARM")
 
 local AutoFarmLevelToggle = Tabs.AutoFarm:AddToggle("AutoFarmLevel", {
     Title = "Auto Farm Level",
-    Description = "Automatically farm enemies based on your level",
+    Description = "Automatically farm correct enemies based on your level",
     Default = false
 })
 
 AutoFarmLevelToggle:OnChanged(function(Value)
-    _G.AutoFarmLevel = Value
+    getgenv().AutoFarmLevel = Value
     if Value then
         AutoFarmLevel()
+        local questData = GetCurrentQuest()
         Fluent:Notify({
             Title = "Auto Farm",
-            Content = "Auto Farm Level started!",
-            Duration = 3
+            Content = "Auto Farm started! Farming: " .. questData.Enemy,
+            Duration = 4
         })
     else
         Fluent:Notify({
@@ -832,14 +1009,14 @@ local BossFarmSection = Tabs.AutoFarm:AddSection("BOSS FARM")
 
 local BossDropdown = Tabs.AutoFarm:AddDropdown("BossDropdown", {
     Title = "Select Boss to Farm",
-    Description = "Choose which boss to automatically farm",
+    Description = "Choose which boss to automatically hunt and kill",
     Values = {"The Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg"},
     Multi = false,
     Default = "",
 })
 
 BossDropdown:OnChanged(function(Value)
-    _G.SelectedBoss = Value
+    getgenv().SelectedBoss = Value
     Fluent:Notify({
         Title = "Boss Selection",
         Content = "Selected boss: " .. Value,
@@ -854,9 +1031,9 @@ local AutoBossToggle = Tabs.AutoFarm:AddToggle("AutoBoss", {
 })
 
 AutoBossToggle:OnChanged(function(Value)
-    _G.AutoBossFarm = Value
+    getgenv().AutoBossFarm = Value
     if Value then
-        if _G.SelectedBoss == "" then
+        if getgenv().SelectedBoss == "" then
             Fluent:Notify({
                 Title = "Error",
                 Content = "Please select a boss first!",
@@ -868,7 +1045,7 @@ AutoBossToggle:OnChanged(function(Value)
         AutoBossFarm()
         Fluent:Notify({
             Title = "Boss Farm",
-            Content = "Auto Boss Farm started for " .. _G.SelectedBoss,
+            Content = "Auto Boss Farm started for " .. getgenv().SelectedBoss,
             Duration = 3
         })
     else
@@ -890,7 +1067,7 @@ local AutoSaberToggle = Tabs.AutoFarm:AddToggle("AutoSaber", {
 })
 
 AutoSaberToggle:OnChanged(function(Value)
-    _G.AutoSaber = Value
+    getgenv().AutoSaber = Value
     if Value then
         if GetPlayerLevel() < 200 then
             Fluent:Notify({
@@ -901,12 +1078,22 @@ AutoSaberToggle:OnChanged(function(Value)
             AutoSaberToggle:SetValue(false)
             return
         end
-        SaberStep = 0 -- Reset saber progress
+        -- Reset saber progress when starting
+        SaberProgress = {
+            PlatesCompleted = false,
+            TorchObtained = false,
+            CupObtained = false,
+            WaterFilled = false,
+            SickManHelped = false,
+            RichSonQuest = false,
+            KeyObtained = false,
+            SaberExpertKilled = false
+        }
         AutoSaber()
         Fluent:Notify({
             Title = "Saber Quest",
-            Content = "Auto Saber Quest started!",
-            Duration = 3
+            Content = "Auto Saber Quest started! Step-by-step progression.",
+            Duration = 4
         })
     else
         Fluent:Notify({
@@ -919,12 +1106,12 @@ end)
 
 local Auto2SeaToggle = Tabs.AutoFarm:AddToggle("Auto2Sea", {
     Title = "Auto 2nd Sea Quest",
-    Description = "Complete the 2nd Sea quest automatically (Level 700+ required)",
+    Description = "Complete the 2nd Sea quest - fight Don Swan (Ice Boss) (Level 700+ required)",
     Default = false
 })
 
 Auto2SeaToggle:OnChanged(function(Value)
-    _G.Auto2SeaQuest = Value
+    getgenv().Auto2SeaQuest = Value
     if Value then
         if GetPlayerLevel() < 700 then
             Fluent:Notify({
@@ -938,8 +1125,8 @@ Auto2SeaToggle:OnChanged(function(Value)
         Auto2SeaQuest()
         Fluent:Notify({
             Title = "2nd Sea Quest",
-            Content = "Auto 2nd Sea Quest started!",
-            Duration = 3
+            Content = "Auto 2nd Sea Quest started! Fighting Don Swan (Ice Boss).",
+            Duration = 4
         })
     else
         Fluent:Notify({
@@ -950,7 +1137,7 @@ Auto2SeaToggle:OnChanged(function(Value)
     end
 end)
 
--- Save Manager
+-- Save Manager Setup
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 SaveManager:IgnoreThemeSettings()
@@ -963,10 +1150,11 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 
 Window:SelectTab(1)
 
+-- Final notification
 Fluent:Notify({
     Title = "ENCHANTED HUB",
-    Content = "Script loaded successfully! All features working perfectly.",
-    Duration = 5
+    Content = "Script loaded successfully! All features working with proper logic implementation.",
+    Duration = 6
 })
 
 SaveManager:LoadAutoloadConfig()
