@@ -1,20 +1,43 @@
--- ENCHANTED HUB by AABIS & moha
 local Show_Button = true
 local Button_Icon = "rbxassetid://135671141026630"
 local Button_Transparency = 0.1
 
--- Create toggle button
+-- Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local VirtualUser = game:GetService("VirtualUser")
+local UserInputService = game:GetService("UserInputService")
+
+-- Player Data
+local Player = Players.LocalPlayer
+local PlayerData = Player.Data
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Variables
+local SelectedWeapon = ""
+local FastAttackEnabled = false
+local AutoFarmEnabled = false
+local FarmBossEnabled = false
+local ESPFruitEnabled = false
+local WeaponList = {}
+local QuestData = nil
+local CurrentTarget = nil
+
+-- UI creation exactly as provided
 local ScreenGui = Instance.new("ScreenGui")
 local ImageButton = Instance.new("ImageButton")
 local UICorner = Instance.new("UICorner")
 local UIStroke = Instance.new("UIStroke")
 local UIGradient = Instance.new("UIGradient")
 local UIScale = Instance.new("UIScale")
-
 ScreenGui.Name = "SpaceHubButton"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
 ImageButton.Parent = ScreenGui
 ImageButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 ImageButton.BackgroundTransparency = Button_Transparency
@@ -24,15 +47,12 @@ ImageButton.Size = UDim2.new(0, 70, 0, 70)
 ImageButton.Image = Button_Icon
 ImageButton.Draggable = true
 ImageButton.ImageTransparency = 0
-
 UICorner.CornerRadius = UDim.new(0, 20)
 UICorner.Parent = ImageButton
-
 UIStroke.Parent = ImageButton
 UIStroke.Color = Color3.fromRGB(0, 150, 255)
 UIStroke.Thickness = 4
 UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
 UIGradient.Parent = ImageButton
 UIGradient.Color = ColorSequence.new{
     ColorSequenceKeypoint.new(0, Color3.fromRGB(135, 206, 250)),
@@ -43,6 +63,7 @@ UIGradient.Rotation = 45
 UIScale.Parent = ImageButton
 UIScale.Scale = 1
 
+-- Animation function exactly as provided
 local function animateButton()
     local tween1 = game:GetService("TweenService"):Create(
         UIScale,
@@ -68,6 +89,370 @@ local function animateButton()
     end)
 end
 
+-- Core Functions
+local function GetPlayerLevel()
+    return PlayerData.Level.Value or 1
+end
+
+local function GetPlayerMoney()
+    return PlayerData.Beli.Value or 0
+end
+
+local function GetPlayerRace()
+    return PlayerData.Race.Value or "Human"
+end
+
+local function GetPlayerBounty()
+    return PlayerData.Bounty.Value or 0
+end
+
+local function GetCurrentSea()
+    return "First Sea"
+end
+
+local function GetPlayerWeapons()
+    local weapons = {}
+    local backpack = Player.Backpack
+    local character = Player.Character
+    
+    for _, item in pairs(backpack:GetChildren()) do
+        if item:IsA("Tool") then
+            table.insert(weapons, item.Name)
+        end
+    end
+    
+    if character then
+        for _, item in pairs(character:GetChildren()) do
+            if item:IsA("Tool") then
+                table.insert(weapons, item.Name)
+            end
+        end
+    end
+    
+    return weapons
+end
+
+local function EquipWeapon(weaponName)
+    local tool = Player.Backpack:FindFirstChild(weaponName)
+    if tool and Player.Character and Player.Character:FindFirstChild("Humanoid") then
+        Player.Character.Humanoid:EquipTool(tool)
+        SelectedWeapon = weaponName
+    end
+end
+
+local function AttackFunction()
+    if Player.Character and Player.Character:FindFirstChild(SelectedWeapon) then
+        local tool = Player.Character:FindFirstChild(SelectedWeapon)
+        if tool and tool:FindFirstChild("LocalScript") then
+            require(tool.LocalScript).Hit()
+        end
+    end
+end
+
+local function FindNearestFruit()
+    local nearestFruit = nil
+    local shortestDistance = math.huge
+    
+    for _, obj in pairs(Workspace:GetChildren()) do
+        if string.find(obj.Name, "Fruit") and obj:FindFirstChild("Handle") then
+            local distance = (RootPart.Position - obj.Handle.Position).Magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                nearestFruit = obj
+            end
+        end
+    end
+    
+    return nearestFruit
+end
+
+local function BringFruit()
+    local fruit = FindNearestFruit()
+    if fruit and fruit:FindFirstChild("Handle") then
+        fruit.Handle.CFrame = RootPart.CFrame + Vector3.new(0, 5, 0)
+    end
+end
+
+local function StoreFruit()
+    local args = {
+        [1] = "StoreFruit",
+        [2] = Player.Character:FindFirstChildOfClass("Tool")
+    }
+    ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+end
+
+local function CreateFruitESP()
+    for _, obj in pairs(Workspace:GetChildren()) do
+        if string.find(obj.Name, "Fruit") and obj:FindFirstChild("Handle") and not obj.Handle:FindFirstChild("ESP") then
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "ESP"
+            billboard.Parent = obj.Handle
+            billboard.Size = UDim2.new(0, 100, 0, 50)
+            billboard.StudsOffset = Vector3.new(0, 3, 0)
+            billboard.AlwaysOnTop = true
+            
+            local textLabel = Instance.new("TextLabel")
+            textLabel.Parent = billboard
+            textLabel.Size = UDim2.new(1, 0, 1, 0)
+            textLabel.BackgroundTransparency = 1
+            textLabel.Text = obj.Name
+            textLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+            textLabel.TextStrokeTransparency = 0
+            textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+            textLabel.Font = Enum.Font.GothamBold
+            textLabel.TextScaled = true
+        end
+    end
+end
+
+local function GetQuest()
+    local level = GetPlayerLevel()
+    local questGiver = nil
+    local questName = ""
+    local enemyName = ""
+    
+    if level >= 1 and level <= 9 then
+        questGiver = Workspace.Map.Jungle.QuestGiver
+        questName = "BanditQuest1"
+        enemyName = "Bandit"
+    elseif level >= 10 and level <= 14 then
+        questGiver = Workspace.Map.Jungle.QuestGiver
+        questName = "BanditQuest2"
+        enemyName = "Monkey"
+    elseif level >= 15 and level <= 29 then
+        questGiver = Workspace.Map.Pirate.QuestGiver
+        questName = "PirateQuest1"
+        enemyName = "Pirate"
+    elseif level >= 30 and level <= 39 then
+        questGiver = Workspace.Map.Pirate.QuestGiver
+        questName = "PirateQuest2"
+        enemyName = "Brute"
+    elseif level >= 40 and level <= 59 then
+        questGiver = Workspace.Map.Desert.QuestGiver
+        questName = "DesertQuest"
+        enemyName = "Desert Bandit"
+    elseif level >= 60 and level <= 74 then
+        questGiver = Workspace.Map.Jungle.QuestGiver2
+        questName = "JungleQuest"
+        enemyName = "Gorilla King"
+    elseif level >= 75 and level <= 89 then
+        questGiver = Workspace.Map.Prison.QuestGiver
+        questName = "PrisonerQuest"
+        enemyName = "Prisoner"
+    elseif level >= 90 and level <= 99 then
+        questGiver = Workspace.Map.Colosseum.QuestGiver
+        questName = "ColosseumQuest"
+        enemyName = "Toga Warrior"
+    elseif level >= 100 and level <= 119 then
+        questGiver = Workspace.Map.Magma.QuestGiver
+        questName = "MagmaQuest"
+        enemyName = "Military Soldier"
+    elseif level >= 120 and level <= 149 then
+        questGiver = Workspace.Map.Magma.QuestGiver2
+        questName = "MagmaQuest2"
+        enemyName = "Military Spy"
+    end
+    
+    return {
+        giver = questGiver,
+        name = questName,
+        enemy = enemyName
+    }
+end
+
+local function StartQuest()
+    local quest = GetQuest()
+    if quest.giver then
+        local args = {
+            [1] = "StartQuest",
+            [2] = quest.name,
+            [3] = 1
+        }
+        ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+        QuestData = quest
+    end
+end
+
+local function FindNearestEnemy()
+    local quest = QuestData or GetQuest()
+    local nearestEnemy = nil
+    local shortestDistance = math.huge
+    
+    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+        if enemy.Name == quest.enemy and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+            local distance = (RootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                nearestEnemy = enemy
+            end
+        end
+    end
+    
+    return nearestEnemy
+end
+
+local function FindNearestBoss()
+    local nearestBoss = nil
+    local shortestDistance = math.huge
+    
+    for _, boss in pairs(Workspace.Enemies:GetChildren()) do
+        if boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+            if string.find(boss.Name, "Boss") or boss.Humanoid.MaxHealth > 5000 then
+                local distance = (RootPart.Position - boss.HumanoidRootPart.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    nearestBoss = boss
+                end
+            end
+        end
+    end
+    
+    return nearestBoss
+end
+
+local function TeleportToTarget(target)
+    if target and target:FindFirstChild("HumanoidRootPart") and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+        Player.Character.HumanoidRootPart.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 0, 5)
+    end
+end
+
+local function KillAllBosses()
+    for _, boss in pairs(Workspace.Enemies:GetChildren()) do
+        if boss:FindFirstChild("Humanoid") and (string.find(boss.Name, "Boss") or boss.Humanoid.MaxHealth > 5000) then
+            boss.Humanoid.Health = 0
+        end
+    end
+end
+
+local function BossDownDrop()
+    local boss = FindNearestBoss()
+    if boss then
+        boss.Humanoid.Health = 0
+    end
+end
+
+-- Load exactly as provided in the requirement  
+wait(3)
+
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "ENCHANTED HUB | BLOX FRUIT  sea 1",
+    SubTitle = "Created by AABIS & moha  ",
+    TabWidth = 125,
+    Size = UDim2.fromOffset(600, 500),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+-- tabs exactly as provided
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
+    AutoFarm = Window:AddTab({ Title = "Auto Farm", Icon = "fan" }),
+}
+
+-- Main Tab Implementation
+WeaponList = GetPlayerWeapons()
+
+local WeaponDropdown = Tabs.Main:AddDropdown("WeaponSelect", {
+    Title = "Choose Weapon",
+    Values = WeaponList,
+    Multi = false,
+    Default = WeaponList[1] or "",
+    Callback = function(Value)
+        SelectedWeapon = Value
+        EquipWeapon(Value)
+    end
+})
+
+Tabs.Main:AddToggle("FastAttack", {
+    Title = "Fast Attack",
+    Default = false,
+    Callback = function(Value)
+        FastAttackEnabled = Value
+    end
+})
+
+Tabs.Main:AddSection("Fruits")
+
+Tabs.Main:AddButton({
+    Title = "Bring Fruit",
+    Description = "Teleport available fruits to player",
+    Callback = function()
+        BringFruit()
+    end
+})
+
+Tabs.Main:AddButton({
+    Title = "Store Fruit",
+    Description = "Store fruit in inventory",
+    Callback = function()
+        StoreFruit()
+    end
+})
+
+Tabs.Main:AddToggle("ESPFruit", {
+    Title = "ESP Fruit",
+    Default = false,
+    Callback = function(Value)
+        ESPFruitEnabled = Value
+        if not Value then
+            for _, obj in pairs(Workspace:GetChildren()) do
+                if string.find(obj.Name, "Fruit") and obj:FindFirstChild("Handle") and obj.Handle:FindFirstChild("ESP") then
+                    obj.Handle.ESP:Destroy()
+                end
+            end
+        end
+    end
+})
+
+Tabs.Main:AddSection("STATS")
+
+local StatsFrame = Tabs.Main:AddParagraph({
+    Title = "Player Statistics",
+    Content = "Loading stats..."
+})
+
+-- Auto Farm Tab Implementation
+Tabs.AutoFarm:AddToggle("AutoFarm", {
+    Title = "Auto Farm",
+    Default = false,
+    Callback = function(Value)
+        AutoFarmEnabled = Value
+        if Value then
+            StartQuest()
+        end
+    end
+})
+
+Tabs.AutoFarm:AddButton({
+    Title = "Boss DownDrop",
+    Description = "Instantly kill boss and collect drops",
+    Callback = function()
+        BossDownDrop()
+    end
+})
+
+Tabs.AutoFarm:AddToggle("FarmBoss", {
+    Title = "Farm Boss",
+    Default = false,
+    Callback = function(Value)
+        FarmBossEnabled = Value
+    end
+})
+
+Tabs.AutoFarm:AddButton({
+    Title = "Kill All Boss",
+    Description = "Eliminate all bosses",
+    Callback = function()
+        KillAllBosses()
+    end
+})
+
+-- Button click exactly as provided
 local isHidden = false
 ImageButton.MouseButton1Click:Connect(function()
     animateButton()
@@ -95,560 +480,61 @@ ImageButton.MouseButton1Click:Connect(function()
     end
 end)
 
-wait(3)
-
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-
-local Window = Fluent:CreateWindow({
-    Title = "ENCHANTED HUB | BLOX FRUIT sea 1",
-    SubTitle = "Created by AABIS & moha",
-    TabWidth = 125,
-    Size = UDim2.fromOffset(600, 500),
-    Acrylic = true,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl
-})
-
-local Tabs = {
-    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
-    AutoFarm = Window:AddTab({ Title = "Auto Farm", Icon = "fan" }),
-}
-
--- Services
-local plr = game.Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
--- Variables
-getgenv().FastAttack = false
-getgenv().BringFruit = false
-getgenv().StoreFruit = false
-getgenv().ESPFruit = false
-getgenv().AutoLevel = false
-getgenv().AutoMaterial = false
-getgenv().AutoQuest = false
-getgenv().AutoBoss = false
-getgenv().SelectedWeapon = "Combat"
-getgenv().SelectedQuest = "Bandit"
-getgenv().SelectedBoss = "The Gorilla King"
-
--- Quest data for Sea 1
-local QuestData = {
-    ["Bandit"] = {
-        QuestGiver = "Bandit Quest Giver",
-        QuestPos = CFrame.new(1059.37195, 15.4495068, 1550.4231),
-        Enemy = "Bandit",
-        EnemyPos = CFrame.new(1145, 17, 1560),
-        Level = {1, 9}
-    },
-    ["Monkey"] = {
-        QuestGiver = "Jungle Quest Giver", 
-        QuestPos = CFrame.new(-1598.08911, 35.5501175, 153.377838),
-        Enemy = "Monkey",
-        EnemyPos = CFrame.new(-1448, 50, 38),
-        Level = {10, 14}
-    },
-    ["Gorilla"] = {
-        QuestGiver = "Jungle Quest Giver",
-        QuestPos = CFrame.new(-1598.08911, 35.5501175, 153.377838),
-        Enemy = "Gorilla",
-        EnemyPos = CFrame.new(-1129, 40, -525),
-        Level = {15, 19}
-    },
-    ["Pirate"] = {
-        QuestGiver = "Pirate Quest Giver",
-        QuestPos = CFrame.new(-1141.07483, 4.10001802, 3831.5498),
-        Enemy = "Pirate",
-        EnemyPos = CFrame.new(-1103, 13, 3896),
-        Level = {20, 24}
-    },
-    ["Brute"] = {
-        QuestGiver = "Pirate Quest Giver",
-        QuestPos = CFrame.new(-1141.07483, 4.10001802, 3831.5498),
-        Enemy = "Brute",
-        EnemyPos = CFrame.new(-1145, 15, 4350),
-        Level = {25, 29}
-    },
-    ["Desert Bandit"] = {
-        QuestGiver = "Desert Quest Giver",
-        QuestPos = CFrame.new(897.546631, 6.65000677, 4390.71436),
-        Enemy = "Desert Bandit",
-        EnemyPos = CFrame.new(924, 7, 4481),
-        Level = {30, 39}
-    },
-    ["Desert Officer"] = {
-        QuestGiver = "Desert Quest Giver",
-        QuestPos = CFrame.new(897.546631, 6.65000677, 4390.71436),
-        Enemy = "Desert Officer",
-        EnemyPos = CFrame.new(1608, 7, 4371),
-        Level = {40, 59}
-    },
-    ["Snow Bandit"] = {
-        QuestGiver = "Snow Quest Giver",
-        QuestPos = CFrame.new(1389.74451, 88.1519318, -1298.90796),
-        Enemy = "Snow Bandit",
-        EnemyPos = CFrame.new(1354, 87, -1393),
-        Level = {60, 74}
-    },
-    ["Snowman"] = {
-        QuestGiver = "Snow Quest Giver", 
-        QuestPos = CFrame.new(1389.74451, 88.1519318, -1298.90796),
-        Enemy = "Snowman",
-        EnemyPos = CFrame.new(1201, 87, -1502),
-        Level = {75, 89}
-    },
-    ["Chief Petty Officer"] = {
-        QuestGiver = "Marine Quest Giver",
-        QuestPos = CFrame.new(-2440.79639, 71.7140732, -3221.06812),
-        Enemy = "Chief Petty Officer",
-        EnemyPos = CFrame.new(-2821, 73, -3208),
-        Level = {90, 120}
-    }
-}
-
--- Get character function
-local function getChar()
-    return plr.Character or plr.CharacterAdded:Wait()
-end
-
--- Equip weapon function
-local function equipWeapon(weaponname)
-    local char = getChar()
-    if plr.Backpack:FindFirstChild(weaponname) then
-        local tool = plr.Backpack:FindFirstChild(weaponname)
-        char.Humanoid:EquipTool(tool)
-    end
-end
-
--- Fast attack function for melee
-local attackConnection
-local function startFastAttack()
-    if attackConnection then
-        attackConnection:Disconnect()
+-- Main execution loops
+RunService.Heartbeat:Connect(function()
+    -- Update stats
+    StatsFrame:SetDesc(string.format(
+        "Level: %d\nMoney: %d\nRace: %s\nBounty: %d\nCurrent Sea: %s",
+        GetPlayerLevel(),
+        GetPlayerMoney(),
+        GetPlayerRace(),
+        GetPlayerBounty(),
+        GetCurrentSea()
+    ))
+    
+    -- Update weapon list
+    local newWeapons = GetPlayerWeapons()
+    if #newWeapons ~= #WeaponList then
+        WeaponList = newWeapons
+        WeaponDropdown:SetValues(WeaponList)
     end
     
-    attackConnection = RunService.Heartbeat:Connect(function()
-        if getgenv().FastAttack then
-            local char = getChar()
-            if char then
-                local tool = char:FindFirstChildOfClass("Tool")
-                if tool and (tool.Name == "Combat" or string.find(tool.Name:lower(), "combat")) then
-                    -- Increase hitbox size
-                    for i,v in pairs(char:GetChildren()) do
-                        if v:IsA("BasePart") then
-                            v.Size = v.Size + Vector3.new(2, 2, 2)
-                        end
-                    end
-                    
-                    -- Fast melee attack
-                    game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                    wait(0.01)
-                    game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                    
-                    -- Reset hitbox
-                    for i,v in pairs(char:GetChildren()) do
-                        if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
-                            v.Size = v.Size - Vector3.new(2, 2, 2)
-                        end
-                    end
-                end
-            end
-        end
-    end)
-end
-
--- Bring fruit function
-local function bringFruits()
-    spawn(function()
-        while getgenv().BringFruit do
-            local char = getChar()
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                for i,v in pairs(workspace:GetChildren()) do
-                    if string.find(v.Name, "Fruit") and v:FindFirstChild("Handle") then
-                        v.Handle.CFrame = char.HumanoidRootPart.CFrame
-                    end
-                end
-            end
-            wait(0.5)
-        end
-    end)
-end
-
--- Store fruit function
-local function storeFruits()
-    spawn(function()
-        while getgenv().StoreFruit do
-            local fruits = {}
-            for i,v in pairs(plr.Backpack:GetChildren()) do
-                if string.find(v.Name, "Fruit") then
-                    table.insert(fruits, v)
-                end
-            end
-            -- Store logic would require game remotes
-            wait(2)
-        end
-    end)
-end
-
--- ESP Fruits function
-local espObjects = {}
-local function createFruitESP()
-    if getgenv().ESPFruit then
-        for i,v in pairs(workspace:GetChildren()) do
-            if string.find(v.Name, "Fruit") and v:FindFirstChild("Handle") and not espObjects[v] then
-                local billboard = Instance.new("BillboardGui")
-                billboard.Parent = v.Handle
-                billboard.Size = UDim2.new(0, 100, 0, 50)
-                billboard.StudsOffset = Vector3.new(0, 3, 0)
-                billboard.AlwaysOnTop = true
-                
-                local textLabel = Instance.new("TextLabel")
-                textLabel.Parent = billboard
-                textLabel.Size = UDim2.new(1, 0, 1, 0)
-                textLabel.BackgroundTransparency = 1
-                textLabel.Text = v.Name
-                textLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-                textLabel.TextScaled = true
-                textLabel.Font = Enum.Font.SourceSansBold
-                
-                espObjects[v] = billboard
-            end
-        end
-    else
-        for obj, esp in pairs(espObjects) do
-            if esp then
-                esp:Destroy()
-            end
-        end
-        espObjects = {}
+    -- Fast Attack
+    if FastAttackEnabled then
+        AttackFunction()
     end
-end
-
--- Auto quest function
-local function takeQuest(questName)
-    local questInfo = QuestData[questName]
-    if questInfo then
-        local char = getChar()
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            char.HumanoidRootPart.CFrame = questInfo.QuestPos
-            wait(1)
-            
-            -- Click on quest giver
-            local questGiver = workspace.NPCs:FindFirstChild(questInfo.QuestGiver)
-            if questGiver then
-                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", questName, 1)
-            end
+    
+    -- Auto Farm
+    if AutoFarmEnabled then
+        local enemy = FindNearestEnemy()
+        if enemy then
+            CurrentTarget = enemy
+            TeleportToTarget(enemy)
+            AttackFunction()
+        else
+            StartQuest()
         end
     end
-end
-
--- Check if player has quest
-local function hasQuest(questName)
-    if plr.PlayerGui:FindFirstChild("Main") then
-        local questContainer = plr.PlayerGui.Main:FindFirstChild("Quest")
-        if questContainer and questContainer.Visible then
-            local questTitle = questContainer:FindFirstChild("Container"):FindFirstChild("QuestTitle")
-            if questTitle then
-                return string.find(questTitle.Title.Text, questName)
-            end
+    
+    -- Farm Boss
+    if FarmBossEnabled then
+        local boss = FindNearestBoss()
+        if boss then
+            CurrentTarget = boss
+            TeleportToTarget(boss)
+            AttackFunction()
         end
     end
-    return false
-end
-
--- Auto farm function
-local function autoFarm()
-    spawn(function()
-        while getgenv().AutoLevel do
-            local char = getChar()
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local questName = getgenv().SelectedQuest
-                local questInfo = QuestData[questName]
-                
-                if questInfo then
-                    -- Check if player has the quest
-                    if not hasQuest(questName) then
-                        takeQuest(questName)
-                        wait(2)
-                    end
-                    
-                    -- Find and attack enemy
-                    local enemy = workspace.Enemies:FindFirstChild(questInfo.Enemy)
-                    if enemy and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        -- Teleport above enemy
-                        char.HumanoidRootPart.CFrame = enemy.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
-                        
-                        -- Equip melee weapon
-                        equipWeapon("Combat")
-                        wait(0.1)
-                        
-                        -- Attack enemy
-                        if getgenv().FastAttack then
-                            startFastAttack()
-                        end
-                    else
-                        -- Go to enemy spawn location
-                        char.HumanoidRootPart.CFrame = questInfo.EnemyPos
-                    end
-                end
-            end
-            wait(0.1)
-        end
-    end)
-end
-
--- Material farming
-local function farmMaterials()
-    spawn(function()
-        while getgenv().AutoMaterial do
-            local char = getChar()
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local materialEnemies = {"Brute", "Pirate", "Desert Officer"}
-                
-                for i,enemyName in pairs(materialEnemies) do
-                    local enemy = workspace.Enemies:FindFirstChild(enemyName)
-                    if enemy and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        char.HumanoidRootPart.CFrame = enemy.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-                        equipWeapon("Combat")
-                        break
-                    end
-                end
-            end
-            wait(0.1)
-        end
-    end)
-end
-
--- Boss farming
-local function farmBoss()
-    spawn(function()
-        while getgenv().AutoBoss do
-            local char = getChar()
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local boss = workspace.Enemies:FindFirstChild(getgenv().SelectedBoss)
-                if boss and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
-                    char.HumanoidRootPart.CFrame = boss.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
-                    equipWeapon("Combat")
-                end
-            end
-            wait(0.1)
-        end
-    end)
-end
-
--- Get player stats
-local function getPlayerStats()
-    local stats = {}
-    if plr:FindFirstChild("Data") then
-        stats.Level = plr.Data:FindFirstChild("Level") and plr.Data.Level.Value or "?"
-        stats.Money = plr.Data:FindFirstChild("Beli") and plr.Data.Beli.Value or "?"
-        stats.Race = plr.Data:FindFirstChild("Race") and plr.Data.Race.Value or "Human"
-    end
-    if plr:FindFirstChild("leaderstats") then
-        stats.Bounty = plr.leaderstats:FindFirstChild("Bounty") and plr.leaderstats.Bounty.Value or "0"
-    end
-    return stats
-end
-
--- ESP Update loop
-spawn(function()
-    while wait(1) do
-        if getgenv().ESPFruit then
-            createFruitESP()
-        end
+    
+    -- ESP Fruit
+    if ESPFruitEnabled then
+        CreateFruitESP()
     end
 end)
 
--- Main Tab UI
-Tabs.Main:AddSection("Weapon")
-
-local WeaponDropdown = Tabs.Main:AddDropdown("WeaponSelect", {
-    Title = "Choose Weapon",
-    Values = {"Combat", "Sword", "Blox Fruit", "Gun"},
-    Multi = false,
-    Default = 1,
-})
-
-WeaponDropdown:OnChanged(function(Value)
-    getgenv().SelectedWeapon = Value
-    equipWeapon(Value)
+-- Character respawn handling
+Player.CharacterAdded:Connect(function(character)
+    Character = character
+    Humanoid = character:WaitForChild("Humanoid")
+    RootPart = character:WaitForChild("HumanoidRootPart")
 end)
-
-local MartialDropdown = Tabs.Main:AddDropdown("MartialSelect", {
-    Title = "Martial Arts",
-    Values = {"Combat", "Black Leg", "Electro", "Fishman Karate", "Dragon Claw", "Superhuman"},
-    Multi = false,
-    Default = 1,
-})
-
-MartialDropdown:OnChanged(function(Value)
-    equipWeapon(Value)
-end)
-
-local FastAttackToggle = Tabs.Main:AddToggle("FastAttackToggle", {
-    Title = "Fast Attack",
-    Default = false
-})
-
-FastAttackToggle:OnChanged(function(Value)
-    getgenv().FastAttack = Value
-    if Value then
-        startFastAttack()
-    else
-        if attackConnection then
-            attackConnection:Disconnect()
-        end
-    end
-end)
-
--- Fruits Section
-Tabs.Main:AddSection("FRUITS")
-
-local BringFruitToggle = Tabs.Main:AddToggle("BringFruitToggle", {
-    Title = "Bring Fruit",
-    Default = false
-})
-
-BringFruitToggle:OnChanged(function(Value)
-    getgenv().BringFruit = Value
-    if Value then
-        bringFruits()
-    end
-end)
-
-local StoreFruitToggle = Tabs.Main:AddToggle("StoreFruitToggle", {
-    Title = "Store Fruit",
-    Default = false
-})
-
-StoreFruitToggle:OnChanged(function(Value)
-    getgenv().StoreFruit = Value
-    if Value then
-        storeFruits()
-    end
-end)
-
-local ESPFruitToggle = Tabs.Main:AddToggle("ESPFruitToggle", {
-    Title = "ESP Fruits",
-    Default = false
-})
-
-ESPFruitToggle:OnChanged(function(Value)
-    getgenv().ESPFruit = Value
-    createFruitESP()
-end)
-
--- Player Stats Section
-Tabs.Main:AddSection("PLAYER STATS")
-
-local StatsDisplay = Tabs.Main:AddParagraph({
-    Title = "Player Stats",
-    Content = "Loading..."
-})
-
-spawn(function()
-    while wait(3) do
-        local stats = getPlayerStats()
-        StatsDisplay:SetDesc(string.format(
-            "Level: %s\nMoney: %s Beli\nRace: %s\nBounty: %s\nSea: 1",
-            tostring(stats.Level),
-            tostring(stats.Money),
-            tostring(stats.Race),
-            tostring(stats.Bounty)
-        ))
-    end
-end)
-
--- Auto Farm Tab
-Tabs.AutoFarm:AddSection("Level Farming")
-
-local AutoLevelToggle = Tabs.AutoFarm:AddToggle("AutoLevelToggle", {
-    Title = "Auto Level",
-    Default = false
-})
-
-AutoLevelToggle:OnChanged(function(Value)
-    getgenv().AutoLevel = Value
-    if Value then
-        autoFarm()
-    end
-end)
-
-Tabs.AutoFarm:AddSection("Material Farming")
-
-local AutoMaterialToggle = Tabs.AutoFarm:AddToggle("AutoMaterialToggle", {
-    Title = "Auto Materials",
-    Default = false
-})
-
-AutoMaterialToggle:OnChanged(function(Value)
-    getgenv().AutoMaterial = Value
-    if Value then
-        farmMaterials()
-    end
-end)
-
-Tabs.AutoFarm:AddSection("Quest Farming")
-
-local QuestSelect = Tabs.AutoFarm:AddDropdown("QuestSelect", {
-    Title = "Select Quest",
-    Values = {"Bandit", "Monkey", "Gorilla", "Pirate", "Brute", "Desert Bandit", "Desert Officer", "Snow Bandit", "Snowman", "Chief Petty Officer"},
-    Multi = false,
-    Default = 1,
-})
-
-QuestSelect:OnChanged(function(Value)
-    getgenv().SelectedQuest = Value
-end)
-
-local AutoQuestToggle = Tabs.AutoFarm:AddToggle("AutoQuestToggle", {
-    Title = "Auto Quest",
-    Default = false
-})
-
-AutoQuestToggle:OnChanged(function(Value)
-    getgenv().AutoQuest = Value
-end)
-
-Tabs.AutoFarm:AddSection("Boss Farming")
-
-local BossSelect = Tabs.AutoFarm:AddDropdown("BossSelect", {
-    Title = "Select Boss",
-    Values = {"The Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden"},
-    Multi = false,
-    Default = 1,
-})
-
-BossSelect:OnChanged(function(Value)
-    getgenv().SelectedBoss = Value
-end)
-
-local AutoBossToggle = Tabs.AutoFarm:AddToggle("AutoBossToggle", {
-    Title = "Auto Boss",
-    Default = false
-})
-
-AutoBossToggle:OnChanged(function(Value)
-    getgenv().AutoBoss = Value
-    if Value then
-        farmBoss()
-    end
-end)
-
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("FluentScriptHub")
-SaveManager:SetFolder("FluentScriptHub/specific-game")
-
-InterfaceManager:BuildInterfaceSection(Tabs.Main)
-SaveManager:BuildConfigSection(Tabs.Main)
-
-Window:SelectTab(1)
-
-SaveManager:LoadAutoloadConfig()
