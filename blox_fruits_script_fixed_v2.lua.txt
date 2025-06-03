@@ -1,6 +1,4 @@
--- Blox Fruits Enhanced Script
--- Professional Grade Development
--- Anti-Detection & Human-Like Behavior
+
 
 local Show_Button = true
 local Button_Icon = "rbxassetid://135671141026630"
@@ -14,308 +12,149 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local PathfindingService = game:GetService("PathfindingService")
-local HttpService = game:GetService("HttpService")
 
--- Player References
+-- Player Setup
 local Player = Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid", 15)
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart", 15)
+local Humanoid = Character:WaitForChild("Humanoid", 10)
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart", 10)
 
--- Safe Character Update Function
+-- Update Character Function
 local function UpdateCharacter()
-    local success = pcall(function()
-        Character = Player.Character
-        if Character then
-            Humanoid = Character:FindFirstChild("Humanoid")
-            HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
-        end
-    end)
-    
-    if not success then
-        wait(2)
-        spawn(UpdateCharacter)
+    Character = Player.Character
+    if Character then
+        Humanoid = Character:FindFirstChild("Humanoid")
+        HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
     end
 end
 
--- Enhanced Character Loading
 Player.CharacterAdded:Connect(function(char)
-    wait(3) -- Extended wait for full character load
     Character = char
+    wait(1)
     UpdateCharacter()
 end)
 
--- Global Variables
+-- Global Settings
 getgenv().AutoFarmLevel = false
-getgenv().AutoFastAttack = false
-getgenv().AutoBringMobs = false
-getgenv().AutoArmamentHaki = false
-getgenv().FruitESP = false
-getgenv().BringFruit = false
-getgenv().StoreFruit = false
+getgenv().AutoFastAttack = true -- Always on as requested
+getgenv().AutoBringMobs = true -- Always on as requested
+getgenv().AutoArmamentHaki = true -- Always on as requested
 getgenv().SelectedWeapon = "Combat"
 getgenv().AutoBossFarm = false
 getgenv().SelectedBoss = ""
-getgenv().AutoSaber = false
-getgenv().Auto2SeaQuest = false
 getgenv().TweenSpeed = 300
-getgenv().AntiDetection = true
 
 -- Connection Variables
 local FastAttackConnection
 local BringMobConnection
 local LevelFarmConnection
 local BossFarmConnection
+local HakiConnection
 
--- Anti-Detection System
-local DetectionSystem = {
-    LastAction = tick(),
-    ActionCount = 0,
-    RandomDelay = function()
-        if getgenv().AntiDetection then
-            wait(math.random(15, 85) / 1000)
-        end
-    end,
-    
-    UpdateActivity = function()
-        DetectionSystem.LastAction = tick()
-        DetectionSystem.ActionCount = DetectionSystem.ActionCount + 1
-    end,
-    
-    HumanizeMovement = function()
-        if math.random(1, 100) <= 3 then -- 3% chance
-            spawn(function()
-                if HumanoidRootPart and Humanoid then
-                    local originalSpeed = Humanoid.WalkSpeed
-                    Humanoid.WalkSpeed = originalSpeed + math.random(-2, 2)
-                    wait(math.random(1, 3))
-                    Humanoid.WalkSpeed = originalSpeed
-                end
-            end)
-        end
-    end
-}
-
--- Enhanced Error Handling for Parent Locking Issues
-local function SafeParentChange(object, newParent)
-    local success = false
-    local attempts = 0
-    
-    while not success and attempts < 5 do
-        success = pcall(function()
-            if object and object.Parent ~= newParent then
-                -- Check if object is locked
-                if object.Parent and object.Parent:IsA("Instance") then
-                    -- Use alternative method for locked parents
-                    local clone = object:Clone()
-                    clone.Parent = newParent
-                    object:Destroy()
-                    return clone
-                else
-                    object.Parent = newParent
-                    return object
-                end
-            end
-            return object
-        end)
-        
-        if not success then
-            attempts = attempts + 1
-            wait(0.1 * attempts) -- Exponential backoff
-        end
-    end
-    
-    return success
-end
-
--- Enhanced Weapon Equipping with Error Handling
-local function EquipWeapon(weaponName)
-    local success = pcall(function()
-        UpdateCharacter()
-        if not Character or not Humanoid then return false end
-        
-        -- Safely unequip current tools
-        for _, tool in pairs(Character:GetChildren()) do
-            if tool:IsA("Tool") then
-                SafeParentChange(tool, Player.Backpack)
-            end
-        end
-        
-        wait(0.2) -- Increased wait time
-        
-        -- Find and equip weapon with enhanced search
-        local weapon = Player.Backpack:FindFirstChild(weaponName)
-        if weapon and weapon:IsA("Tool") then
-            SafeParentChange(weapon, Character)
-            wait(0.1)
-            return true
-        end
-        
-        -- Extended combat weapon search
-        if weaponName == "Combat" then
-            local combatWeapons = {
-                "Combat", "Superhuman", "Dark Step", "Electric", 
-                "Water Kung Fu", "Dragon Breath", "Fishman Karate", 
-                "Dragon Claw", "Godhuman", "Death Step", 
-                "Sharkman Karate", "Electric Claw", "Dragon Talon"
-            }
-            
-            for _, combatName in pairs(combatWeapons) do
-                local combat = Player.Backpack:FindFirstChild(combatName)
-                if combat then
-                    SafeParentChange(combat, Character)
-                    wait(0.1)
-                    return true
-                end
-            end
-        end
-    end)
-    
-    return success
-end
-
--- Professional Tween Teleportation
-local function TweenTeleport(targetPosition, speed)
-    if not HumanoidRootPart then return false end
-    
-    local tweenSpeed = speed or getgenv().TweenSpeed or 300
-    local distance = (HumanoidRootPart.Position - targetPosition).Magnitude
-    local duration = distance / tweenSpeed
-    
-    -- Clamp duration for safety
-    duration = math.max(0.1, math.min(duration, 15))
-    
-    local success = pcall(function()
-        local tween = TweenService:Create(
-            HumanoidRootPart,
-            TweenInfo.new(
-                duration,
-                Enum.EasingStyle.Linear,
-                Enum.EasingDirection.InOut
-            ),
-            {CFrame = CFrame.new(targetPosition)}
-        )
-        
-        tween:Play()
-        DetectionSystem.UpdateActivity()
-        
-        return tween
-    end)
-    
-    return success
-end
-
--- Enhanced Player Level Detection
+-- Get Player Level
 local function GetPlayerLevel()
     local level = 1
-    
     pcall(function()
-        -- Multiple methods to get level
         if Player.Data and Player.Data.Level then
             level = Player.Data.Level.Value
         elseif Player.leaderstats and Player.leaderstats.Level then
             level = Player.leaderstats.Level.Value
-        elseif Player.PlayerGui and Player.PlayerGui.Main then
-            local levelLabel = Player.PlayerGui.Main:FindFirstChild("Level")
-            if levelLabel then
-                local levelText = levelLabel.Text
-                level = tonumber(levelText:match("%d+")) or 1
-            end
         end
     end)
-    
-    return math.max(1, level)
+    return level
 end
 
--- Complete Quest Database (Enhanced)
-local QuestDatabase = {
-    [1] = {Level = 1, Name = "Bandit", Enemy = "Bandit", QuestGiver = "Bandit Quest", 
-           QuestLocation = Vector3.new(1059.37, 15.4, 1550.42), 
-           EnemySpawn = Vector3.new(1045, 14, 1563)},
-    [2] = {Level = 10, Name = "Monkey", Enemy = "Monkey", QuestGiver = "Jungle Quest", 
-           QuestLocation = Vector3.new(-1448.51, 67.85, 11.46), 
-           EnemySpawn = Vector3.new(-1448, 50, 11)},
-    [3] = {Level = 15, Name = "Gorilla", Enemy = "Gorilla", QuestGiver = "Jungle Quest", 
-           QuestLocation = Vector3.new(-1448.51, 67.85, 11.46), 
-           EnemySpawn = Vector3.new(-1129, 40, -515)},
-    [4] = {Level = 20, Name = "Pirate", Enemy = "Pirate", QuestGiver = "Pirate Quest", 
-           QuestLocation = Vector3.new(-1141.07, 4.78, 3831.99), 
-           EnemySpawn = Vector3.new(-1103, 13, 3896)},
-    [5] = {Level = 30, Name = "Brute", Enemy = "Brute", QuestGiver = "Pirate Quest", 
-           QuestLocation = Vector3.new(-1141.07, 4.78, 3831.99), 
-           EnemySpawn = Vector3.new(-1140, 15, 4314)},
-    [6] = {Level = 40, Name = "Desert Bandit", Enemy = "Desert Bandit", QuestGiver = "Desert Quest", 
-           QuestLocation = Vector3.new(894.49, 5.14, 4392.43), 
-           EnemySpawn = Vector3.new(924, 7, 4481)},
-    [7] = {Level = 60, Name = "Desert Officer", Enemy = "Desert Officer", QuestGiver = "Desert Quest", 
-           QuestLocation = Vector3.new(894.49, 5.14, 4392.43), 
-           EnemySpawn = Vector3.new(1608, 7, 4371)},
-    [8] = {Level = 75, Name = "Snow Bandit", Enemy = "Snow Bandit", QuestGiver = "Snow Quest", 
-           QuestLocation = Vector3.new(1389.74, 88.15, -1298.90), 
-           EnemySpawn = Vector3.new(1354, 87, -1352)},
-    [9] = {Level = 90, Name = "Snowman", Enemy = "Snowman", QuestGiver = "Snow Quest", 
-           QuestLocation = Vector3.new(1389.74, 88.15, -1298.90), 
-           EnemySpawn = Vector3.new(1201, 87, -1502)},
-    [10] = {Level = 100, Name = "Chief Petty Officer", Enemy = "Chief Petty Officer", QuestGiver = "Marine Quest", 
-            QuestLocation = Vector3.new(-5039.58, 27.34, 4324.68), 
-            EnemySpawn = Vector3.new(-4882, 23, 4255)},
-    [11] = {Level = 120, Name = "Sky Bandit", Enemy = "Sky Bandit", QuestGiver = "Sky Quest", 
-            QuestLocation = Vector3.new(-4839.53, 717.67, -2619.44), 
-            EnemySpawn = Vector3.new(-4970, 717, -2888)},
-    [12] = {Level = 150, Name = "Dark Master", Enemy = "Dark Master", QuestGiver = "Sky Quest", 
-            QuestLocation = Vector3.new(-4839.53, 717.67, -2619.44), 
-            EnemySpawn = Vector3.new(-5259, 717, -2221)},
-    [13] = {Level = 200, Name = "Prisoner", Enemy = "Prisoner", QuestGiver = "Prison Quest", 
-            QuestLocation = Vector3.new(5308.93, 1.65, 475.12), 
-            EnemySpawn = Vector3.new(5411, 96, 690)},
-    [14] = {Level = 250, Name = "Dangerous Prisoner", Enemy = "Dangerous Prisoner", QuestGiver = "Prison Quest", 
-            QuestLocation = Vector3.new(5308.93, 1.65, 475.12), 
-            EnemySpawn = Vector3.new(5411, 96, 690)},
-    [15] = {Level = 300, Name = "Toga Warrior", Enemy = "Toga Warrior", QuestGiver = "Colosseum Quest", 
-            QuestLocation = Vector3.new(-1427.6, 8.7, -2792.5), 
-            EnemySpawn = Vector3.new(-1770, 8, -2777)},
-    [16] = {Level = 325, Name = "Gladiator", Enemy = "Gladiator", QuestGiver = "Colosseum Quest", 
-            QuestLocation = Vector3.new(-1427.6, 8.7, -2792.5), 
-            EnemySpawn = Vector3.new(-1770, 8, -2777)},
-    [17] = {Level = 350, Name = "Military Soldier", Enemy = "Military Soldier", QuestGiver = "Magma Quest", 
-            QuestLocation = Vector3.new(-5313.37, 10.9, 8515.29), 
-            EnemySpawn = Vector3.new(-5411, 11, 8549)},
-    [18] = {Level = 400, Name = "Military Spy", Enemy = "Military Spy", QuestGiver = "Magma Quest", 
-            QuestLocation = Vector3.new(-5313.37, 10.9, 8515.29), 
-            EnemySpawn = Vector3.new(-5802, 87, 8860)},
-    [19] = {Level = 450, Name = "Fishman Warrior", Enemy = "Fishman Warrior", QuestGiver = "Underwater City Quest", 
-            QuestLocation = Vector3.new(61123.05, 18.5, 1569.3), 
-            EnemySpawn = Vector3.new(60878, 19, 1449)},
-    [20] = {Level = 475, Name = "Fishman Commando", Enemy = "Fishman Commando", QuestGiver = "Underwater City Quest", 
-            QuestLocation = Vector3.new(61123.05, 18.5, 1569.3), 
-            EnemySpawn = Vector3.new(61922, 19, 1808)},
-    [21] = {Level = 500, Name = "God's Guard", Enemy = "God's Guard", QuestGiver = "Sky Island Quest", 
-            QuestLocation = Vector3.new(-4721.88, 845.38, -1949.96), 
-            EnemySpawn = Vector3.new(-4628, 873, -1926)},
-    [22] = {Level = 525, Name = "Shanda", Enemy = "Shanda", QuestGiver = "Sky Island Quest", 
-            QuestLocation = Vector3.new(-7859.09, 5544.19, -381.476), 
-            EnemySpawn = Vector3.new(-7678, 5567, -446)},
-    [23] = {Level = 550, Name = "Royal Squad", Enemy = "Royal Squad", QuestGiver = "Sky Island Quest", 
-            QuestLocation = Vector3.new(-7906.81, 5634.6, -1411.99), 
-            EnemySpawn = Vector3.new(-7555, 5637, -1407)},
-    [24] = {Level = 575, Name = "Royal Soldier", Enemy = "Royal Soldier", QuestGiver = "Sky Island Quest", 
-            QuestLocation = Vector3.new(-7906.81, 5634.6, -1411.99), 
-            EnemySpawn = Vector3.new(-7837, 5637, -1456)},
-    [25] = {Level = 600, Name = "Galley Pirate", Enemy = "Galley Pirate", QuestGiver = "Fountain City Quest", 
-            QuestLocation = Vector3.new(5259.81, 1, 3364.83), 
-            EnemySpawn = Vector3.new(5551, 152, 3972)},
-    [26] = {Level = 625, Name = "Galley Captain", Enemy = "Galley Captain", QuestGiver = "Fountain City Quest", 
-            QuestLocation = Vector3.new(5259.81, 1, 3364.83), 
-            EnemySpawn = Vector3.new(5441, 42, 4028)}
+-- Complete Quest Data
+local QuestData = {
+    {Level = 1, Name = "Bandit", Enemy = "Bandit", QuestGiver = "Bandit Quest", QuestLocation = Vector3.new(1059.37, 15.4, 1550.42), EnemySpawn = Vector3.new(1045, 14, 1563)},
+    {Level = 10, Name = "Monkey", Enemy = "Monkey", QuestGiver = "Jungle Quest", QuestLocation = Vector3.new(-1448.51, 67.85, 11.46), EnemySpawn = Vector3.new(-1448, 50, 11)},
+    {Level = 15, Name = "Gorilla", Enemy = "Gorilla", QuestGiver = "Jungle Quest", QuestLocation = Vector3.new(-1448.51, 67.85, 11.46), EnemySpawn = Vector3.new(-1129, 40, -515)},
+    {Level = 20, Name = "Pirate", Enemy = "Pirate", QuestGiver = "Pirate Quest", QuestLocation = Vector3.new(-1141.07, 4.78, 3831.99), EnemySpawn = Vector3.new(-1103, 13, 3896)},
+    {Level = 30, Name = "Brute", Enemy = "Brute", QuestGiver = "Pirate Quest", QuestLocation = Vector3.new(-1141.07, 4.78, 3831.99), EnemySpawn = Vector3.new(-1140, 15, 4314)},
+    {Level = 40, Name = "Desert Bandit", Enemy = "Desert Bandit", QuestGiver = "Desert Quest", QuestLocation = Vector3.new(894.49, 5.14, 4392.43), EnemySpawn = Vector3.new(924, 7, 4481)},
+    {Level = 60, Name = "Desert Officer", Enemy = "Desert Officer", QuestGiver = "Desert Quest", QuestLocation = Vector3.new(894.49, 5.14, 4392.43), EnemySpawn = Vector3.new(1608, 7, 4371)},
+    {Level = 75, Name = "Snow Bandit", Enemy = "Snow Bandit", QuestGiver = "Snow Quest", QuestLocation = Vector3.new(1389.74, 88.15, -1298.90), EnemySpawn = Vector3.new(1354, 87, -1352)},
+    {Level = 90, Name = "Snowman", Enemy = "Snowman", QuestGiver = "Snow Quest", QuestLocation = Vector3.new(1389.74, 88.15, -1298.90), EnemySpawn = Vector3.new(1201, 87, -1502)},
+    {Level = 100, Name = "Chief Petty Officer", Enemy = "Chief Petty Officer", QuestGiver = "Marine Quest", QuestLocation = Vector3.new(-5039.58, 27.34, 4324.68), EnemySpawn = Vector3.new(-4882, 23, 4255)},
+    {Level = 120, Name = "Sky Bandit", Enemy = "Sky Bandit", QuestGiver = "Sky Quest", QuestLocation = Vector3.new(-4839.53, 717.67, -2619.44), EnemySpawn = Vector3.new(-4970, 717, -2888)},
+    {Level = 150, Name = "Dark Master", Enemy = "Dark Master", QuestGiver = "Sky Quest", QuestLocation = Vector3.new(-4839.53, 717.67, -2619.44), EnemySpawn = Vector3.new(-5259, 717, -2221)},
+    {Level = 200, Name = "Prisoner", Enemy = "Prisoner", QuestGiver = "Prison Quest", QuestLocation = Vector3.new(5308.93, 1.65, 475.12), EnemySpawn = Vector3.new(5411, 96, 690)},
+    {Level = 250, Name = "Dangerous Prisoner", Enemy = "Dangerous Prisoner", QuestGiver = "Prison Quest", QuestLocation = Vector3.new(5308.93, 1.65, 475.12), EnemySpawn = Vector3.new(5411, 96, 690)},
+    {Level = 300, Name = "Toga Warrior", Enemy = "Toga Warrior", QuestGiver = "Colosseum Quest", QuestLocation = Vector3.new(-1427.6, 8.7, -2792.5), EnemySpawn = Vector3.new(-1770, 8, -2777)},
+    {Level = 325, Name = "Gladiator", Enemy = "Gladiator", QuestGiver = "Colosseum Quest", QuestLocation = Vector3.new(-1427.6, 8.7, -2792.5), EnemySpawn = Vector3.new(-1770, 8, -2777)},
+    {Level = 350, Name = "Military Soldier", Enemy = "Military Soldier", QuestGiver = "Magma Quest", QuestLocation = Vector3.new(-5313.37, 10.9, 8515.29), EnemySpawn = Vector3.new(-5411, 11, 8549)},
+    {Level = 400, Name = "Military Spy", Enemy = "Military Spy", QuestGiver = "Magma Quest", QuestLocation = Vector3.new(-5313.37, 10.9, 8515.29), EnemySpawn = Vector3.new(-5802, 87, 8860)},
+    {Level = 450, Name = "Fishman Warrior", Enemy = "Fishman Warrior", QuestGiver = "Underwater City Quest", QuestLocation = Vector3.new(61123.05, 18.5, 1569.3), EnemySpawn = Vector3.new(60878, 19, 1449)},
+    {Level = 475, Name = "Fishman Commando", Enemy = "Fishman Commando", QuestGiver = "Underwater City Quest", QuestLocation = Vector3.new(61123.05, 18.5, 1569.3), EnemySpawn = Vector3.new(61922, 19, 1808)},
+    {Level = 500, Name = "God's Guard", Enemy = "God's Guard", QuestGiver = "Sky Island Quest", QuestLocation = Vector3.new(-4721.88, 845.38, -1949.96), EnemySpawn = Vector3.new(-4628, 873, -1926)},
+    {Level = 525, Name = "Shanda", Enemy = "Shanda", QuestGiver = "Sky Island Quest", QuestLocation = Vector3.new(-7859.09, 5544.19, -381.476), EnemySpawn = Vector3.new(-7678, 5567, -446)},
+    {Level = 550, Name = "Royal Squad", Enemy = "Royal Squad", QuestGiver = "Sky Island Quest", QuestLocation = Vector3.new(-7906.81, 5634.6, -1411.99), EnemySpawn = Vector3.new(-7555, 5637, -1407)},
+    {Level = 575, Name = "Royal Soldier", Enemy = "Royal Soldier", QuestGiver = "Sky Island Quest", QuestLocation = Vector3.new(-7906.81, 5634.6, -1411.99), EnemySpawn = Vector3.new(-7837, 5637, -1456)},
+    {Level = 600, Name = "Galley Pirate", Enemy = "Galley Pirate", QuestGiver = "Fountain City Quest", QuestLocation = Vector3.new(5259.81, 1, 3364.83), EnemySpawn = Vector3.new(5551, 152, 3972)},
+    {Level = 625, Name = "Galley Captain", Enemy = "Galley Captain", QuestGiver = "Fountain City Quest", QuestLocation = Vector3.new(5259.81, 1, 3364.83), EnemySpawn = Vector3.new(5441, 42, 4028)}
 }
 
--- Enhanced Quest System
-local function GetOptimalQuest()
-    local playerLevel = GetPlayerLevel()
-    local selectedQuest = QuestDatabase[1] -- Default fallback
+-- Boss Data
+local BossData = {
+    ["The Gorilla King"] = {Name = "The Gorilla King", SpawnLocation = Vector3.new(-1129, 40, -515)},
+    ["Bobby"] = {Name = "Bobby", SpawnLocation = Vector3.new(-1140, 15, 4314)},
+    ["Yeti"] = {Name = "Yeti", SpawnLocation = Vector3.new(1201, 87, -1502)},
+    ["Mob Leader"] = {Name = "Mob Leader", SpawnLocation = Vector3.new(-2848, 7, 5342)},
+    ["Vice Admiral"] = {Name = "Vice Admiral", SpawnLocation = Vector3.new(-5026, 29, 4324)},
+    ["Warden"] = {Name = "Warden", SpawnLocation = Vector3.new(5278, 3, 473)},
+    ["Chief Warden"] = {Name = "Chief Warden", SpawnLocation = Vector3.new(5206, 1, 438)},
+    ["Swan"] = {Name = "Swan", SpawnLocation = Vector3.new(5230, 4, 749)},
+    ["Magma Admiral"] = {Name = "Magma Admiral", SpawnLocation = Vector3.new(-5530, 12, 8610)},
+    ["Fishman Lord"] = {Name = "Fishman Lord", SpawnLocation = Vector3.new(61351, 31, 1095)},
+    ["Wysper"] = {Name = "Wysper", SpawnLocation = Vector3.new(-7925, 5550, -636)},
+    ["Thunder God"] = {Name = "Thunder God", SpawnLocation = Vector3.new(-7748, 5607, -2305)},
+    ["Cyborg"] = {Name = "Cyborg", SpawnLocation = Vector3.new(6041, 52, 3907)}
+}
+
+-- Teleport Locations
+local TeleportLocations = {
+    ["Starter Island"] = Vector3.new(1059.37, 15.4, 1550.42),
+    ["Jungle"] = Vector3.new(-1448.51, 67.85, 11.46),
+    ["Pirate Village"] = Vector3.new(-1141.07, 4.78, 3831.99),
+    ["Desert"] = Vector3.new(894.49, 5.14, 4392.43),
+    ["Snow Island"] = Vector3.new(1389.74, 88.15, -1298.90),
+    ["Marine Base"] = Vector3.new(-5039.58, 27.34, 4324.68),
+    ["Sky Island 1"] = Vector3.new(-4839.53, 717.67, -2619.44),
+    ["Prison"] = Vector3.new(5308.93, 1.65, 475.12),
+    ["Colosseum"] = Vector3.new(-1427.6, 8.7, -2792.5),
+    ["Magma Village"] = Vector3.new(-5313.37, 10.9, 8515.29),
+    ["Underwater City"] = Vector3.new(61123.05, 18.5, 1569.3),
+    ["Upper Sky"] = Vector3.new(-7859.09, 5544.19, -381.476),
+    ["Sky Island 2"] = Vector3.new(-7906.81, 5634.6, -1411.99),
+    ["Fountain City"] = Vector3.new(5259.81, 1, 3364.83)
+}
+
+-- Tween Teleport Function
+local function TweenTeleport(targetPosition)
+    if not HumanoidRootPart then return end
     
-    for _, questData in pairs(QuestDatabase) do
+    local distance = (HumanoidRootPart.Position - targetPosition).Magnitude
+    local time = distance / getgenv().TweenSpeed
+    
+    if time < 0.1 then time = 0.1 end
+    if time > 10 then time = 10 end
+    
+    local tween = TweenService:Create(
+        HumanoidRootPart,
+        TweenInfo.new(time, Enum.EasingStyle.Linear),
+        {CFrame = CFrame.new(targetPosition)}
+    )
+    
+    tween:Play()
+    return tween
+end
+
+-- Get Current Quest
+local function GetCurrentQuest()
+    local playerLevel = GetPlayerLevel()
+    local selectedQuest = QuestData[1]
+    
+    for _, questData in pairs(QuestData) do
         if playerLevel >= questData.Level then
             selectedQuest = questData
         end
@@ -324,10 +163,9 @@ local function GetOptimalQuest()
     return selectedQuest
 end
 
--- Quest Status Detection
-local function HasActiveQuest(questName)
+-- Check if has quest
+local function HasQuest(questName)
     local hasQuest = false
-    
     pcall(function()
         local questGui = Player.PlayerGui:FindFirstChild("Main")
         if questGui then
@@ -335,60 +173,234 @@ local function HasActiveQuest(questName)
             if questContainer and questContainer.Visible then
                 local questTitle = questContainer:FindFirstChild("Container"):FindFirstChild("QuestTitle")
                 if questTitle and questTitle.Title then
-                    hasQuest = string.find(questTitle.Title.Text:lower(), questName:lower()) ~= nil
+                    hasQuest = string.find(questTitle.Title.Text, questName) ~= nil
                 end
             end
         end
     end)
-    
     return hasQuest
 end
 
--- Enhanced Quest Acceptance
+-- Accept Quest Function
 local function AcceptQuest(questData)
-    if not questData or HasActiveQuest(questData.Name) then return true end
+    if not questData or HasQuest(questData.Name) then return end
     
-    local success = pcall(function()
-        -- Teleport to quest location
-        TweenTeleport(questData.QuestLocation, 400)
+    pcall(function()
+        TweenTeleport(questData.QuestLocation)
         wait(2)
         
-        -- Multiple quest acceptance methods
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
         if remotes then
             local commF = remotes:FindFirstChild("CommF_")
             if commF then
-                -- Try different quest acceptance parameters
-                for questLevel = 1, 2 do
-                    pcall(function()
-                        commF:InvokeServer("StartQuest", questData.Name, questLevel)
-                    end)
-                    wait(0.3)
-                end
+                commF:InvokeServer("StartQuest", questData.Name, 1)
+                wait(0.5)
+                commF:InvokeServer("StartQuest", questData.Name, 2)
+            end
+        end
+    end)
+end
+
+-- Equip Weapon Function
+local function EquipWeapon(weaponName)
+    pcall(function()
+        UpdateCharacter()
+        if not Character or not Humanoid then return end
+        
+        for _, tool in pairs(Character:GetChildren()) do
+            if tool:IsA("Tool") then
+                tool.Parent = Player.Backpack
             end
         end
         
-        -- Alternative method through NPCs
-        for _, npc in pairs(Workspace.NPCs:GetChildren()) do
-            if npc.Name:find(questData.QuestGiver:gsub(" Quest", "")) then
-                local npcHRP = npc:FindFirstChild("HumanoidRootPart")
-                if npcHRP then
-                    local distance = (HumanoidRootPart.Position - npcHRP.Position).Magnitude
-                    if distance > 15 then
-                        TweenTeleport(npcHRP.Position + Vector3.new(0, 0, 8), 200)
-                        wait(1)
-                    end
-                    break
+        wait(0.1)
+        
+        local weapon = Player.Backpack:FindFirstChild(weaponName)
+        if weapon and weapon:IsA("Tool") then
+            weapon.Parent = Character
+            return true
+        end
+        
+        if weaponName == "Combat" then
+            local combatWeapons = {"Combat", "Superhuman", "Dark Step", "Electric", "Water Kung Fu", "Dragon Breath", "Fishman Karate", "Dragon Claw", "Godhuman", "Death Step", "Sharkman Karate", "Electric Claw", "Dragon Talon"}
+            for _, combatName in pairs(combatWeapons) do
+                local combat = Player.Backpack:FindFirstChild(combatName)
+                if combat then
+                    combat.Parent = Character
+                    return true
                 end
             end
         end
     end)
-    
-    return success
 end
 
--- Professional Auto Farm Level System
-local function StartAdvancedLevelFarming()
+-- INVISIBLE HITBOX EXTENSION (Always Active)
+local function CreateInvisibleHitbox()
+    if not Character or not HumanoidRootPart then return end
+    
+    pcall(function()
+        -- Create invisible hitbox part
+        local hitbox = Instance.new("Part")
+        hitbox.Name = "InvisibleHitbox"
+        hitbox.Parent = Character
+        hitbox.Size = Vector3.new(60, 60, 60) -- Large hitbox as requested
+        hitbox.Material = Enum.Material.Neon
+        hitbox.BrickColor = BrickColor.new("Really red")
+        hitbox.Anchored = true
+        hitbox.CanCollide = false
+        hitbox.Transparency = 1 -- Completely invisible
+        
+        -- Position hitbox at character
+        hitbox.CFrame = HumanoidRootPart.CFrame
+        
+        -- Update hitbox position constantly
+        spawn(function()
+            while hitbox and hitbox.Parent and Character and HumanoidRootPart do
+                hitbox.CFrame = HumanoidRootPart.CFrame
+                wait()
+            end
+        end)
+    end)
+end
+
+-- Always create hitbox when character spawns
+Player.CharacterAdded:Connect(function()
+    wait(2)
+    CreateInvisibleHitbox()
+end)
+
+-- Create hitbox on script load
+spawn(function()
+    wait(1)
+    CreateInvisibleHitbox()
+end)
+
+-- PROFESSIONAL FAST ATTACK (Always Active)
+local function StartFastAttack()
+    if FastAttackConnection then
+        FastAttackConnection:Disconnect()
+    end
+    
+    FastAttackConnection = RunService.Heartbeat:Connect(function()
+        pcall(function()
+            UpdateCharacter()
+            if not Character or not HumanoidRootPart then return end
+            
+            local tool = Character:FindFirstChildOfClass("Tool")
+            if not tool then return end
+            
+            -- MASSIVE HITBOX RANGE - 1000 studs
+            local attackRange = 1000
+            
+            for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+                if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+                    if enemy.Humanoid.Health > 0 then
+                        local distance = (HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+                        if distance <= attackRange then
+                            -- Multiple attack methods for maximum damage
+                            local args1 = {"weaponChange", tool.Name}
+                            game:GetService("ReplicatedStorage"):FindFirstChild("RigControllerEvent"):FireServer(unpack(args1))
+                            
+                            local args2 = {"hit", {
+                                ["Name"] = tool.Name,
+                                ["Target"] = enemy.HumanoidRootPart,
+                                ["RigType"] = Character.Humanoid.RigType
+                            }}
+                            game:GetService("ReplicatedStorage"):FindFirstChild("RigControllerEvent"):FireServer(unpack(args2))
+                            
+                            -- Alternative attack method
+                            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                            if remotes and remotes:FindFirstChild("CommF_") then
+                                remotes.CommF_:InvokeServer("weaponChange", tool.Name)
+                            end
+                            
+                            -- Virtual mouse clicks for M1 attacks
+                            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                        end
+                    end
+                end
+            end
+        end)
+    end)
+end
+
+-- BRING MOBS FUNCTION (Always Active)
+local function StartBringMobs()
+    if BringMobConnection then
+        BringMobConnection:Disconnect()
+    end
+    
+    BringMobConnection = RunService.Heartbeat:Connect(function()
+        pcall(function()
+            if not HumanoidRootPart then return end
+            
+            local bringRange = 500
+            local playerPosition = HumanoidRootPart.Position
+            
+            for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+                if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+                    local enemyHRP = enemy.HumanoidRootPart
+                    local enemyHumanoid = enemy.Humanoid
+                    
+                    if enemyHumanoid.Health > 0 then
+                        local distance = (playerPosition - enemyHRP.Position).Magnitude
+                        
+                        if distance <= bringRange and distance > 5 then
+                            -- Stop enemy movement
+                            enemyHumanoid.WalkSpeed = 0
+                            enemyHumanoid.JumpPower = 0
+                            enemyHumanoid.PlatformStand = true
+                            
+                            -- Position enemies around player
+                            local angle = math.random(0, 360)
+                            local radius = math.random(8, 15)
+                            local x = playerPosition.X + radius * math.cos(math.rad(angle))
+                            local z = playerPosition.Z + radius * math.sin(math.rad(angle))
+                            
+                            enemyHRP.CFrame = CFrame.new(Vector3.new(x, playerPosition.Y, z))
+                            enemyHRP.Velocity = Vector3.new(0, 0, 0)
+                            enemyHRP.AngularVelocity = Vector3.new(0, 0, 0)
+                            
+                            -- Keep them attackable
+                            for _, part in pairs(enemy:GetChildren()) do
+                                if part:IsA("BasePart") then
+                                    if part.Name == "HumanoidRootPart" or part.Name == "Head" then
+                                        part.CanCollide = true
+                                    else
+                                        part.CanCollide = false
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end)
+end
+
+-- AUTO ARMAMENT HAKI (Always Active)
+local function StartAutoHaki()
+    if HakiConnection then
+        HakiConnection:Disconnect()
+    end
+    
+    HakiConnection = RunService.Heartbeat:Connect(function()
+        pcall(function()
+            UpdateCharacter()
+            if Character and not Character:FindFirstChild("HasBuso") then
+                local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                if remotes and remotes:FindFirstChild("CommF_") then
+                    remotes.CommF_:InvokeServer("Buso")
+                end
+            end
+        end)
+    end)
+end
+
+-- PROFESSIONAL AUTO FARM LEVEL
+local function StartLevelFarming()
     if LevelFarmConnection then
         LevelFarmConnection:Disconnect()
     end
@@ -399,278 +411,87 @@ local function StartAdvancedLevelFarming()
                 UpdateCharacter()
                 if not Character or not HumanoidRootPart then return end
                 
-                local currentQuest = GetOptimalQuest()
+                local currentQuest = GetCurrentQuest()
                 if not currentQuest then return end
                 
-                -- Quest Management
-                if not HasActiveQuest(currentQuest.Name) then
+                -- CHECK AND ACCEPT QUEST
+                if not HasQuest(currentQuest.Name) then
+                    print("Accepting quest:", currentQuest.Name)
                     AcceptQuest(currentQuest)
-                    wait(2)
+                    wait(3)
                     return
                 end
                 
-                -- Weapon Management
+                -- EQUIP WEAPON
                 if not Character:FindFirstChildOfClass("Tool") then
                     EquipWeapon(getgenv().SelectedWeapon)
-                    wait(0.4)
+                    wait(0.5)
                 end
                 
-                -- Enemy Detection & Targeting
+                -- FIND TARGET ENEMIES
                 local targetEnemies = {}
-                local maxSearchDistance = 800
-                
                 for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                    if enemy.Name == currentQuest.Enemy and 
-                       enemy:FindFirstChild("Humanoid") and 
-                       enemy:FindFirstChild("HumanoidRootPart") then
-                        
-                        local enemyHealth = enemy.Humanoid.Health
-                        if enemyHealth > 0 then
+                    if enemy.Name == currentQuest.Enemy and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                        if enemy.Humanoid.Health > 0 then
                             local distance = (HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
-                            if distance <= maxSearchDistance then
-                                table.insert(targetEnemies, {
-                                    enemy = enemy,
-                                    distance = distance,
-                                    health = enemyHealth
-                                })
-                            end
+                            table.insert(targetEnemies, {enemy = enemy, distance = distance})
                         end
                     end
                 end
                 
-                -- Sort by distance (closest first)
-                table.sort(targetEnemies, function(a, b) 
-                    return a.distance < b.distance 
-                end)
-                
-                -- No enemies found - go to spawn area
+                -- IF NO ENEMIES, GO TO SPAWN
                 if #targetEnemies == 0 then
                     local spawnDistance = (HumanoidRootPart.Position - currentQuest.EnemySpawn).Magnitude
-                    if spawnDistance > 60 then
-                        TweenTeleport(currentQuest.EnemySpawn, 350)
+                    if spawnDistance > 50 then
+                        print("No enemies found, going to spawn:", currentQuest.Enemy)
+                        TweenTeleport(currentQuest.EnemySpawn)
                         wait(2)
                     end
                     return
                 end
                 
-                -- Calculate optimal farming position (above enemy cluster)
+                -- CALCULATE CENTER POSITION OF ENEMIES
+                table.sort(targetEnemies, function(a, b) return a.distance < b.distance end)
+                
                 local centerPosition = Vector3.new(0, 0, 0)
-                local enemyCount = math.min(#targetEnemies, 12)
+                local enemyCount = math.min(#targetEnemies, 8)
                 
                 for i = 1, enemyCount do
                     centerPosition = centerPosition + targetEnemies[i].enemy.HumanoidRootPart.Position
                 end
                 centerPosition = centerPosition / enemyCount
                 
-                -- Professional farming position - above enemies
-                local farmingHeight = 45 -- Height above enemies
-                local optimalPosition = centerPosition + Vector3.new(0, farmingHeight, 0)
-                local currentDistance = (HumanoidRootPart.Position - optimalPosition).Magnitude
+                -- POSITION ABOVE ENEMIES (PROFESSIONAL STYLE)
+                local farmPosition = centerPosition + Vector3.new(0, 30, 0)
+                local currentDistance = (HumanoidRootPart.Position - farmPosition).Magnitude
                 
-                -- Position management
-                if currentDistance > 30 then
-                    TweenTeleport(optimalPosition, 250)
-                    wait(0.8)
-                elseif currentDistance <= 80 then
-                    -- Fine positioning
-                    HumanoidRootPart.CFrame = CFrame.new(optimalPosition)
+                if currentDistance > 25 then
+                    TweenTeleport(farmPosition)
+                    wait(1)
+                elseif currentDistance <= 50 then
+                    HumanoidRootPart.CFrame = CFrame.new(farmPosition)
                     HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-                    HumanoidRootPart.AngularVelocity = Vector3.new(0, 0, 0)
                 end
                 
-                -- Enhanced Combat System
-                local attackRange = 500 -- Large attack radius
-                local attackedThisFrame = 0
-                local maxAttacksPerFrame = 18
-                
-                for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                    if enemy.Name == currentQuest.Enemy and 
-                       enemy:FindFirstChild("Humanoid") and 
-                       enemy:FindFirstChild("HumanoidRootPart") and
-                       attackedThisFrame < maxAttacksPerFrame then
-                        
-                        if enemy.Humanoid.Health > 0 then
-                            local distance = (HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
-                            if distance <= attackRange then
-                                attackedThisFrame = attackedThisFrame + 1
-                                
-                                local tool = Character:FindFirstChildOfClass("Tool")
-                                if tool then
-                                    -- Enhanced attack sequence
-                                    local attackMethods = {
-                                        function()
-                                            local args = {"weaponChange", tool.Name}
-                                            ReplicatedStorage:FindFirstChild("RigControllerEvent"):FireServer(unpack(args))
-                                        end,
-                                        function()
-                                            local hitArgs = {
-                                                "hit",
-                                                {
-                                                    ["Name"] = tool.Name,
-                                                    ["Target"] = enemy.HumanoidRootPart,
-                                                    ["RigType"] = Character.Humanoid.RigType
-                                                }
-                                            }
-                                            ReplicatedStorage:FindFirstChild("RigControllerEvent"):FireServer(unpack(hitArgs))
-                                        end,
-                                        function()
-                                            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-                                            if remotes and remotes:FindFirstChild("CommF_") then
-                                                remotes.CommF_:InvokeServer("weaponChange", tool.Name)
-                                            end
-                                        end
-                                    }
-                                    
-                                    -- Execute attack methods with error handling
-                                    for _, attackMethod in pairs(attackMethods) do
-                                        pcall(attackMethod)
-                                    end
-                                    
-                                    -- Virtual input simulation
-                                    pcall(function()
-                                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                                    end)
-                                end
-                            end
-                        end
-                    end
-                end
-                
-                -- Anti-detection measures
-                DetectionSystem.RandomDelay()
-                DetectionSystem.HumanizeMovement()
-                DetectionSystem.UpdateActivity()
-            end)
-        end
-    end)
-end
-
--- Enhanced Fast Attack System
-local function StartProfessionalFastAttack()
-    if FastAttackConnection then
-        FastAttackConnection:Disconnect()
-    end
-    
-    FastAttackConnection = RunService.Heartbeat:Connect(function()
-        if getgenv().AutoFastAttack then
-            pcall(function()
-                UpdateCharacter()
-                if not Character or not HumanoidRootPart then return end
-                
+                -- ATTACK ALL ENEMIES IN RANGE
                 local tool = Character:FindFirstChildOfClass("Tool")
-                if not tool then return end
-                
-                local attackRange = 500
-                local enemiesProcessed = 0
-                local maxEnemiesPerFrame = 20
-                
-                for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                    if enemy:FindFirstChild("HumanoidRootPart") and 
-                       enemy:FindFirstChild("Humanoid") and 
-                       enemiesProcessed < maxEnemiesPerFrame then
-                        
-                        if enemy.Humanoid.Health > 0 then
-                            local distance = (HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
-                            if distance <= attackRange then
-                                enemiesProcessed = enemiesProcessed + 1
-                                
-                                -- Multi-layered attack system
-                                local attackSystems = {
-                                    {name = "weaponChange", args = {tool.Name}},
-                                    {name = "hit", args = {{
+                if tool then
+                    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+                        if enemy.Name == currentQuest.Enemy and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                            if enemy.Humanoid.Health > 0 then
+                                local distance = (HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+                                if distance <= 500 then -- Large attack range
+                                    -- Multiple attack methods
+                                    local args1 = {"weaponChange", tool.Name}
+                                    game:GetService("ReplicatedStorage"):FindFirstChild("RigControllerEvent"):FireServer(unpack(args1))
+                                    
+                                    local args2 = {"hit", {
                                         ["Name"] = tool.Name,
                                         ["Target"] = enemy.HumanoidRootPart,
                                         ["RigType"] = Character.Humanoid.RigType
-                                    }}}
-                                }
-                                
-                                for _, attackSystem in pairs(attackSystems) do
-                                    pcall(function()
-                                        ReplicatedStorage:FindFirstChild("RigControllerEvent"):FireServer(attackSystem.name, unpack(attackSystem.args))
-                                    end)
+                                    }}
+                                    game:GetService("ReplicatedStorage"):FindFirstChild("RigControllerEvent"):FireServer(unpack(args2))
                                 end
-                                
-                                -- Alternative attack method
-                                pcall(function()
-                                    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-                                    if remotes and remotes:FindFirstChild("CommF_") then
-                                        remotes.CommF_:InvokeServer("weaponChange", tool.Name)
-                                    end
-                                end)
-                            end
-                        end
-                    end
-                end
-                
-                DetectionSystem.RandomDelay()
-            end)
-        end
-    end)
-end
-
--- Enhanced Bring Mobs System (Fixed)
-local function StartAdvancedBringMobs()
-    if BringMobConnection then
-        BringMobConnection:Disconnect()
-    end
-    
-    BringMobConnection = RunService.Heartbeat:Connect(function()
-        if getgenv().AutoBringMobs and HumanoidRootPart then
-            pcall(function()
-                local bringRange = 400
-                local playerPosition = HumanoidRootPart.Position
-                local mobsProcessed = 0
-                local maxMobsPerFrame = 15
-                
-                for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
-                    if enemy:FindFirstChild("HumanoidRootPart") and 
-                       enemy:FindFirstChild("Humanoid") and
-                       mobsProcessed < maxMobsPerFrame then
-                        
-                        local enemyHRP = enemy.HumanoidRootPart
-                        local enemyHumanoid = enemy.Humanoid
-                        
-                        if enemyHumanoid.Health > 0 then
-                            local distance = (playerPosition - enemyHRP.Position).Magnitude
-                            
-                            if distance <= bringRange and distance > 12 then
-                                mobsProcessed = mobsProcessed + 1
-                                
-                                -- Enhanced mob positioning
-                                local angle = math.random(0, 360)
-                                local radius = math.random(10, 18)
-                                local heightOffset = math.random(-5, 5)
-                                
-                                local newX = playerPosition.X + radius * math.cos(math.rad(angle))
-                                local newZ = playerPosition.Z + radius * math.sin(math.rad(angle))
-                                local newY = playerPosition.Y + heightOffset
-                                
-                                local targetPosition = Vector3.new(newX, newY, newZ)
-                                
-                                -- Disable AI movement
-                                enemyHumanoid.WalkSpeed = 0
-                                enemyHumanoid.JumpPower = 0
-                                enemyHumanoid.PlatformStand = true
-                                
-                                -- Set position with smooth transition
-                                enemyHRP.CFrame = CFrame.new(targetPosition)
-                                enemyHRP.Velocity = Vector3.new(0, 0, 0)
-                                enemyHRP.AngularVelocity = Vector3.new(0, 0, 0)
-                                
-                                -- Maintain collision for attacking
-                                for _, part in pairs(enemy:GetChildren()) do
-                                    if part:IsA("BasePart") then
-                                        if part.Name == "HumanoidRootPart" or part.Name == "Head" then
-                                            part.CanCollide = true
-                                        else
-                                            part.CanCollide = false
-                                        end
-                                    end
-                                end
-                                
-                                -- Ensure enemy remains attackable
-                                enemyHumanoid.Sit = false
                             end
                         end
                     end
@@ -680,77 +501,8 @@ local function StartAdvancedBringMobs()
     end)
 end
 
--- Boss Database
-local BossDatabase = {
-    ["The Gorilla King"] = {
-        SpawnLocation = Vector3.new(-1129, 40, -515),
-        Level = 25,
-        RespawnTime = 600
-    },
-    ["Bobby"] = {
-        SpawnLocation = Vector3.new(-1140, 15, 4314),
-        Level = 55,
-        RespawnTime = 600
-    },
-    ["Yeti"] = {
-        SpawnLocation = Vector3.new(1201, 87, -1502),
-        Level = 110,
-        RespawnTime = 600
-    },
-    ["Mob Leader"] = {
-        SpawnLocation = Vector3.new(-2848, 7, 5342),
-        Level = 120,
-        RespawnTime = 600
-    },
-    ["Vice Admiral"] = {
-        SpawnLocation = Vector3.new(-5026, 29, 4324),
-        Level = 130,
-        RespawnTime = 600
-    },
-    ["Warden"] = {
-        SpawnLocation = Vector3.new(5278, 3, 473),
-        Level = 220,
-        RespawnTime = 600
-    },
-    ["Chief Warden"] = {
-        SpawnLocation = Vector3.new(5206, 1, 438),
-        Level = 200,
-        RespawnTime = 600
-    },
-    ["Swan"] = {
-        SpawnLocation = Vector3.new(5230, 4, 749),
-        Level = 240,
-        RespawnTime = 600
-    },
-    ["Magma Admiral"] = {
-        SpawnLocation = Vector3.new(-5530, 12, 8610),
-        Level = 350,
-        RespawnTime = 600
-    },
-    ["Fishman Lord"] = {
-        SpawnLocation = Vector3.new(61351, 31, 1095),
-        Level = 425,
-        RespawnTime = 600
-    },
-    ["Wysper"] = {
-        SpawnLocation = Vector3.new(-7925, 5550, -636),
-        Level = 500,
-        RespawnTime = 600
-    },
-    ["Thunder God"] = {
-        SpawnLocation = Vector3.new(-7748, 5607, -2305),
-        Level = 575,
-        RespawnTime = 600
-    },
-    ["Cyborg"] = {
-        SpawnLocation = Vector3.new(6041, 52, 3907),
-        Level = 675,
-        RespawnTime = 600
-    }
-}
-
--- Enhanced Boss Farming
-local function StartAdvancedBossFarming()
+-- BOSS FARMING WITH PROPER DAMAGE
+local function StartBossFarming()
     if BossFarmConnection then
         BossFarmConnection:Disconnect()
     end
@@ -761,75 +513,80 @@ local function StartAdvancedBossFarming()
                 UpdateCharacter()
                 if not Character or not HumanoidRootPart then return end
                 
-                local bossData = BossDatabase[getgenv().SelectedBoss]
+                local bossData = BossData[getgenv().SelectedBoss]
                 if not bossData then return end
                 
-                -- Ensure weapon is equipped
+                -- EQUIP WEAPON
                 if not Character:FindFirstChildOfClass("Tool") then
                     EquipWeapon(getgenv().SelectedWeapon)
-                    wait(0.3)
+                    wait(0.5)
                 end
                 
-                -- Multi-location boss search
+                -- FIND BOSS
                 local boss = nil
-                local searchLocations = {Workspace.Enemies, ReplicatedStorage}
+                for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+                    if enemy.Name == bossData.Name and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                        if enemy.Humanoid.Health > 0 then
+                            boss = enemy
+                            break
+                        end
+                    end
+                end
                 
-                for _, location in pairs(searchLocations) do
-                    for _, enemy in pairs(location:GetChildren()) do
-                        if enemy.Name == getgenv().SelectedBoss and 
-                           enemy:FindFirstChild("Humanoid") and 
-                           enemy:FindFirstChild("HumanoidRootPart") then
+                -- CHECK REPLICATED STORAGE TOO
+                if not boss then
+                    for _, enemy in pairs(ReplicatedStorage:GetChildren()) do
+                        if enemy.Name == bossData.Name and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                             if enemy.Humanoid.Health > 0 then
                                 boss = enemy
                                 break
                             end
                         end
                     end
-                    if boss then break end
                 end
                 
                 if boss then
-                    local bossPosition = boss.HumanoidRootPart.Position
-                    local distance = (HumanoidRootPart.Position - bossPosition).Magnitude
+                    local distance = (HumanoidRootPart.Position - boss.HumanoidRootPart.Position).Magnitude
                     
-                    -- Professional boss combat positioning
-                    local combatPosition = bossPosition + Vector3.new(0, 35, 0) -- Above boss
+                    -- POSITION ABOVE BOSS
+                    local bossPosition = boss.HumanoidRootPart.Position + Vector3.new(0, 30, 0)
                     
-                    if distance > 120 then
-                        TweenTeleport(combatPosition, 300)
+                    if distance > 100 then
+                        TweenTeleport(bossPosition)
                         wait(1)
-                    elseif distance > 60 then
-                        HumanoidRootPart.CFrame = CFrame.new(combatPosition)
+                    elseif distance > 50 then
+                        HumanoidRootPart.CFrame = CFrame.new(bossPosition)
                     end
                     
-                    -- Enhanced boss combat
+                    -- ATTACK BOSS WITH FULL DAMAGE
                     local tool = Character:FindFirstChildOfClass("Tool")
                     if tool then
-                        -- Multi-hit boss attack system
-                        for attackRound = 1, 4 do
-                            local attackSequence = {
-                                {"weaponChange", tool.Name},
-                                {"hit", {
-                                    ["Name"] = tool.Name,
-                                    ["Target"] = boss.HumanoidRootPart,
-                                    ["RigType"] = Character.Humanoid.RigType
-                                }}
-                            }
+                        -- ENHANCED BOSS ATTACK SYSTEM
+                        for i = 1, 10 do -- Multiple hits per frame
+                            local args1 = {"weaponChange", tool.Name}
+                            game:GetService("ReplicatedStorage"):FindFirstChild("RigControllerEvent"):FireServer(unpack(args1))
                             
-                            for _, attack in pairs(attackSequence) do
-                                pcall(function()
-                                    ReplicatedStorage:FindFirstChild("RigControllerEvent"):FireServer(unpack(attack))
-                                end)
+                            local args2 = {"hit", {
+                                ["Name"] = tool.Name,
+                                ["Target"] = boss.HumanoidRootPart,
+                                ["RigType"] = Character.Humanoid.RigType
+                            }}
+                            game:GetService("ReplicatedStorage"):FindFirstChild("RigControllerEvent"):FireServer(unpack(args2))
+                            
+                            -- Alternative methods
+                            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                            if remotes and remotes:FindFirstChild("CommF_") then
+                                remotes.CommF_:InvokeServer("weaponChange", tool.Name)
                             end
                             
-                            wait(0.02)
+                            wait(0.01)
                         end
                     end
                 else
-                    -- Boss not found - go to spawn location
+                    -- BOSS NOT FOUND, GO TO SPAWN
                     local spawnDistance = (HumanoidRootPart.Position - bossData.SpawnLocation).Magnitude
-                    if spawnDistance > 80 then
-                        TweenTeleport(bossData.SpawnLocation, 300)
+                    if spawnDistance > 50 then
+                        TweenTeleport(bossData.SpawnLocation)
                         wait(2)
                     end
                 end
@@ -838,52 +595,12 @@ local function StartAdvancedBossFarming()
     end)
 end
 
--- Auto Haki Functions
-local function ActivateArmamentHaki()
-    spawn(function()
-        while getgenv().AutoArmamentHaki do
-            pcall(function()
-                UpdateCharacter()
-                if Character and not Character:FindFirstChild("HasBuso") then
-                    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-                    if remotes and remotes:FindFirstChild("CommF_") then
-                        remotes.CommF_:InvokeServer("Buso")
-                    end
-                end
-            end)
-            wait(0.8)
-        end
-    end)
-end
+-- START ALL ALWAYS-ACTIVE FUNCTIONS
+StartFastAttack() -- Always active
+StartBringMobs() -- Always active  
+StartAutoHaki() -- Always active
 
--- Teleport Locations Database
-local TeleportDatabase = {
-    -- Starting Areas
-    ["Starter Island"] = Vector3.new(1059.37, 15.4, 1550.42),
-    ["Jungle"] = Vector3.new(-1448.51, 67.85, 11.46),
-    ["Pirate Village"] = Vector3.new(-1141.07, 4.78, 3831.99),
-    
-    -- Mid-Level Areas
-    ["Desert"] = Vector3.new(894.49, 5.14, 4392.43),
-    ["Snow Island"] = Vector3.new(1389.74, 88.15, -1298.90),
-    ["Marine Base"] = Vector3.new(-5039.58, 27.34, 4324.68),
-    
-    -- High-Level Areas
-    ["Sky Island 1"] = Vector3.new(-4839.53, 717.67, -2619.44),
-    ["Prison"] = Vector3.new(5308.93, 1.65, 475.12),
-    ["Colosseum"] = Vector3.new(-1427.6, 8.7, -2792.5),
-    ["Magma Village"] = Vector3.new(-5313.37, 10.9, 8515.29),
-    ["Underwater City"] = Vector3.new(61123.05, 18.5, 1569.3),
-    
-    -- Sky Areas
-    ["Upper Sky"] = Vector3.new(-7859.09, 5544.19, -381.476),
-    ["Sky Island 2"] = Vector3.new(-7906.81, 5634.6, -1411.99),
-    
-    -- End Game
-    ["Fountain City"] = Vector3.new(5259.81, 1, 3364.83)
-}
-
--- UI Creation with Professional Design
+-- UI Creation
 local ScreenGui = Instance.new("ScreenGui")
 local ImageButton = Instance.new("ImageButton")
 local UICorner = Instance.new("UICorner")
@@ -923,319 +640,205 @@ UIGradient.Rotation = 45
 UIScale.Parent = ImageButton
 UIScale.Scale = 1
 
--- Professional Button Animation
+-- Animation
 local function animateButton()
-    local animationSequence = {
-        {scale = 0.8, time = 0.1, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.InOut},
-        {scale = 1.1, time = 0.1, style = Enum.EasingStyle.Back, direction = Enum.EasingDirection.Out},
-        {scale = 1, time = 0.1, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out}
-    }
-    
-    local function playNextAnimation(index)
-        if index <= #animationSequence then
-            local anim = animationSequence[index]
-            local tween = TweenService:Create(
-                UIScale,
-                TweenInfo.new(anim.time, anim.style, anim.direction),
-                {Scale = anim.scale}
-            )
-            tween:Play()
-            tween.Completed:Connect(function()
-                playNextAnimation(index + 1)
-            end)
-        end
-    end
-    
-    playNextAnimation(1)
+    local tween1 = TweenService:Create(UIScale, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Scale = 0.8})
+    tween1:Play()
+    tween1.Completed:Connect(function()
+        local tween2 = TweenService:Create(UIScale, TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.1})
+        tween2:Play()
+        tween2.Completed:Connect(function()
+            local tween3 = TweenService:Create(UIScale, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1})
+            tween3:Play()
+        end)
+    end)
 end
 
--- Load UI Library with Error Handling
 wait(3)
 
-local function LoadUI()
-    local success = pcall(function()
-        local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-        local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-        local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+-- Load UI
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
-        local Window = Fluent:CreateWindow({
-            Title = "ENCHANTED HUB | BLOX FRUITS [PROFESSIONAL]",
-            SubTitle = "Advanced Anti-Detection | Human-Like Behavior",
-            TabWidth = 180,
-            Size = UDim2.fromOffset(750, 650),
-            Acrylic = true,
-            Theme = "Dark",
-            MinimizeKey = Enum.KeyCode.LeftControl
-        })
+local Window = Fluent:CreateWindow({
+    Title = "ENCHANTED HUB | BLOX FRUITS PROFESSIONAL",
+    SubTitle = "Professional Auto Farm | Always Active Features",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(700, 600),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
 
-        -- Create Tabs
-        local Tabs = {
-            Main = Window:AddTab({ Title = "Main Dashboard", Icon = "home" }),
-            AutoFarm = Window:AddTab({ Title = "Auto Farm", Icon = "fan" }),
-            Combat = Window:AddTab({ Title = "Combat System", Icon = "sword" }),
-            Boss = Window:AddTab({ Title = "Boss Farm", Icon = "crown" }),
-            Fruits = Window:AddTab({ Title = "Devil Fruits", Icon = "apple" }),
-            Teleport = Window:AddTab({ Title = "Teleportation", Icon = "map-pin" }),
-            Settings = Window:AddTab({ Title = "Configuration", Icon = "settings" })
-        }
+-- Tabs
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
+    AutoFarm = Window:AddTab({ Title = "Auto Farm", Icon = "fan" }),
+    Boss = Window:AddTab({ Title = "Boss Farm", Icon = "crown" }),
+    Fruits = Window:AddTab({ Title = "Fruits", Icon = "apple" }),
+    Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" })
+}
 
-        -- UI Toggle System
-        local isHidden = false
-        ImageButton.MouseButton1Click:Connect(function()
-            animateButton()
-            wait(0.2)
-            if Window and Window.Root then
-                if isHidden then
-                    Window.Root.Visible = true
-                    isHidden = false
-                else
-                    Window.Root.Visible = false
-                    isHidden = true
-                end
-            end
-        end)
-
-        -- Main Dashboard
-        Tabs.Main:AddParagraph({
-            Title = "Enchanted Hub - Professional Edition",
-            Content = "Advanced Blox Fruits automation with human-like behavior patterns, comprehensive error handling, and anti-detection systems. Developed with professional-grade architecture."
-        })
-
-        local PlayerInfo = Tabs.Main:AddParagraph({
-            Title = "Player Information",
-            Content = "Loading player data..."
-        })
-
-        -- Real-time player info updates
-        spawn(function()
-            while true do
-                pcall(function()
-                    local level = GetPlayerLevel()
-                    local money = Player.Data.Beli.Value or 0
-                    local race = Player.Data.Race.Value or "Human"
-                    local currentQuest = GetOptimalQuest()
-                    
-                    PlayerInfo:SetDesc(string.format(
-                        "Level: %d | Money: %s | Race: %s | Current Quest: %s",
-                        level, tostring(money), race, currentQuest.Name
-                    ))
-                end)
-                wait(3)
-            end
-        end)
-
-        -- Auto Farm Section
-        Tabs.AutoFarm:AddToggle("AutoFarmLevel", {
-            Title = "Professional Auto Farm",
-            Description = "Advanced level farming with optimal positioning and 500+ stud range",
-            Default = false,
-            Callback = function(Value)
-                getgenv().AutoFarmLevel = Value
-                if Value then
-                    StartAdvancedLevelFarming()
-                elseif LevelFarmConnection then
-                    LevelFarmConnection:Disconnect()
-                end
-            end
-        })
-
-        local WeaponSelector = Tabs.AutoFarm:AddDropdown("WeaponSelect", {
-            Title = "Weapon Selection",
-            Description = "Choose your preferred farming weapon",
-            Values = {"Combat", "Sword", "Fruit", "Gun"},
-            Multi = false,
-            Default = 1,
-            Callback = function(Value)
-                getgenv().SelectedWeapon = Value
-            end
-        })
-
-        Tabs.AutoFarm:AddButton({
-            Title = "Refresh Weapon List",
-            Description = "Update available weapons from inventory",
-            Callback = function()
-                local weapons = {"Combat", "Sword", "Fruit", "Gun"}
-                pcall(function()
-                    for _, tool in pairs(Player.Backpack:GetChildren()) do
-                        if tool:IsA("Tool") and not table.find(weapons, tool.Name) then
-                            table.insert(weapons, tool.Name)
-                        end
-                    end
-                    if Character then
-                        for _, tool in pairs(Character:GetChildren()) do
-                            if tool:IsA("Tool") and not table.find(weapons, tool.Name) then
-                                table.insert(weapons, tool.Name)
-                            end
-                        end
-                    end
-                end)
-                WeaponSelector:SetValues(weapons)
-            end
-        })
-
-        -- Combat System
-        Tabs.Combat:AddToggle("AutoFastAttack", {
-            Title = "Enhanced Fast Attack",
-            Description = "Professional fast attack system with 500+ stud range",
-            Default = false,
-            Callback = function(Value)
-                getgenv().AutoFastAttack = Value
-                if Value then
-                    StartProfessionalFastAttack()
-                elseif FastAttackConnection then
-                    FastAttackConnection:Disconnect()
-                end
-            end
-        })
-
-        Tabs.Combat:AddToggle("AutoBringMobs", {
-            Title = "Advanced Bring Mobs",
-            Description = "Intelligent mob positioning system (fixed collision issues)",
-            Default = false,
-            Callback = function(Value)
-                getgenv().AutoBringMobs = Value
-                if Value then
-                    StartAdvancedBringMobs()
-                elseif BringMobConnection then
-                    BringMobConnection:Disconnect()
-                end
-            end
-        })
-
-        Tabs.Combat:AddToggle("AutoArmamentHaki", {
-            Title = "Auto Armament Haki",
-            Description = "Automatically maintain Armament Haki",
-            Default = false,
-            Callback = function(Value)
-                getgenv().AutoArmamentHaki = Value
-                if Value then
-                    ActivateArmamentHaki()
-                end
-            end
-        })
-
-        -- Boss Farm Section
-        Tabs.Boss:AddToggle("AutoBossFarm", {
-            Title = "Professional Boss Farm",
-            Description = "Advanced boss farming with strategic positioning",
-            Default = false,
-            Callback = function(Value)
-                getgenv().AutoBossFarm = Value
-                if Value then
-                    StartAdvancedBossFarming()
-                elseif BossFarmConnection then
-                    BossFarmConnection:Disconnect()
-                end
-            end
-        })
-
-        local BossList = {}
-        for bossName, _ in pairs(BossDatabase) do
-            table.insert(BossList, bossName)
+-- Toggle Function
+local isHidden = false
+ImageButton.MouseButton1Click:Connect(function()
+    animateButton()
+    wait(0.2)
+    if Window and Window.Root then
+        if isHidden then
+            Window.Root.Visible = true
+            isHidden = false
+        else
+            Window.Root.Visible = false
+            isHidden = true
         end
-
-        Tabs.Boss:AddDropdown("BossSelection", {
-            Title = "Boss Selection",
-            Description = "Choose target boss for farming",
-            Values = BossList,
-            Multi = false,
-            Default = 1,
-            Callback = function(Value)
-                getgenv().SelectedBoss = Value
-            end
-        })
-
-        Tabs.Boss:AddButton({
-            Title = "Teleport to Boss",
-            Description = "Smooth teleport to selected boss location",
-            Callback = function()
-                if getgenv().SelectedBoss ~= "" then
-                    local bossData = BossDatabase[getgenv().SelectedBoss]
-                    if bossData then
-                        TweenTeleport(bossData.SpawnLocation, 350)
-                    end
-                end
-            end
-        })
-
-        -- Teleportation Section
-        for locationName, position in pairs(TeleportDatabase) do
-            Tabs.Teleport:AddButton({
-                Title = "â†’ " .. locationName,
-                Description = "Professional tween teleportation",
-                Callback = function()
-                    TweenTeleport(position, getgenv().TweenSpeed)
-                end
-            })
-        end
-
-        -- Configuration Section
-        Tabs.Settings:AddSlider("TweenSpeed", {
-            Title = "Teleportation Speed",
-            Description = "Adjust movement speed for teleportation",
-            Default = 300,
-            Min = 150,
-            Max = 800,
-            Rounding = 25,
-            Callback = function(Value)
-                getgenv().TweenSpeed = Value
-            end
-        })
-
-        Tabs.Settings:AddToggle("AntiDetection", {
-            Title = "Anti-Detection System",
-            Description = "Advanced detection evasion with human-like patterns",
-            Default = true,
-            Callback = function(Value)
-                getgenv().AntiDetection = Value
-            end
-        })
-
-        Tabs.Settings:AddButton({
-            Title = "Refresh Character Data",
-            Description = "Update character references and status",
-            Callback = function()
-                UpdateCharacter()
-            end
-        })
-
-        Tabs.Settings:AddButton({
-            Title = "Reset All Connections",
-            Description = "Restart all farming connections",
-            Callback = function()
-                if FastAttackConnection then FastAttackConnection:Disconnect() end
-                if BringMobConnection then BringMobConnection:Disconnect() end
-                if LevelFarmConnection then LevelFarmConnection:Disconnect() end
-                if BossFarmConnection then BossFarmConnection:Disconnect() end
-                
-                wait(1)
-                UpdateCharacter()
-            end
-        })
-
-        return true
-    end)
-    
-    if not success then
-        print("UI Load Failed - Retrying in 5 seconds...")
-        wait(5)
-        LoadUI()
     end
+end)
+
+-- MAIN TAB (As requested)
+Tabs.Main:AddParagraph({
+    Title = "Professional Blox Fruits Script",
+    Content = "Always Active: Fast Attack (1000 stud range) | Bring Mobs | Auto Armament Haki | Invisible Hitbox Extension"
+})
+
+-- Player Stats Section
+local PlayerStats = Tabs.Main:AddParagraph({
+    Title = "Player Stats",
+    Content = "Loading..."
+})
+
+spawn(function()
+    while true do
+        pcall(function()
+            local level = GetPlayerLevel()
+            local money = Player.Data.Beli.Value or 0
+            local race = Player.Data.Race.Value or "Human"
+            local currentQuest = GetCurrentQuest()
+            
+            PlayerStats:SetDesc(string.format("Level: %d | Money: %s | Race: %s | Quest: %s", level, tostring(money), race, currentQuest.Name))
+        end)
+        wait(2)
+    end
+end)
+
+-- Weapon Selection
+local WeaponDropdown = Tabs.Main:AddDropdown("WeaponSelect", {
+    Title = "Choose Weapon",
+    Values = {"Combat", "Sword", "Fruit", "Gun"},
+    Multi = false,
+    Default = 1,
+    Callback = function(Value)
+        getgenv().SelectedWeapon = Value
+    end
+})
+
+-- Fast Attack Status (Always On)
+Tabs.Main:AddParagraph({
+    Title = "Fast Attack Status",
+    Content = "âœ… ALWAYS ACTIVE | 1000 Stud Range | Invisible Hitbox"
+})
+
+-- Bring Enemy Status (Always On)
+Tabs.Main:AddParagraph({
+    Title = "Bring Enemy Status", 
+    Content = "âœ… ALWAYS ACTIVE | 500 Stud Range | Smart Positioning"
+})
+
+-- Auto Armament Haki Status (Always On)
+Tabs.Main:AddParagraph({
+    Title = "Auto Armament Haki Status",
+    Content = "âœ… ALWAYS ACTIVE | Automatic Activation"
+})
+
+-- AUTO FARM TAB
+Tabs.AutoFarm:AddToggle("AutoFarmLevel", {
+    Title = "Auto Farm Level",
+    Description = "Professional level farming with quest handling",
+    Default = false,
+    Callback = function(Value)
+        getgenv().AutoFarmLevel = Value
+        if Value then
+            StartLevelFarming()
+        elseif LevelFarmConnection then
+            LevelFarmConnection:Disconnect()
+        end
+    end
+})
+
+-- BOSS FARM TAB
+Tabs.Boss:AddToggle("AutoBossFarm", {
+    Title = "Auto Boss Farm",
+    Description = "Farm selected boss with full damage",
+    Default = false,
+    Callback = function(Value)
+        getgenv().AutoBossFarm = Value
+        if Value then
+            StartBossFarming()
+        elseif BossFarmConnection then
+            BossFarmConnection:Disconnect()
+        end
+    end
+})
+
+local BossNames = {}
+for bossName, _ in pairs(BossData) do
+    table.insert(BossNames, bossName)
 end
 
--- Initialize Everything
-spawn(function()
-    -- Initialize character
-    UpdateCharacter()
-    
-    -- Load UI
-    LoadUI()
-    
-    -- Start anti-detection
-    DetectionSystem.UpdateActivity()
-    
-    print("=== ENCHANTED HUB LOADED SUCCESSFULLY ===")
-    print("Features: Professional Auto Farm | Advanced Anti-Detection | Human Behavior")
-    print("Status: All systems operational and ready for use")
-    print("Version: Professional Edition v2.0")
-end)
+Tabs.Boss:AddDropdown("BossSelect", {
+    Title = "Select Boss",
+    Values = BossNames,
+    Multi = false,
+    Default = 1,
+    Callback = function(Value)
+        getgenv().SelectedBoss = Value
+    end
+})
+
+-- FRUITS TAB (Basic)
+Tabs.Fruits:AddParagraph({
+    Title = "Devil Fruits",
+    Content = "Fruit features will be added in future updates"
+})
+
+-- TELEPORT TAB (As requested - Dropdown + Button)
+local TeleportLocationNames = {}
+for locationName, _ in pairs(TeleportLocations) do
+    table.insert(TeleportLocationNames, locationName)
+end
+
+local SelectedTeleportLocation = ""
+
+local TeleportDropdown = Tabs.Teleport:AddDropdown("TeleportSelect", {
+    Title = "Select Location",
+    Description = "Choose teleport destination",
+    Values = TeleportLocationNames,
+    Multi = false,
+    Default = 1,
+    Callback = function(Value)
+        SelectedTeleportLocation = Value
+    end
+})
+
+Tabs.Teleport:AddButton({
+    Title = "Tween to Selected Place",
+    Description = "Teleport to the selected location",
+    Callback = function()
+        if SelectedTeleportLocation ~= "" then
+            local position = TeleportLocations[SelectedTeleportLocation]
+            if position then
+                TweenTeleport(position)
+            end
+        end
+    end
+})
+
+-- Initialize
+UpdateCharacter()
+print("=== PROFESSIONAL BLOX FRUITS SCRIPT LOADED ===")
+print("âœ… Fast Attack: ALWAYS ACTIVE (1000 stud range)")
+print("âœ… Bring Mobs: ALWAYS ACTIVE (500 stud range)")  
+print("âœ… Auto Haki: ALWAYS ACTIVE")
+print("âœ… Invisible Hitbox: ALWAYS ACTIVE")
+print("âœ… Professional Auto Farm: Ready")
+print("âœ… Boss Farm with Damage: Ready")
+print("Status: All systems operational!")
