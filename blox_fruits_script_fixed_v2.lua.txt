@@ -1,7 +1,3 @@
--- ENCHANTED HUB | BLOX FRUITS SEA 1
--- Created by AABIS & moha
--- Advanced Auto Farm Script with Human-like Logic
-
 local Show_Button = true
 local Button_Icon = "rbxassetid://135671141026630"
 local Button_Transparency = 0.1
@@ -103,33 +99,8 @@ local function animateButton()
     end)
 end
 
--- Toggle Function
+-- Toggle Function will be set after window creation
 local isHidden = false
-ImageButton.MouseButton1Click:Connect(function()
-    animateButton()
-    wait(0.2)
-    if isHidden then
-        for _, gui in pairs(game.CoreGui:GetChildren()) do
-            if gui.Name == "ScreenGui" and gui:FindFirstChild("Frame") then
-                gui.Enabled = true
-            end
-        end
-        if Window and Window.Root then
-            Window.Root.Visible = true
-        end
-        isHidden = false
-    else
-        for _, gui in pairs(game.CoreGui:GetChildren()) do
-            if gui.Name == "ScreenGui" and gui:FindFirstChild("Frame") then
-                gui.Enabled = false
-            end
-        end
-        if Window and Window.Root then
-            Window.Root.Visible = false
-        end
-        isHidden = true
-    end
-end)
 
 wait(3)
 
@@ -156,6 +127,22 @@ local Tabs = {
     Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
     Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
 }
+
+-- Fix button toggle after window is created
+wait(1)
+ImageButton.MouseButton1Click:Connect(function()
+    animateButton()
+    wait(0.2)
+    if Window and Window.Root then
+        if isHidden then
+            Window.Root.Visible = true
+            isHidden = false
+        else
+            Window.Root.Visible = false
+            isHidden = true
+        end
+    end
+end)
 
 -- Utility Functions
 local function GetPlayerLevel()
@@ -192,20 +179,50 @@ local function EquipWeapon(weaponName)
     return false
 end
 
-local function AutoFastAttackFunction()
+-- Enhanced M1 Attack System with Massive Range
+local function EnhancedM1Attack()
     spawn(function()
         while _G.AutoFastAttack do
-            local weapon = Player.Character:FindFirstChildOfClass("Tool")
-            if weapon then
-                local args = {
-                    [1] = 0,
-                    [2] = CFrame.new(0, 0, 0)
-                }
-                game:GetService("ReplicatedStorage").RigControllerEvent:FireServer(unpack(args))
-            end
-            wait(0.1)
+            pcall(function()
+                for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+                    if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+                        if enemy.Humanoid.Health > 0 then
+                            local distance = (RootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+                            if distance <= 1000 then -- Massive attack range
+                                -- Create invisible connection for hit detection
+                                local connection = RootPart.CFrame:ToWorldSpace(CFrame.new(0, 0, -distance))
+                                
+                                -- Multiple attack methods
+                                local args = {
+                                    [1] = 0,
+                                    [2] = enemy.HumanoidRootPart.CFrame,
+                                    [3] = "TargetHit"
+                                }
+                                game:GetService("ReplicatedStorage").RigControllerEvent:FireServer(unpack(args))
+                                
+                                -- Enhanced damage dealing
+                                if game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") then
+                                    local remotes = game:GetService("ReplicatedStorage").Remotes
+                                    if remotes:FindFirstChild("CommF_") then
+                                        remotes.CommF_:InvokeServer("TAP", enemy.HumanoidRootPart.CFrame)
+                                    end
+                                end
+                                
+                                -- Virtual click for additional damage
+                                VirtualInputManager:SendMouseButtonEvent(enemy.HumanoidRootPart.Position.X, enemy.HumanoidRootPart.Position.Y, 0, true, game, 1)
+                                VirtualInputManager:SendMouseButtonEvent(enemy.HumanoidRootPart.Position.X, enemy.HumanoidRootPart.Position.Y, 0, false, game, 1)
+                            end
+                        end
+                    end
+                end
+            end)
+            wait(0.005) -- Ultra fast attack speed
         end
     end)
+end
+
+local function AutoFastAttackFunction()
+    EnhancedM1Attack()
 end
 
 local function ActivateArmamentHaki()
@@ -330,22 +347,37 @@ end
 local function AttackEnemy(enemy)
     if enemy and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
         if enemy.Humanoid.Health > 0 then
-            -- Position above enemy for better hit range
+            -- Position above enemy for better hit range with extended distance
             local enemyPos = enemy.HumanoidRootPart.Position
-            local attackPosition = CFrame.new(enemyPos.X, enemyPos.Y + 15, enemyPos.Z)
+            local attackPosition = CFrame.new(enemyPos.X, enemyPos.Y + 25, enemyPos.Z)
             RootPart.CFrame = attackPosition
             
-            -- Fast attack
-            if _G.AutoFastAttack then
+            -- Enhanced M1 Attack System with massive range
+            pcall(function()
                 local weapon = Player.Character:FindFirstChildOfClass("Tool")
                 if weapon then
-                    local args = {
-                        [1] = 1,
-                        [2] = enemy.HumanoidRootPart.CFrame
-                    }
-                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer(unpack(args))
+                    -- Multiple attack methods for maximum range and damage
+                    local args1 = {[1] = 0, [2] = enemy.HumanoidRootPart.CFrame}
+                    local args2 = {[1] = 1, [2] = enemy.HumanoidRootPart.CFrame}
+                    local args3 = {[1] = 2, [2] = enemy.HumanoidRootPart.CFrame}
+                    
+                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer(unpack(args1))
+                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer(unpack(args2))
+                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer(unpack(args3))
+                    
+                    -- Enhanced melee range attack
+                    if game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") then
+                        local remotes = game:GetService("ReplicatedStorage").Remotes
+                        if remotes:FindFirstChild("CommF_") then
+                            remotes.CommF_:InvokeServer("TAP")
+                        end
+                    end
+                    
+                    -- Virtual input for maximum hit detection
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
                 end
-            end
+            end)
             
             return true
         end
@@ -655,99 +687,193 @@ end)
 
 local TeleportFruitGachaButton = Tabs.Main:AddButton({
     Title = "Teleport to Fruit Gacha",
-    Description = "Teleport to fruit dealer",
+    Description = "Teleport to fruit dealer in jungle",
     Callback = function()
-        TeleportTo(Vector3.new(-12463.8740234375, 374.9144592285156, -7523.77392578125))
+        TeleportTo(Vector3.new(-2554.84, 73.55, -12294.95)) -- Correct jungle fruit gacha location
     end
 })
 
 -- Stats Section
 local StatsSection = Tabs.Main:AddSection("STATS")
 
+local StatsLabel = Tabs.Main:AddParagraph({
+    Title = "Player Statistics",
+    Content = "Loading stats..."
+})
+
 local function UpdateStatsDisplay()
-    local stats = GetPlayerStats()
-    
-    local StatsLabel = Tabs.Main:AddParagraph({
-        Title = "Player Statistics",
-        Content = string.format(
-            "Level: %d\nMoney: %d\nRace: %s\nBounty: %d\nSea: %d",
-            stats.Level,
-            stats.Money,
-            stats.Race,
-            stats.Bounty,
-            stats.Sea
-        )
-    })
+    spawn(function()
+        while true do
+            pcall(function()
+                local stats = GetPlayerStats()
+                StatsLabel:SetDesc(string.format(
+                    "Level: %d\nMoney: %d\nRace: %s\nBounty: %d\nSea: %d",
+                    stats.Level,
+                    stats.Money,
+                    stats.Race,
+                    stats.Bounty,
+                    stats.Sea
+                ))
+            end)
+            wait(2)
+        end
+    end)
 end
 
 UpdateStatsDisplay()
 
--- Auto Farm Tab
-local FarmSection = Tabs.AutoFarm:AddSection("FARM")
-
-local AutoFarmLevelToggle = Tabs.AutoFarm:AddToggle("AutoFarmLevel", {
-    Title = "Auto Farm Level",
-    Default = false
-})
-
-AutoFarmLevelToggle:OnChanged(function(Value)
-    _G.AutoFarmLevel = Value
-    if Value then
-        AutoFarmLevelFunction()
-    end
-end)
-
--- Boss Farm Section
-local BossFarmSection = Tabs.AutoFarm:AddSection("BOSS FARM")
-
-local BossDropdown = Tabs.AutoFarm:AddDropdown("BossDropdown", {
-    Title = "Select Boss",
-    Values = {"The Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg"},
-    Multi = false,
-    Default = "",
-})
-
-BossDropdown:OnChanged(function(Value)
-    _G.SelectedBoss = Value
-end)
-
-local AutoBossToggle = Tabs.AutoFarm:AddToggle("AutoBoss", {
-    Title = "Auto Kill Selected Boss",
-    Default = false
-})
-
-AutoBossToggle:OnChanged(function(Value)
-    _G.AutoBossFarm = Value
-    if Value then
-        AutoBossFarmFunction()
-    end
-end)
-
--- Special Farm Section
-local SpecialFarmSection = Tabs.AutoFarm:AddSection("SPECIAL FARM")
-
-local AutoSaberToggle = Tabs.AutoFarm:AddToggle("AutoSaber", {
-    Title = "Auto Saber Quest",
-    Default = false
-})
-
-AutoSaberToggle:OnChanged(function(Value)
-    _G.AutoSaber = Value
-    if Value then
-        AutoSaberFunction()
-    end
-end)
-
-local Auto2SeaToggle = Tabs.AutoFarm:AddToggle("Auto2Sea", {
-    Title = "Auto 2nd Sea Quest",
-    Default = false
-})
-
-Auto2SeaToggle:OnChanged(function(Value)
-    _G.Auto2SeaQuest = Value
-    if Value then
-        Auto2SeaQuestFunction()
-    end
+-- Auto Farm Tab Content
+spawn(function()
+    wait(2) -- Ensure tabs are fully loaded
+    
+    -- FARM Section
+    local FarmSection = Tabs.AutoFarm:AddSection("FARM")
+    
+    local AutoFarmLevelToggle = Tabs.AutoFarm:AddToggle("AutoFarmLevel", {
+        Title = "Auto Farm Level",
+        Description = "Automatically farm enemies based on your level",
+        Default = false
+    })
+    
+    AutoFarmLevelToggle:OnChanged(function(Value)
+        _G.AutoFarmLevel = Value
+        if Value then
+            AutoFarmLevelFunction()
+            Fluent:Notify({
+                Title = "Auto Farm",
+                Content = "Auto Farm Level started!",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Auto Farm",
+                Content = "Auto Farm Level stopped!",
+                Duration = 3
+            })
+        end
+    end)
+    
+    -- BOSS FARM Section
+    local BossFarmSection = Tabs.AutoFarm:AddSection("BOSS FARM")
+    
+    local BossDropdown = Tabs.AutoFarm:AddDropdown("BossDropdown", {
+        Title = "Select Boss to Farm",
+        Description = "Choose which boss to automatically farm",
+        Values = {"The Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg"},
+        Multi = false,
+        Default = "",
+    })
+    
+    BossDropdown:OnChanged(function(Value)
+        _G.SelectedBoss = Value
+        Fluent:Notify({
+            Title = "Boss Selection",
+            Content = "Selected boss: " .. Value,
+            Duration = 3
+        })
+    end)
+    
+    local AutoBossToggle = Tabs.AutoFarm:AddToggle("AutoBoss", {
+        Title = "Auto Kill Selected Boss",
+        Description = "Automatically hunt and kill the selected boss",
+        Default = false
+    })
+    
+    AutoBossToggle:OnChanged(function(Value)
+        _G.AutoBossFarm = Value
+        if Value then
+            if _G.SelectedBoss == "" then
+                Fluent:Notify({
+                    Title = "Error",
+                    Content = "Please select a boss first!",
+                    Duration = 3
+                })
+                AutoBossToggle:SetValue(false)
+                return
+            end
+            AutoBossFarmFunction()
+            Fluent:Notify({
+                Title = "Boss Farm",
+                Content = "Auto Boss Farm started for " .. _G.SelectedBoss,
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Boss Farm",
+                Content = "Auto Boss Farm stopped!",
+                Duration = 3
+            })
+        end
+    end)
+    
+    -- SPECIAL FARM Section
+    local SpecialFarmSection = Tabs.AutoFarm:AddSection("SPECIAL FARM")
+    
+    local AutoSaberToggle = Tabs.AutoFarm:AddToggle("AutoSaber", {
+        Title = "Auto Saber Quest",
+        Description = "Complete the full Saber quest automatically (Level 200+ required)",
+        Default = false
+    })
+    
+    AutoSaberToggle:OnChanged(function(Value)
+        _G.AutoSaber = Value
+        if Value then
+            if GetPlayerLevel() < 200 then
+                Fluent:Notify({
+                    Title = "Level Requirement",
+                    Content = "You need to be level 200+ for Saber quest!",
+                    Duration = 5
+                })
+                AutoSaberToggle:SetValue(false)
+                return
+            end
+            AutoSaberFunction()
+            Fluent:Notify({
+                Title = "Saber Quest",
+                Content = "Auto Saber Quest started!",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Saber Quest",
+                Content = "Auto Saber Quest stopped!",
+                Duration = 3
+            })
+        end
+    end)
+    
+    local Auto2SeaToggle = Tabs.AutoFarm:AddToggle("Auto2Sea", {
+        Title = "Auto 2nd Sea Quest",
+        Description = "Complete the 2nd Sea quest automatically (Level 700+ required)",
+        Default = false
+    })
+    
+    Auto2SeaToggle:OnChanged(function(Value)
+        _G.Auto2SeaQuest = Value
+        if Value then
+            if GetPlayerLevel() < 700 then
+                Fluent:Notify({
+                    Title = "Level Requirement", 
+                    Content = "You need to be level 700+ for 2nd Sea quest!",
+                    Duration = 5
+                })
+                Auto2SeaToggle:SetValue(false)
+                return
+            end
+            Auto2SeaQuestFunction()
+            Fluent:Notify({
+                Title = "2nd Sea Quest",
+                Content = "Auto 2nd Sea Quest started!",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "2nd Sea Quest",
+                Content = "Auto 2nd Sea Quest stopped!",
+                Duration = 3
+            })
+        end
+    end)
 end)
 
 -- Save Manager
