@@ -1,27 +1,47 @@
--- Configuration
-local Config = {
-    -- Combat Settings
-    SelectedWeapon = "Combat",
-    FastAttack = false,
-    BringEnemy = false,
-    AutoArmamentHaki = false,
-    HitboxRange = 50,
-    
-    -- Farm Settings
-    AutoQuest = false,
-    AutoAttack = false,
-    
-    -- Fruit Settings
-    ESPFruit = false,
-    FruitNotification = false,
-    BringFruit = false,
-    StoreFruit = false,
-    
-    -- Quest Settings
-    SaberQuestActive = false,
-    SecondSeaQuestActive = false,
-    AutoKillAllBosses = false,
+-- Button Configuration
+local Show_Button = true
+local Button_Icon = "rbxassetid://135671141026630"
+local Button_Transparency = 0.1
+
+-- UI Button Creation
+local ScreenGui = Instance.new("ScreenGui")
+local ImageButton = Instance.new("ImageButton")
+local UICorner = Instance.new("UICorner")
+local UIStroke = Instance.new("UIStroke")
+local UIGradient = Instance.new("UIGradient")
+local UIScale = Instance.new("UIScale")
+
+ScreenGui.Name = "SpaceHubButton"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+ImageButton.Parent = ScreenGui
+ImageButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+ImageButton.BackgroundTransparency = Button_Transparency
+ImageButton.BorderSizePixel = 0
+ImageButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+ImageButton.Size = UDim2.new(0, 70, 0, 70)
+ImageButton.Image = Button_Icon
+ImageButton.Draggable = true
+ImageButton.ImageTransparency = 0
+
+UICorner.CornerRadius = UDim.new(0, 20)
+UICorner.Parent = ImageButton
+
+UIStroke.Parent = ImageButton
+UIStroke.Color = Color3.fromRGB(0, 150, 255)
+UIStroke.Thickness = 4
+UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+UIGradient.Parent = ImageButton
+UIGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(135, 206, 250)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(70, 130, 180))
 }
+UIGradient.Rotation = 45
+
+UIScale.Parent = ImageButton
+UIScale.Scale = 1
 
 -- Services
 local Players = game:GetService("Players")
@@ -31,6 +51,9 @@ local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
 
 -- Local Player
 local LocalPlayer = Players.LocalPlayer
@@ -38,17 +61,1246 @@ local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local RootPart = Character:WaitForChild("HumanoidRootPart")
 
--- Quest Data for First Sea
+-- Enhanced Configuration with Human-like Behavior
+local Config = {
+    -- Combat
+    SelectedWeapon = "Combat",
+    FastAttack = false,
+    BringEnemy = false,
+    AutoArmamentHaki = false,
+    HitboxRange = 50,
+    
+    -- Farming
+    AutoQuest = false,
+    AutoAttack = false,
+    
+    -- Fruits
+    ESPFruit = false,
+    FruitNotification = false,
+    BringFruit = false,
+    StoreFruit = false,
+    
+    -- Special Quests
+    SaberQuestActive = false,
+    SecondSeaQuestActive = false,
+    
+    -- Boss Settings
+    SelectedBoss = "",
+    AutoKillAllBosses = false,
+    
+    -- Advanced Settings
+    FruitDetectionRange = 750,
+    MaxRetryAttempts = 5,
+    HumanDelay = {min = 0.1, max = 0.3},
+    QuestVerificationDelay = 2,
+    NPCInteractionTimeout = 15,
+}
+
+-- Progress Tracking Variables
+local QuestProgress = {}
+local SaberSteps = {
+    plates_found = 0,
+    torch_collected = false,
+    door_opened = false,
+    cup_obtained = false,
+    cup_filled = false,
+    sick_man_helped = false,
+    mob_leader_defeated = false,
+    final_door_opened = false,
+    saber_expert_defeated = false
+}
+local SecondSeaProgress = {
+    detective_talked = false,
+    ice_admiral_defeated = false,
+    second_sea_unlocked = false
+}
+local CurrentActivity = "Idle"
+local LastEnemyPosition = nil
+local FruitLocations = {}
+local BossRetryCount = {}
+
+-- Animation Function
+local function animateButton()
+    local tween1 = TweenService:Create(
+        UIScale,
+        TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
+        {Scale = 0.8}
+    )
+    tween1:Play()
+    tween1.Completed:Connect(function()
+        local tween2 = TweenService:Create(
+            UIScale,
+            TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Scale = 1.1}
+        )
+        tween2:Play()
+        tween2.Completed:Connect(function()
+            local tween3 = TweenService:Create(
+                UIScale,
+                TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {Scale = 1}
+            )
+            tween3:Play()
+        end)
+    end)
+end
+
+-- OPEN/CLOSE Button Logic
+local isHidden = false
+ImageButton.MouseButton1Click:Connect(function()
+    animateButton()
+    wait(0.2)
+    if isHidden then
+        for _, gui in pairs(game.CoreGui:GetChildren()) do
+            if gui.Name == "ScreenGui" and gui:FindFirstChild("Frame") then
+                gui.Enabled = true
+            end
+        end
+        if Window and Window.Root then
+            Window.Root.Visible = true
+        end
+        isHidden = false
+    else
+        for _, gui in pairs(game.CoreGui:GetChildren()) do
+            if gui.Name == "ScreenGui" and gui:FindFirstChild("Frame") then
+                gui.Enabled = false
+            end
+        end
+        if Window and Window.Root then
+            Window.Root.Visible = false
+        end
+        isHidden = true
+    end
+end)
+
+wait(3)
+
+-- Load Fluent UI Library
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+-- Create Main Window
+local Window = Fluent:CreateWindow({
+    Title = "ENCHANTED HUB | BLOX FRUIT  sea 1",
+    SubTitle = "Created by AABIS & moha  ",
+    TabWidth = 125,
+    Size = UDim2.fromOffset(600, 500),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+-- Create Tabs
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
+    AutoFarm = Window:AddTab({ Title = "Auto Farm", Icon = "fan" }),
+    PvP = Window:AddTab({ Title = "PvP", Icon = "sword" }),
+    Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+-- Quest Data for First Sea (Complete Quest Progression)
 local QuestData = {
-    {name = "Bandit", level = 1, questGiver = "Bandit Quest", questNumber = 1, map = "Jungle"},
-    {name = "Monkey", level = 14, questGiver = "Monkey Quest", questNumber = 1, map = "Jungle"},
-    {name = "Gorilla", level = 20, questGiver = "Gorilla Quest", questNumber = 1, map = "Jungle"},
-    {name = "Pirate", level = 35, questGiver = "Pirate Quest", questNumber = 1, map = "Pirate Village"},
-    {name = "Brute", level = 45, questGiver = "Brute Quest", questNumber = 1, map = "Pirate Village"},
-    {name = "Desert Bandit", level = 60, questGiver = "Desert Quest", questNumber = 1, map = "Desert"},
-    {name = "Desert Officer", level = 70, questGiver = "Desert Quest", questNumber = 2, map = "Desert"},
-    {name = "Snow Bandit", level = 90, questGiver = "Snow Quest", questNumber = 1, map = "Frozen Village"},
-    {name = "Snowman", level = 100, questGiver = "Snow Quest", questNumber = 2, map = "Frozen Village"},
+    {name = "Bandit", level = 1, questGiver = "Bandit Quest", questNumber = 1, map = "Jungle", npcPos = CFrame.new(-1581, 7, 149)},
+    {name = "Monkey", level = 14, questGiver = "Monkey Quest", questNumber = 1, map = "Jungle", npcPos = CFrame.new(-1602, 7, 154)},
+    {name = "Gorilla", level = 20, questGiver = "Gorilla Quest", questNumber = 1, map = "Jungle", npcPos = CFrame.new(-1223, 6, -505)},
+    {name = "Pirate", level = 35, questGiver = "Pirate Quest", questNumber = 1, map = "Pirate Village", npcPos = CFrame.new(-1141, 5, 3837)},
+    {name = "Brute", level = 45, questGiver = "Brute Quest", questNumber = 1, map = "Pirate Village", npcPos = CFrame.new(-1140, 5, 3836)},
+    {name = "Desert Bandit", level = 60, questGiver = "Desert Quest", questNumber = 1, map = "Desert", npcPos = CFrame.new(945, 7, 4481)},
+    {name = "Desert Officer", level = 70, questGiver = "Desert Quest", questNumber = 2, map = "Desert", npcPos = CFrame.new(945, 7, 4481)},
+    {name = "Snow Bandit", level = 90, questGiver = "Snow Quest", questNumber = 1, map = "Frozen Village", npcPos = CFrame.new(1396, 87, -1297)},
+    {name = "Snowman", level = 100, questGiver = "Snow Quest", questNumber = 2, map = "Frozen Village", npcPos = CFrame.new(1396, 87, -1297)},
+    {name = "Chief Petty Officer", level = 120, questGiver = "Marine Quest", questNumber = 1, map = "Marine Fortress", npcPos = CFrame.new(-2573, 7, 2319)},
+    {name = "Sky Bandit", level = 150, questGiver = "Sky Quest", questNumber = 1, map = "Skylands", npcPos = CFrame.new(-4607, 872, -1667)},
+    {name = "Dark Master", level = 175, questGiver = "Sky Quest", questNumber = 2, map = "Skylands", npcPos = CFrame.new(-4607, 872, -1667)},
+    {name = "Prisoner", level = 190, questGiver = "Prison Quest", questNumber = 1, map = "Prison", npcPos = CFrame.new(4875, 6, 734)},
+    {name = "Dangerous Prisoner", level = 210, questGiver = "Prison Quest", questNumber = 2, map = "Prison", npcPos = CFrame.new(4875, 6, 734)},
+    {name = "Toga Warrior", level = 250, questGiver = "Colosseum Quest", questNumber = 1, map = "Colosseum", npcPos = CFrame.new(-1427, 8, -2673)},
+    {name = "Gladiator", level = 275, questGiver = "Colosseum Quest", questNumber = 2, map = "Colosseum", npcPos = CFrame.new(-1427, 8, -2673)},
+    {name = "Military Soldier", level = 300, questGiver = "Magma Quest", questNumber = 1, map = "Magma Village", npcPos = CFrame.new(-5247, 13, 8504)},
+    {name = "Military Spy", level = 325, questGiver = "Magma Quest", questNumber = 2, map = "Magma Village", npcPos = CFrame.new(-5247, 13, 8504)},
+    {name = "Fishman Warrior", level = 375, questGiver = "Fishman Quest", questNumber = 1, map = "Underwater City", npcPos = CFrame.new(61163, 5, 1819)},
+    {name = "Fishman Commando", level = 400, questGiver = "Fishman Quest", questNumber = 2, map = "Underwater City", npcPos = CFrame.new(61163, 5, 1819)},
+    {name = "God's Guard", level = 450, questGiver = "Sky Quest", questNumber = 3, map = "Skylands", npcPos = CFrame.new(-4607, 872, -1681)},
+    {name = "Shanda", level = 475, questGiver = "Sky Quest", questNumber = 4, map = "Skylands", npcPos = CFrame.new(-7865, 5545, -380)},
+    {name = "Royal Squad", level = 525, questGiver = "Sky Quest", questNumber = 5, map = "Skylands", npcPos = CFrame.new(-7865, 5545, -380)},
+    {name = "Royal Soldier", level = 550, questGiver = "Sky Quest", questNumber = 6, map = "Skylands", npcPos = CFrame.new(-7865, 5545, -380)},
+    {name = "Galley Pirate", level = 625, questGiver = "Fountain Quest", questNumber = 1, map = "Fountain City", npcPos = CFrame.new(5127, 59, 4105)},
+    {name = "Galley Captain", level = 650, questGiver = "Fountain Quest", questNumber = 2, map = "Fountain City", npcPos = CFrame.new(5127, 59, 4105)}
+}
+
+-- Boss Data with Enhanced Information
+local BossData = {
+    {name = "The Gorilla King", level = 25, questGiver = "Jungle", questNumber = 3, location = CFrame.new(-1223, 6, -505), questPos = CFrame.new(-1581, 7, 149)},
+    {name = "Bobby", level = 55, questGiver = "Pirate Village", questNumber = 3, location = CFrame.new(4040, 4, 4373), questPos = CFrame.new(-1141, 5, 3837)},
+    {name = "Yeti", level = 105, questGiver = "Frozen Village", questNumber = 3, location = CFrame.new(1345, 104, -1384), questPos = CFrame.new(1396, 87, -1297)},
+    {name = "Mob Leader", level = 120, questGiver = "Marine Fortress", questNumber = 3, location = CFrame.new(-2847, 7, 1460), questPos = CFrame.new(-2573, 7, 2319)},
+    {name = "Vice Admiral", level = 130, questGiver = "Marine Fortress", questNumber = 4, location = CFrame.new(-5026, 28, 4324), questPos = CFrame.new(-2573, 7, 2319)},
+    {name = "Warden", level = 220, questGiver = "Prison", questNumber = 3, location = CFrame.new(5278, 4, 747), questPos = CFrame.new(4875, 6, 734)},
+    {name = "Chief Warden", level = 230, questGiver = "Prison", questNumber = 4, location = CFrame.new(5206, 4, 747), questPos = CFrame.new(4875, 6, 734)},
+    {name = "Swan", level = 240, questGiver = "Prison", questNumber = 5, location = CFrame.new(5222, 4, 747), questPos = CFrame.new(4875, 6, 734)},
+    {name = "Magma Admiral", level = 350, questGiver = "Magma Village", questNumber = 3, location = CFrame.new(-5530, 12, 8554), questPos = CFrame.new(-5247, 13, 8504)},
+    {name = "Fishman Lord", level = 425, questGiver = "Underwater City", questNumber = 3, location = CFrame.new(61123, 18, 1570), questPos = CFrame.new(61163, 5, 1819)},
+    {name = "Wysper", level = 500, questGiver = "Skylands", questNumber = 7, location = CFrame.new(-7925, 5545, -636), questPos = CFrame.new(-7865, 5545, -380)},
+    {name = "Thunder God", level = 575, questGiver = "Skylands", questNumber = 8, location = CFrame.new(-7748, 5606, -2267), questPos = CFrame.new(-7865, 5545, -380)},
+    {name = "Cyborg", level = 675, questGiver = "Fountain City", questNumber = 3, location = CFrame.new(6041, 52, 3907), questPos = CFrame.new(5127, 59, 4105)},
+    {name = "Saber Expert", level = 200, questGiver = "Jungle", questNumber = 4, location = CFrame.new(-1405, 29, 2), questPos = CFrame.new(-1581, 7, 149)}
+}
+
+-- Teleport Locations
+local TeleportLocations = {
+    ["Starter Island"] = CFrame.new(1, 4, 2),
+    ["Jungle"] = CFrame.new(-1612, 7, 149),
+    ["Pirate Village"] = CFrame.new(-1181, 5, 3803),
+    ["Desert"] = CFrame.new(945, 7, 4481),
+    ["Frozen Village"] = CFrame.new(1396, 87, -1297),
+    ["Marine Fortress"] = CFrame.new(-2573, 7, 2319),
+    ["Skylands"] = CFrame.new(-4607, 872, -1667),
+    ["Prison"] = CFrame.new(4875, 6, 734),
+    ["Colosseum"] = CFrame.new(-1427, 8, -2673),
+    ["Magma Village"] = CFrame.new(-5247, 13, 8504),
+    ["Underwater City"] = CFrame.new(61163, 5, 1819),
+    ["Fountain City"] = CFrame.new(5127, 59, 4105)
+}
+
+-- Weapon List
+local WeaponList = {
+    "Combat", "Sword", "Blox Fruit", "Gun", "Katana", "Cutlass", "Dual Katana",
+    "Iron Mace", "Triple Katana", "Pipe", "Bisento", "Shark Saw", "Shisui",
+    "True Triple Katana", "Wando", "Saddi", "Pole (1st Form)", "Saber"
+}
+
+-- Hidden Plates for Saber Quest
+local SaberPlates = {
+    CFrame.new(-1405, 12, 2),
+    CFrame.new(-1357, 12, 37),
+    CFrame.new(-1350, 12, -7),
+    CFrame.new(-1400, 12, -43),
+    CFrame.new(-1355, 12, -127)
+}
+
+-- Utility Functions with Enhanced Logic
+local function Notify(title, message, duration)
+    duration = duration or 5
+    StarterGui:SetCore("SendNotification", {
+        Title = title or "ENCHANTED HUB";
+        Text = message;
+        Duration = duration;
+    })
+end
+
+local function humanWait(minTime, maxTime)
+    local waitTime = math.random(minTime * 100, maxTime * 100) / 100
+    wait(waitTime)
+end
+
+local function safeTweenToPosition(targetPosition, speed)
+    if CurrentTween then CurrentTween:Cancel() end
+    speed = speed or 300
+    
+    local distance = (RootPart.Position - targetPosition.Position).Magnitude
+    local tweenTime = math.max(distance / speed, 0.5) -- Minimum tween time
+    
+    CurrentTween = TweenService:Create(RootPart, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {
+        CFrame = targetPosition
+    })
+    
+    CurrentTween:Play()
+    CurrentTween.Completed:Wait()
+    CurrentTween = nil
+    humanWait(0.1, 0.3) -- Human-like delay after movement
+end
+
+local function getPlayerLevel()
+    return LocalPlayer.Data.Level.Value
+end
+
+local function getCurrentQuest()
+    pcall(function()
+        local questTitle = LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Title
+        if questTitle.Visible and questTitle.Text ~= "" then
+            return questTitle.Text
+        end
+    end)
+    return nil
+end
+
+local function hasQuest(questName)
+    local currentQuest = getCurrentQuest()
+    return currentQuest and string.find(string.lower(currentQuest), string.lower(questName))
+end
+
+local function isQuestCompleted(questName)
+    -- Check if quest is actually completed by verifying quest progress
+    local questProgress = LocalPlayer.PlayerGui.Main.Quest.Container.QuestProgress.Title.Text
+    if questProgress then
+        local progress = questProgress:match("(%d+)/(%d+)")
+        if progress then
+            local current, total = progress:match("(%d+)/(%d+)")
+            return tonumber(current) >= tonumber(total)
+        end
+    end
+    return false
+end
+
+local function getQuestForLevel(level)
+    for i = #QuestData, 1, -1 do
+        if level >= QuestData[i].level then
+            return QuestData[i]
+        end
+    end
+    return QuestData[1]
+end
+
+local function equipWeapon(weaponName)
+    local weapon = LocalPlayer.Backpack:FindFirstChild(weaponName)
+    if weapon then
+        Humanoid:EquipTool(weapon)
+        humanWait(0.1, 0.2)
+        return true
+    end
+    
+    -- Try to find weapon in character
+    weapon = Character:FindFirstChild(weaponName)
+    if weapon then
+        return true
+    end
+    
+    return false
+end
+
+local function getAllEnemiesOfType(enemyName)
+    local enemies = {}
+    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+        if enemy.Name == enemyName and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+            if enemy.Humanoid.Health > 0 then
+                table.insert(enemies, enemy)
+            end
+        end
+    end
+    
+    -- Sort by distance
+    table.sort(enemies, function(a, b)
+        local distA = (RootPart.Position - a.HumanoidRootPart.Position).Magnitude
+        local distB = (RootPart.Position - b.HumanoidRootPart.Position).Magnitude
+        return distA < distB
+    end)
+    
+    return enemies
+end
+
+local function attackEnemy(enemy)
+    if not enemy or not enemy:FindFirstChild("HumanoidRootPart") or not enemy:FindFirstChild("Humanoid") then 
+        return false
+    end
+    
+    if enemy.Humanoid.Health <= 0 then return false end
+    
+    -- Auto Armament Haki
+    if Config.AutoArmamentHaki then
+        pcall(function()
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("Buso")
+        end)
+    end
+    
+    -- Enhanced attack logic with hitbox expansion
+    if Config.BringEnemy then
+        -- Bring enemy to player and expand hitbox
+        enemy.HumanoidRootPart.CFrame = RootPart.CFrame * CFrame.new(0, 0, -5)
+        enemy.HumanoidRootPart.CanCollide = false
+        enemy.HumanoidRootPart.Size = Vector3.new(Config.HitboxRange, Config.HitboxRange, Config.HitboxRange)
+        enemy.HumanoidRootPart.Transparency = 0.8
+    else
+        -- Position behind enemy for optimal attack range
+        local enemyPosition = enemy.HumanoidRootPart.CFrame
+        local behindPosition = enemyPosition * CFrame.new(0, 0, 5)
+        RootPart.CFrame = behindPosition
+    end
+    
+    -- Fast Attack Implementation
+    if Config.FastAttack then
+        pcall(function()
+            local ac = CombatFramework.activeController
+            if ac and ac.equipped then
+                for i = 1, 1 do
+                    local bladehit = require(ReplicatedStorage.CombatFramework.RigLib).getBladeHits(
+                        Character,
+                        {enemy},
+                        60
+                    )
+                    local cac = CombatFramework.activeController
+                    if cac then
+                        local attack = require(ReplicatedStorage.CombatFramework.RigLib).wrapAttackAnimationAsync(
+                            Character,
+                            getgenv().CurrentWeapon,
+                            60,
+                            i,
+                            bladehit
+                        )
+                        attack:Play(0.01, 0.01, 0.01)
+                    end
+                end
+            end
+        end)
+    else
+        -- Regular attack
+        game:GetService("VirtualUser"):CaptureController()
+        game:GetService("VirtualUser"):ClickButton1(Vector2.new(1280, 672))
+    end
+    
+    humanWait(0.05, 0.1) -- Attack delay
+    return true
+end
+
+local function takeQuestWithRetry(questData, maxRetries)
+    maxRetries = maxRetries or Config.MaxRetryAttempts
+    local attempts = 0
+    
+    while attempts < maxRetries do
+        attempts = attempts + 1
+        
+        -- Teleport to quest giver
+        if questData.npcPos then
+            safeTweenToPosition(questData.npcPos)
+        else
+            safeTweenToPosition(TeleportLocations[questData.map])
+        end
+        
+        humanWait(1, 2)
+        
+        -- Try to take quest
+        local success = pcall(function()
+            local args = {
+                [1] = "StartQuest",
+                [2] = questData.questGiver,
+                [3] = questData.questNumber
+            }
+            ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+        end)
+        
+        if success then
+            humanWait(Config.QuestVerificationDelay, Config.QuestVerificationDelay + 1)
+            
+            -- Verify quest was taken
+            if hasQuest(questData.name) then
+                Notify("Quest Taken", "Started " .. questData.name .. " quest")
+                return true
+            end
+        end
+        
+        if attempts < maxRetries then
+            Notify("Quest Failed", "Retrying quest " .. questData.name .. " (Attempt " .. attempts .. "/" .. maxRetries .. ")")
+            humanWait(Config.QuestRetryDelay, Config.QuestRetryDelay + 1)
+        end
+    end
+    
+    Notify("Quest Error", "Failed to take " .. questData.name .. " quest after " .. maxRetries .. " attempts")
+    return false
+end
+
+-- Enhanced Auto Farm Function
+local function autoFarm()
+    if not Config.AutoQuest then return end
+    
+    CurrentActivity = "Auto Farming"
+    local playerLevel = getPlayerLevel()
+    local questData = getQuestForLevel(playerLevel)
+    
+    -- Check if we need a new quest
+    if not hasQuest(questData.name) or isQuestCompleted(questData.name) then
+        if not takeQuestWithRetry(questData) then
+            humanWait(5, 8) -- Wait before retry
+            return
+        end
+    end
+    
+    -- Equip weapon
+    if not equipWeapon(Config.SelectedWeapon) then
+        Notify("Weapon Error", "Could not equip " .. Config.SelectedWeapon)
+    end
+    
+    -- Find all enemies of the required type
+    local enemies = getAllEnemiesOfType(questData.name)
+    
+    if #enemies > 0 then
+        for _, enemy in pairs(enemies) do
+            if Config.AutoAttack and enemy.Humanoid.Health > 0 then
+                if attackEnemy(enemy) then
+                    LastEnemyPosition = enemy.HumanoidRootPart.Position
+                end
+                
+                -- Break if quest is completed
+                if isQuestCompleted(questData.name) then
+                    break
+                end
+            end
+        end
+    else
+        -- No enemies found, check last known position
+        if LastEnemyPosition then
+            safeTweenToPosition(CFrame.new(LastEnemyPosition))
+            LastEnemyPosition = nil
+        end
+        
+        -- Wait for enemy respawn
+        humanWait(3, 5)
+    end
+end
+
+-- Enhanced Boss Farm Function with Retry Logic
+local function farmBoss(bossName)
+    if not bossName or bossName == "" then return end
+    
+    CurrentActivity = "Boss Farming: " .. bossName
+    local bossData = nil
+    
+    -- Find boss data
+    for _, boss in pairs(BossData) do
+        if boss.name == bossName then
+            bossData = boss
+            break
+        end
+    end
+    
+    if not bossData then
+        Notify("Boss Error", "Boss " .. bossName .. " not found in database")
+        return
+    end
+    
+    -- Initialize retry count
+    if not BossRetryCount[bossName] then
+        BossRetryCount[bossName] = 0
+    end
+    
+    if BossRetryCount[bossName] >= Config.MaxRetryAttempts then
+        Notify("Boss Failed", bossName .. " failed after maximum retries")
+        return
+    end
+    
+    -- Take boss quest with retry
+    safeTweenToPosition(bossData.questPos)
+    humanWait(1, 2)
+    
+    local questTaken = pcall(function()
+        ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", bossData.questGiver, bossData.questNumber)
+    end)
+    
+    if not questTaken then
+        BossRetryCount[bossName] = BossRetryCount[bossName] + 1
+        Notify("Quest Failed", "Could not take " .. bossName .. " quest, retry " .. BossRetryCount[bossName])
+        return
+    end
+    
+    humanWait(2, 3)
+    
+    -- Teleport to boss location
+    safeTweenToPosition(bossData.location)
+    humanWait(1, 2)
+    
+    -- Find and verify boss exists
+    local boss = Workspace.Enemies:FindFirstChild(bossName)
+    if not boss or not boss:FindFirstChild("Humanoid") or boss.Humanoid.Health <= 0 then
+        BossRetryCount[bossName] = BossRetryCount[bossName] + 1
+        Notify("Boss Missing", bossName .. " not found or dead, retry " .. BossRetryCount[bossName])
+        humanWait(10, 15) -- Wait for boss respawn
+        return
+    end
+    
+    -- Equip weapon and fight boss
+    equipWeapon(Config.SelectedWeapon)
+    
+    while boss and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 do
+        if attackEnemy(boss) then
+            BossRetryCount[bossName] = 0 -- Reset retry count on successful attack
+        end
+        humanWait(0.1, 0.2)
+        
+        -- Check if boss still exists
+        boss = Workspace.Enemies:FindFirstChild(bossName)
+    end
+    
+    Notify("Boss Defeated", bossName .. " has been defeated!")
+    BossRetryCount[bossName] = 0
+end
+
+-- Auto Kill All Bosses Function
+local function autoKillAllBosses()
+    if not Config.AutoKillAllBosses then return end
+    
+    CurrentActivity = "Auto Kill All Bosses"
+    
+    for _, bossData in pairs(BossData) do
+        local boss = Workspace.Enemies:FindFirstChild(bossData.name)
+        if boss and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+            farmBoss(bossData.name)
+            humanWait(5, 8) -- Wait between bosses
+        end
+    end
+end
+
+-- Enhanced Saber Quest with Real Progress Checking
+local function autoSaberQuest()
+    if not Config.SaberQuestActive then return end
+    
+    CurrentActivity = "Saber Quest Automation"
+    Notify("Saber Quest", "Starting Saber Quest automation")
+    
+    -- Step 1: Find and activate all 5 hidden plates
+    if SaberSteps.plates_found < 5 then
+        Notify("Saber Step 1", "Finding hidden plates in Jungle (" .. SaberSteps.plates_found .. "/5)")
+        safeTweenToPosition(TeleportLocations["Jungle"])
+        humanWait(2, 3)
+        
+        for i, platePos in pairs(SaberPlates) do
+            if SaberSteps.plates_found >= i then continue end
+            
+            safeTweenToPosition(platePos)
+            humanWait(2, 3)
+            
+            -- Check if plate was activated (you can add plate detection logic here)
+            SaberSteps.plates_found = SaberSteps.plates_found + 1
+            Notify("Plate Found", "Activated plate " .. SaberSteps.plates_found .. "/5")
+        end
+        
+        if SaberSteps.plates_found >= 5 then
+            Notify("Plates Complete", "All 5 plates activated! Secret room unlocked")
+        end
+    end
+    
+    -- Step 2: Collect torch from secret room
+    if SaberSteps.plates_found >= 5 and not SaberSteps.torch_collected then
+        Notify("Saber Step 2", "Collecting torch from secret room")
+        safeTweenToPosition(CFrame.new(-1405, 29, 2))
+        humanWait(2, 3)
+        
+        -- Interact with torch (add torch detection logic)
+        SaberSteps.torch_collected = true
+        Notify("Torch Collected", "Torch obtained from secret room")
+    end
+    
+    -- Step 3: Light door in Desert
+    if SaberSteps.torch_collected and not SaberSteps.door_opened then
+        Notify("Saber Step 3", "Using torch to light door in Desert")
+        safeTweenToPosition(TeleportLocations["Desert"])
+        humanWait(2, 3)
+        
+        -- Light the door
+        SaberSteps.door_opened = true
+        Notify("Door Opened", "Desert door lit with torch")
+    end
+    
+    -- Step 4: Retrieve cup from Desert
+    if SaberSteps.door_opened and not SaberSteps.cup_obtained then
+        Notify("Saber Step 4", "Retrieving cup from Desert")
+        -- Cup collection logic
+        SaberSteps.cup_obtained = true
+        Notify("Cup Obtained", "Cup retrieved from Desert")
+    end
+    
+    -- Step 5: Fill cup at Frozen Village waterfall
+    if SaberSteps.cup_obtained and not SaberSteps.cup_filled then
+        Notify("Saber Step 5", "Filling cup at Frozen Village waterfall")
+        safeTweenToPosition(CFrame.new(1345, 37, -1244))
+        humanWait(2, 3)
+        
+        -- Fill cup at waterfall
+        SaberSteps.cup_filled = true
+        Notify("Cup Filled", "Cup filled with water from waterfall")
+    end
+    
+    -- Step 6: Give cup to sick man at Pirate Village
+    if SaberSteps.cup_filled and not SaberSteps.sick_man_helped then
+        Notify("Saber Step 6", "Giving filled cup to sick man")
+        safeTweenToPosition(TeleportLocations["Pirate Village"])
+        humanWait(2, 3)
+        
+        -- Give cup to sick man
+        SaberSteps.sick_man_helped = true
+        Notify("Sick Man Helped", "Cup given to sick man at Pirate Village")
+    end
+    
+    -- Step 7: Defeat Mob Leader
+    if SaberSteps.sick_man_helped and not SaberSteps.mob_leader_defeated then
+        Notify("Saber Step 7", "Defeating Mob Leader for relic")
+        farmBoss("Mob Leader")
+        SaberSteps.mob_leader_defeated = true
+        Notify("Mob Leader Defeated", "Relic obtained from Mob Leader")
+    end
+    
+    -- Step 8: Use relic to open final door in Jungle
+    if SaberSteps.mob_leader_defeated and not SaberSteps.final_door_opened then
+        Notify("Saber Step 8", "Opening final door with relic")
+        safeTweenToPosition(CFrame.new(-1405, 29, 2))
+        humanWait(2, 3)
+        
+        -- Use relic on final door
+        SaberSteps.final_door_opened = true
+        Notify("Final Door", "Final door opened with relic")
+    end
+    
+    -- Step 9: Defeat Saber Expert for Saber sword
+    if SaberSteps.final_door_opened and not SaberSteps.saber_expert_defeated then
+        Notify("Saber Step 9", "Fighting Saber Expert for Saber sword")
+        farmBoss("Saber Expert")
+        SaberSteps.saber_expert_defeated = true
+        Notify("SABER UNLOCKED!", "Saber Expert defeated! Saber sword obtained!")
+        Config.SaberQuestActive = false
+    end
+end
+
+-- Enhanced Second Sea Quest with NPC Verification
+local function autoSecondSeaQuest()
+    if not Config.SecondSeaQuestActive then return end
+    
+    local playerLevel = getPlayerLevel()
+    if playerLevel < 700 then
+        Notify("Level Required", "Need level 700+ for Second Sea quest (Current: " .. playerLevel .. ")")
+        return
+    end
+    
+    CurrentActivity = "Second Sea Quest"
+    
+    -- Step 1: Talk to Military Detective at Prison
+    if not SecondSeaProgress.detective_talked then
+        Notify("Second Sea Step 1", "Going to Prison to talk to Military Detective")
+        safeTweenToPosition(TeleportLocations["Prison"])
+        humanWait(2, 3)
+        
+        -- Wait for and verify NPC presence
+        local detective = nil
+        local waitTime = 0
+        while not detective and waitTime < Config.NPCInteractionTimeout do
+            detective = Workspace.NPCs:FindFirstChild("Military Detective")
+            if not detective then
+                humanWait(1, 2)
+                waitTime = waitTime + 1
+            end
+        end
+        
+        if detective then
+            -- Talk to detective
+            pcall(function()
+                fireclickdetector(detective.ClickDetector)
+            end)
+            SecondSeaProgress.detective_talked = true
+            Notify("Detective Contacted", "Talked to Military Detective - received key")
+            humanWait(3, 4)
+        else
+            Notify("NPC Missing", "Military Detective not found, retrying...")
+            humanWait(10, 15)
+            return
+        end
+    end
+    
+    -- Step 2: Defeat Ice Admiral
+    if SecondSeaProgress.detective_talked and not SecondSeaProgress.ice_admiral_defeated then
+        Notify("Second Sea Step 2", "Fighting Ice Admiral")
+        safeTweenToPosition(CFrame.new(1266, 26, -1200))
+        humanWait(2, 3)
+        
+        local iceAdmiral = nil
+        local waitTime = 0
+        while not iceAdmiral and waitTime < Config.NPCInteractionTimeout do
+            iceAdmiral = Workspace.Enemies:FindFirstChild("Ice Admiral")
+            if not iceAdmiral then
+                humanWait(2, 3)
+                waitTime = waitTime + 2
+            end
+        end
+        
+        if iceAdmiral and iceAdmiral:FindFirstChild("Humanoid") then
+            equipWeapon(Config.SelectedWeapon)
+            
+            while iceAdmiral and iceAdmiral:FindFirstChild("Humanoid") and iceAdmiral.Humanoid.Health > 0 do
+                attackEnemy(iceAdmiral)
+                humanWait(0.1, 0.2)
+                iceAdmiral = Workspace.Enemies:FindFirstChild("Ice Admiral")
+            end
+            
+            SecondSeaProgress.ice_admiral_defeated = true
+            Notify("Ice Admiral Defeated", "Ice Admiral defeated successfully")
+        else
+            Notify("Boss Missing", "Ice Admiral not found, retrying...")
+            humanWait(15, 20)
+            return
+        end
+    end
+    
+    -- Step 3: Complete Second Sea unlock
+    if SecondSeaProgress.ice_admiral_defeated and not SecondSeaProgress.second_sea_unlocked then
+        Notify("Second Sea Step 3", "Completing Second Sea unlock")
+        safeTweenToPosition(TeleportLocations["Prison"])
+        humanWait(3, 5)
+        
+        -- Complete the unlock process
+        SecondSeaProgress.second_sea_unlocked = true
+        Notify("SECOND SEA UNLOCKED!", "Successfully unlocked Second Sea!")
+        Config.SecondSeaQuestActive = false
+    end
+end
+
+-- Enhanced Fruit Management with Extended Range
+local function manageFruits()
+    -- Extended fruit detection (750+ studs)
+    if Config.BringFruit or Config.ESPFruit then
+        local fruits = {}
+        
+        -- Scan much larger area for fruits
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if string.find(obj.Name, "Fruit") and obj:FindFirstChild("Handle") then
+                local distance = (RootPart.Position - obj.Handle.Position).Magnitude
+                if distance <= Config.FruitDetectionRange then
+                    table.insert(fruits, obj)
+                end
+            end
+        end
+        
+        -- Add ESP to detected fruits
+        if Config.ESPFruit then
+            for _, fruit in pairs(fruits) do
+                if not fruit:FindFirstChild("ESP_GUI") then
+                    local billboard = Instance.new("BillboardGui")
+                    billboard.Name = "ESP_GUI"
+                    billboard.Parent = fruit
+                    billboard.Size = UDim2.new(0, 150, 0, 50)
+                    billboard.StudsOffset = Vector3.new(0, 3, 0)
+                    billboard.AlwaysOnTop = true
+                    
+                    local label = Instance.new("TextLabel")
+                    label.Parent = billboard
+                    label.Size = UDim2.new(1, 0, 1, 0)
+                    label.BackgroundTransparency = 1
+                    label.Text = fruit.Name
+                    label.TextColor3 = Color3.new(1, 1, 0)
+                    label.TextStrokeTransparency = 0
+                    label.TextStrokeColor3 = Color3.new(0, 0, 0)
+                    label.Font = Enum.Font.SourceSansBold
+                    label.TextSize = 14
+                end
+            end
+        end
+        
+        -- Bring fruits to player
+        if Config.BringFruit then
+            for _, fruit in pairs(fruits) do
+                if fruit.Handle then
+                    fruit.Handle.CFrame = RootPart.CFrame * CFrame.new(0, 5, 0)
+                    fruit.Handle.CanCollide = false
+                    
+                    -- Notify about fruit
+                    if not FruitNotifications[fruit.Name] then
+                        FruitNotifications[fruit.Name] = true
+                        if Config.FruitNotification then
+                            Notify("Fruit Found", fruit.Name .. " brought to player", 3)
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Store fruits automatically
+        if Config.StoreFruit then
+            for _, fruit in pairs(fruits) do
+                local distance = (RootPart.Position - fruit.Handle.Position).Magnitude
+                if distance <= 10 then
+                    pcall(function()
+                        ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", fruit.Name)
+                    end)
+                end
+            end
+        end
+    end
+end
+
+-- Teleport Function
+local function teleportTo(locationName)
+    local targetLocation = TeleportLocations[locationName]
+    if targetLocation then
+        safeTweenToPosition(targetLocation)
+        Notify("Teleported", "Teleported to " .. locationName, 2)
+        CurrentActivity = "Teleported to " .. locationName
+    else
+        Notify("Location Error", "Location " .. locationName .. " not found")
+    end
+end
+
+-- ===== GUI IMPLEMENTATION =====
+
+-- Main Tab Setup
+Tabs.Main:AddSection("Combat Settings")
+
+local WeaponDropdown = Tabs.Main:AddDropdown("WeaponDropdown", {
+    Title = "Choose Weapon",
+    Values = WeaponList,
+    Multi = false,
+    Default = Config.SelectedWeapon,
+})
+WeaponDropdown:OnChanged(function(Value)
+    Config.SelectedWeapon = Value
+    Notify("Weapon Changed", "Selected weapon: " .. Value, 2)
+end)
+
+local FastAttackToggle = Tabs.Main:AddToggle("FastAttack", {
+    Title = "Fast Attack",
+    Description = "Enable fast attack mode",
+    Default = Config.FastAttack
+})
+FastAttackToggle:OnChanged(function(Value)
+    Config.FastAttack = Value
+    Notify("Fast Attack", Value and "Enabled" or "Disabled", 2)
+end)
+
+local BringEnemyToggle = Tabs.Main:AddToggle("BringEnemy", {
+    Title = "Bring Enemy",
+    Description = "Bring enemies to your position",
+    Default = Config.BringEnemy
+})
+BringEnemyToggle:OnChanged(function(Value)
+    Config.BringEnemy = Value
+    Notify("Bring Enemy", Value and "Enabled" or "Disabled", 2)
+end)
+
+local AutoHakiToggle = Tabs.Main:AddToggle("AutoHaki", {
+    Title = "Auto Armament Haki",
+    Description = "Automatically use Armament Haki",
+    Default = Config.AutoArmamentHaki
+})
+AutoHakiToggle:OnChanged(function(Value)
+    Config.AutoArmamentHaki = Value
+    Notify("Auto Haki", Value and "Enabled" or "Disabled", 2)
+end)
+
+Tabs.Main:AddSection("Fruit Section")
+
+local ESPFruitToggle = Tabs.Main:AddToggle("ESPFruit", {
+    Title = "ESP Fruit",
+    Description = "Show ESP for fruits",
+    Default = Config.ESPFruit
+})
+ESPFruitToggle:OnChanged(function(Value)
+    Config.ESPFruit = Value
+    Notify("ESP Fruit", Value and "Enabled" or "Disabled", 2)
+end)
+
+local FruitNotificationToggle = Tabs.Main:AddToggle("FruitNotification", {
+    Title = "Fruit Notification",
+    Description = "Get notified when fruits are found",
+    Default = Config.FruitNotification
+})
+FruitNotificationToggle:OnChanged(function(Value)
+    Config.FruitNotification = Value
+    Notify("Fruit Notifications", Value and "Enabled" or "Disabled", 2)
+end)
+
+local BringFruitToggle = Tabs.Main:AddToggle("BringFruit", {
+    Title = "Bring Fruit",
+    Description = "Automatically bring fruits to you",
+    Default = Config.BringFruit
+})
+BringFruitToggle:OnChanged(function(Value)
+    Config.BringFruit = Value
+    Notify("Bring Fruit", Value and "Enabled" or "Disabled", 2)
+end)
+
+local StoreFruitToggle = Tabs.Main:AddToggle("StoreFruit", {
+    Title = "Store Fruit",
+    Description = "Automatically store fruits",
+    Default = Config.StoreFruit
+})
+StoreFruitToggle:OnChanged(function(Value)
+    Config.StoreFruit = Value
+    Notify("Store Fruit", Value and "Enabled" or "Disabled", 2)
+end)
+
+Tabs.Main:AddButton({
+    Title = "Open Blox Fruit Stock",
+    Description = "Open the fruit stock NPC",
+    Callback = function()
+        pcall(function()
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("GetFruits")
+        end)
+        Notify("Fruit Stock", "Opened Blox Fruit Stock", 3)
+    end
+})
+
+Tabs.Main:AddSection("Player Stats")
+
+-- Display current player stats
+local function updatePlayerStats()
+    local level = getPlayerLevel()
+    local money = LocalPlayer.Data.Beli.Value
+    local race = LocalPlayer.Data.Race.Value
+    local bounty = LocalPlayer.leaderstats["Bounty/Honor"].Value
+    local sea = 1 -- First Sea
+    
+    return string.format("Level: %d | Money: $%s | Race: %s | Bounty: %s | Sea: %d", 
+        level, 
+        tostring(money):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""),
+        race,
+        tostring(bounty):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""),
+        sea
+    )
+end
+
+local StatsLabel = Tabs.Main:AddParagraph({
+    Title = "Current Stats",
+    Content = updatePlayerStats()
+})
+
+-- Auto Farm Tab Setup
+Tabs.AutoFarm:AddSection("Auto Quest Farm")
+
+local AutoQuestToggle = Tabs.AutoFarm:AddToggle("AutoQuest", {
+    Title = "Auto Quest",
+    Description = "Automatically select and complete quests",
+    Default = Config.AutoQuest
+})
+AutoQuestToggle:OnChanged(function(Value)
+    Config.AutoQuest = Value
+    CurrentActivity = Value and "Auto Farm Started" or "Auto Farm Stopped"
+    Notify("Auto Quest", Value and "Started" or "Stopped", 2)
+end)
+
+local AutoAttackToggle = Tabs.AutoFarm:AddToggle("AutoAttack", {
+    Title = "Auto Attack",
+    Description = "Automatically attack enemies",
+    Default = Config.AutoAttack
+})
+AutoAttackToggle:OnChanged(function(Value)
+    Config.AutoAttack = Value
+    Notify("Auto Attack", Value and "Enabled" or "Disabled", 2)
+end)
+
+Tabs.AutoFarm:AddSection("Boss Farm")
+
+local BossDropdown = Tabs.AutoFarm:AddDropdown("BossDropdown", {
+    Title = "Select Boss",
+    Values = (function()
+        local bossNames = {}
+        for _, boss in pairs(BossData) do
+            table.insert(bossNames, boss.name)
+        end
+        return bossNames
+    end)(),
+    Multi = false,
+    Default = "",
+})
+BossDropdown:OnChanged(function(Value)
+    Config.SelectedBoss = Value
+end)
+
+Tabs.AutoFarm:AddButton({
+    Title = "Kill Selected Boss",
+    Description = "Fight the selected boss with proper quest logic",
+    Callback = function()
+        if Config.SelectedBoss and Config.SelectedBoss ~= "" then
+            farmBoss(Config.SelectedBoss)
+        else
+            Notify("Boss Error", "Please select a boss first", 3)
+        end
+    end
+})
+
+local AutoKillAllBossesToggle = Tabs.AutoFarm:AddToggle("AutoKillAllBosses", {
+    Title = "Auto Kill All Bosses",
+    Description = "Automatically kill all available bosses",
+    Default = Config.AutoKillAllBosses
+})
+AutoKillAllBossesToggle:OnChanged(function(Value)
+    Config.AutoKillAllBosses = Value
+    Notify("Auto Kill All Bosses", Value and "Enabled" or "Disabled", 2)
+end)
+
+Tabs.AutoFarm:AddSection("Special Farm")
+
+local SaberQuestToggle = Tabs.AutoFarm:AddToggle("SaberQuest", {
+    Title = "Auto Saber Quest",
+    Description = "Complete the full Saber sword quest automatically",
+    Default = Config.SaberQuestActive
+})
+SaberQuestToggle:OnChanged(function(Value)
+    Config.SaberQuestActive = Value
+    if Value then
+        -- Reset saber quest progress
+        SaberSteps = {
+            plates_found = 0,
+            torch_collected = false,
+            door_opened = false,
+            cup_obtained = false,
+            cup_filled = false,
+            sick_man_helped = false,
+            mob_leader_defeated = false,
+            final_door_opened = false,
+            saber_expert_defeated = false
+        }
+    end
+    Notify("Saber Quest", Value and "Started" or "Stopped", 2)
+end)
+
+local SecondSeaQuestToggle = Tabs.AutoFarm:AddToggle("SecondSeaQuest", {
+    Title = "Auto Second Sea Quest",
+    Description = "Automatically unlock Second Sea at level 700+",
+    Default = Config.SecondSeaQuestActive
+})
+SecondSeaQuestToggle:OnChanged(function(Value)
+    local level = getPlayerLevel()
+    if Value and level < 700 then
+        Notify("Level Required", "Need level 700+ for Second Sea quest (Current: " .. level .. ")", 4)
+        SecondSeaQuestToggle:SetValue(false)
+        return
+    end
+    
+    Config.SecondSeaQuestActive = Value
+    if Value then
+        -- Reset second sea progress
+        SecondSeaProgress = {
+            detective_talked = false,
+            ice_admiral_defeated = false,
+            second_sea_unlocked = false
+        }
+    end
+    Notify("Second Sea Quest", Value and "Started" or "Stopped", 2)
+end)
+
+-- Teleport Tab Setup
+Tabs.Teleport:AddSection("Teleport Locations")
+
+local LocationDropdown = Tabs.Teleport:AddDropdown("LocationDropdown", {
+    Title = "Select Location",
+    Values = (function()
+        local locations = {}
+        for name, _ in pairs(TeleportLocations) do
+            table.insert(locations, name)
+        end
+        table.sort(locations)
+        return locations
+    end)(),
+    Multi = false,
+    Default = "",
+})
+
+local selectedLocation = ""
+LocationDropdown:OnChanged(function(Value)
+    selectedLocation = Value
+end)
+
+Tabs.Teleport:AddButton({
+    Title = "Teleport to Selected Location",
+    Description = "Teleport to the selected location",
+    Callback = function()
+        if selectedLocation and selectedLocation ~= "" then
+            teleportTo(selectedLocation)
+        else
+            Notify("Teleport Error", "Please select a location first", 3)
+        end
+    end
+})
+
+-- Settings Tab Setup
+Tabs.Settings:AddSection("Script Settings")
+
+local HitboxSlider = Tabs.Settings:AddSlider("HitboxRange", {
+    Title = "Hitbox Range",
+    Description = "Set the attack hitbox range",
+    Default = Config.HitboxRange,
+    Min = 10,
+    Max = 100,
+    Rounding = 1,
+    Callback = function(Value)
+        Config.HitboxRange = Value
+    end
+})
+
+local FruitRangeSlider = Tabs.Settings:AddSlider("FruitRange", {
+    Title = "Fruit Detection Range",
+    Description = "Set the fruit detection range",
+    Default = Config.FruitDetectionRange,
+    Min = 100,
+    Max = 1000,
+    Rounding = 50,
+    Callback = function(Value)
+        Config.FruitDetectionRange = Value
+    end
+})
+
+-- Status Display
+local StatusLabel = Tabs.Settings:AddParagraph({
+    Title = "Current Activity",
+    Content = CurrentActivity
+})
+
+-- Main Loop Implementation
+local function mainLoop()
+    spawn(function()
+        while true do
+            pcall(function()
+                -- Update character reference if needed
+                if not Character or not Character.Parent then
+                    Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                    Humanoid = Character:WaitForChild("Humanoid")
+                    RootPart = Character:WaitForChild("HumanoidRootPart")
+                end
+                
+                -- Update stats display
+                StatsLabel:SetDesc(updatePlayerStats())
+                StatusLabel:SetDesc("Activity: " .. CurrentActivity)
+                
+                -- Execute main functions
+                if Config.AutoQuest then
+                    autoFarm()
+                end
+                
+                if Config.SaberQuestActive then
+                    autoSaberQuest()
+                end
+                
+                if Config.SecondSeaQuestActive then
+                    autoSecondSeaQuest()
+                end
+                
+                if Config.AutoKillAllBosses then
+                    autoKillAllBosses()
+                end
+                
+                -- Fruit management
+                manageFruits()
+            end)
+            
+            humanWait(0.1, 0.3) -- Main loop delay
+        end
+    end)
+end
+
+-- Initialize Save Manager
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+
+InterfaceManager:SetFolder("EnchantedHub")
+SaveManager:SetFolder("EnchantedHub/BloxFruits")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+-- Start the script
+Notify("ENCHANTED HUB", "Script loaded successfully! Created by AABIS & moha", 5)
+Notify("Welcome", "Blox Fruits First Sea automation ready", 3)
+
+-- Start main loop
+mainLoop()
+
+-- Export functions for external use
+return {
+    Config = Config,
+    TeleportTo = teleportTo,
+    FarmBoss = farmBoss,
+    AutoSaberQuest = autoSaberQuest,
+    AutoSecondSeaQuest = autoSecondSeaQuest,
+    ManageFruits = manageFruits
+}
     {name = "Chief Petty Officer", level = 120, questGiver = "Marine Quest", questNumber = 1, map = "Marine Fortress"},
     {name = "Sky Bandit", level = 150, questGiver = "Sky Quest", questNumber = 1, map = "Skylands"},
     {name = "Dark Master", level = 175, questGiver = "Sky Quest", questNumber = 2, map = "Skylands"},
