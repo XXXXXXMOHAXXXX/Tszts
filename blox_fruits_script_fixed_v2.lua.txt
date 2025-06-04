@@ -1,6 +1,6 @@
 -- ENCHANTED HUB | BLOX FRUITS
 -- Made by xX_ProGamer_Xx 
--- Fixed M1 attacks and proper GUI
+-- FIXED: M1 attacks now hit, hitbox expands, and position is above monsters!
 
 if not game:IsLoaded() then 
     repeat game.Loaded:Wait()
@@ -48,148 +48,95 @@ _G.Settings = {
     SelectWeapon = ""
 }
 
--- Fast Attack System (PROPER WORKING VERSION)
 _G.AttackEnabled = false
 _G.FastAttack = false
 
--- Multiple attack methods for maximum compatibility
-spawn(function()
-    game:GetService('RunService').Heartbeat:Connect(function()
-        if _G.FastAttack and _G.AttackEnabled then
-            pcall(function()
-                -- Method 1: Advanced Combat Framework from examples
-                local CombatFramework = require(LocalPlayer.PlayerScripts.CombatFramework)
-                local CombatFrameworkR = getupvalues(CombatFramework)[2]
-                local RigController = require(game.ReplicatedStorage.CombatFramework.RigLib)
-                
-                if CombatFrameworkR.activeController then
-                    local ac = CombatFrameworkR.activeController
-                    ac.attacking = false
-                    ac.timeToNextAttack = 0
-                    ac.timeToNextBlock = 0
-                    ac.hitboxMagnitude = 120
-                    ac.active = false
-                    ac.blocking = false
-                    ac.increment = 4
-                    ac.timeToNextBlock = 0
-                    ac.blocking = false
-                    ac.attacking = false
-                    ac.timeToNextAttack = tick() - 2
-                    
-                    if ac.blades then
-                        if ac.blades[1] then
-                            ac.animator.anims.basic[1]:Play(0.01,0.01,0.01)
-                        end
-                    end
-                end
-            end)
-        end
-    end)
-end)
+-- Proper M1 attack logic (always fires at mobs, with hitbox range fix)
+local function ValidTarget(mon)
+    return mon and mon:FindFirstChild("Humanoid") and mon.Humanoid.Health > 0 and mon:FindFirstChild("HumanoidRootPart")
+end
 
--- High-speed M1 attack loop
+local function GetClosestMob()
+    local closest, dist = nil, math.huge
+    for _, v in pairs(Workspace.Enemies:GetChildren()) do
+        if ValidTarget(v) then
+            local d = (HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+            if d < dist then
+                closest = v
+                dist = d
+            end
+        end
+    end
+    return closest
+end
+
 spawn(function()
     while wait() do
         if _G.AttackEnabled and _G.FastAttack then
             pcall(function()
-                -- Method 2: Tool activation
-                local tool = Character:FindFirstChildOfClass("Tool")
-                if tool then
-                    tool:Activate()
+                -- Always attack at the position of the closest mob (above its head)
+                local mob = GetClosestMob()
+                if mob then
+                    -- Teleport the player directly above the mob (not behind)
+                    HumanoidRootPart.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                    -- Expand mob hitbox (fix hit register)
+                    mob.HumanoidRootPart.Size = Vector3.new(150, 150, 150)
+                    mob.HumanoidRootPart.Transparency = 1
+                    mob.HumanoidRootPart.CanCollide = false
+                    -- Attack logic
+                    local tool = Character:FindFirstChildOfClass("Tool")
+                    if tool then
+                        tool:Activate()
+                    end
+                    -- VirtualUser method (for best hit registration)
+                    VirtualUser:CaptureController()
+                    VirtualUser:Button1Down(Vector2.new(1280, 672))
+                    wait(0.01)
+                    VirtualUser:Button1Up(Vector2.new(1280, 672))
                 end
-                
-                -- Method 3: Virtual User attacks (PROVEN WORKING)
-                VirtualUser:CaptureController()
-                VirtualUser:Button1Down(Vector2.new(1280, 672))
-                wait(0.001)
-                VirtualUser:Button1Up(Vector2.new(1280, 672))
-                
-                -- Method 4: Direct remote firing
-                pcall(function()
-                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", 
-                        {[1] = {}, [2] = {}, [3] = {}}, 2, "")
-                end)
             end)
         end
-        wait(0.001) -- Ultra fast for maximum DPS
+        wait(0.02)
     end
 end)
 
--- Combat framework override for even faster attacks
-spawn(function()
-    for i = 1, math.huge do
-        game:GetService('RunService').Heartbeat:wait()
-        if _G.FastAttack and _G.AttackEnabled then
-            pcall(function()
-                VirtualUser:CaptureController()
-                VirtualUser:Button1Down(Vector2.new(1280, 672))
-            end)
-        end
-    end
-end)
-
--- Bring Mobs Function (ENHANCED FOR BETTER FARMING)
+-- BringMobs fix: teleport mobs to slightly below player for stacking, only those for the quest
 local function BringMobs()
     if not _G.Settings.BringMobs then return end
-    
-    spawn(function()
-        pcall(function()
-            sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
-        end)
-    end)
-    
+    local mobName = QuestData.MonsterName
     for _, v in pairs(Workspace.Enemies:GetChildren()) do
-        if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") then
-            if v.Humanoid.Health > 0 then
-                local distance = (HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-                if distance <= 500 then
-                    -- Make hitbox MASSIVE and completely invisible
-                    v.HumanoidRootPart.Size = Vector3.new(150, 150, 150)
-                    v.HumanoidRootPart.Transparency = 1
-                    v.HumanoidRootPart.CanCollide = false
-                    v.Humanoid.WalkSpeed = 0
-                    v.Humanoid.JumpPower = 0
-                    v.Humanoid.PlatformStand = true
-                    v.Humanoid.Sit = true
-                    
-                    -- Remove character velocity
-                    if v.HumanoidRootPart:FindFirstChild("BodyVelocity") then
-                        v.HumanoidRootPart.BodyVelocity:Destroy()
-                    end
-                    if v.HumanoidRootPart:FindFirstChild("BodyPosition") then
-                        v.HumanoidRootPart.BodyPosition:Destroy()
-                    end
-                    if v.HumanoidRootPart:FindFirstChild("BodyAngularVelocity") then
-                        v.HumanoidRootPart.BodyAngularVelocity:Destroy()
-                    end
-                    
-                    -- Freeze mob in place
-                    local bodyVelocity = Instance.new("BodyVelocity")
-                    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-                    bodyVelocity.Parent = v.HumanoidRootPart
-                    
-                    -- Position mob close to player
-                    v.HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-                    
-                    -- Disable mob animations and movement
-                    for _, part in pairs(v:GetChildren()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                        end
-                    end
+        if ValidTarget(v) and v.Name==mobName then
+            -- Remove previous velocity
+            for _, child in ipairs(v.HumanoidRootPart:GetChildren()) do
+                if child:IsA("BodyVelocity") or child:IsA("BodyPosition") or child:IsA("BodyAngularVelocity") then
+                    child:Destroy()
                 end
             end
+            -- Expand hitbox for easier farming
+            v.HumanoidRootPart.Size = Vector3.new(150,150,150)
+            v.HumanoidRootPart.Transparency = 1
+            v.HumanoidRootPart.CanCollide = false
+            -- Teleport mob just below player to avoid stacking errors
+            v.HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0,-3,0)
+            v.Humanoid.WalkSpeed = 0
+            v.Humanoid.JumpPower = 0
+            v.Humanoid.PlatformStand = true
+            v.Humanoid.Sit = true
+            -- Freeze mob in place
+            local bv = Instance.new("BodyVelocity")
+            bv.MaxForce = Vector3.new(1e9,1e9,1e9)
+            bv.Velocity = Vector3.new(0,0,0)
+            bv.Parent = v.HumanoidRootPart
         end
     end
 end
 
 -- Quest Data
-local QuestData = {}
+QuestData = {}
 
 local function CheckQuest()
     local level = LocalPlayer.Data.Level.Value
-    
+
     if level >= 1 and level <= 9 then
         QuestData.MonsterName = "Bandit"
         QuestData.QuestName = "BanditQuest1"
@@ -282,7 +229,7 @@ local function Teleport(targetCFrame)
     local distance = (HumanoidRootPart.Position - targetCFrame.Position).Magnitude
     local speed = 300
     local time = distance / speed
-    
+
     if time > 0.5 then
         local tween = TweenService:Create(HumanoidRootPart, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
         tween:Play()
@@ -295,10 +242,9 @@ end
 -- Take Quest
 local function TakeQuest()
     if not _G.Settings.AutoQuest then return end
-    
+
     CheckQuest()
-    
-    -- Check if already have quest
+
     local questGui = LocalPlayer.PlayerGui.Main.Quest
     if questGui.Visible then
         local questTitle = questGui.Container.QuestTitle.Title.Text
@@ -306,12 +252,9 @@ local function TakeQuest()
             return
         end
     end
-    
-    -- Go to quest giver
+
     Teleport(QuestData.QuestGiver)
     wait(1)
-    
-    -- Take quest
     ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", QuestData.QuestName, QuestData.QuestNum)
     wait(0.5)
 end
@@ -323,37 +266,30 @@ local function AutoFarmFunction()
             CheckQuest()
             TakeQuest()
             EquipWeapon()
-            
-            -- Enable attacks when farming
+
             _G.AttackEnabled = true
             _G.FastAttack = true
-            
-            -- Find target
+
             local target = nil
             for _, v in pairs(Workspace.Enemies:GetChildren()) do
-                if v.Name == QuestData.MonsterName and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") then
-                    if v.Humanoid.Health > 0 then
-                        target = v
-                        break
-                    end
+                if v.Name == QuestData.MonsterName and ValidTarget(v) then
+                    target = v
+                    break
                 end
             end
-            
+
             if target then
                 -- Bring mobs
                 BringMobs()
-                
-                -- Position near target
-                local targetPos = target.HumanoidRootPart.CFrame * CFrame.new(0, 0, 10)
+                -- Go above target
+                local targetPos = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
                 HumanoidRootPart.CFrame = targetPos
-                
-                -- Attack until dead
+
                 while target and target.Parent and target.Humanoid.Health > 0 and _G.Settings.AutoFarm do
                     BringMobs()
                     wait(0.1)
                 end
             else
-                -- No target found, go to spawn
                 Teleport(QuestData.MonsterSpawn)
                 wait(2)
             end
