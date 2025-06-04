@@ -150,35 +150,41 @@ local function AdvancedFastAttack()
     end)
 end
 
--- Enhanced Bring Mobs Function with proper hitbox
+-- Enhanced Bring Mobs Function with proper error handling
 local function BringMobs()
     if not Settings.BringMob then return end
     
     spawn(function()
         while Settings.BringMob do
-            wait()
+            wait(0.1)
             pcall(function()
                 if not HumanoidRootPart then UpdateCharacter() end
+                if not HumanoidRootPart then return end
                 
                 for _, mob in pairs(Workspace.Enemies:GetChildren()) do
-                    if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") then
-                        if mob.Humanoid.Health > 0 and (HumanoidRootPart.Position - mob.HumanoidRootPart.Position).Magnitude <= 400 then
-                            -- Bring mob to player with proper positioning
-                            mob.HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
-                            mob.HumanoidRootPart.CanCollide = false
-                            mob.Humanoid.WalkSpeed = 0
-                            mob.Humanoid.JumpPower = 0
-                            
-                            -- Disable mob movement
-                            if mob:FindFirstChild("Humanoid") then
-                                mob.Humanoid.PlatformStand = true
-                                mob.Humanoid.Sit = true
-                            end
-                            
-                            -- Make mob hitbox larger for easier hitting
-                            if mob.HumanoidRootPart.Size ~= Vector3.new(60, 60, 60) then
-                                mob.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
-                                mob.HumanoidRootPart.Transparency = 0.8
+                    if mob and mob.Parent and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") then
+                        local mobHumanoid = mob:FindFirstChild("Humanoid")
+                        local mobRoot = mob:FindFirstChild("HumanoidRootPart")
+                        
+                        if mobHumanoid and mobRoot and mobHumanoid.Health > 0 then
+                            local distance = (HumanoidRootPart.Position - mobRoot.Position).Magnitude
+                            if distance <= 400 then
+                                -- Safely modify mob properties
+                                pcall(function()
+                                    mobRoot.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
+                                    mobRoot.CanCollide = false
+                                    mobHumanoid.WalkSpeed = 0
+                                    mobHumanoid.JumpPower = 0
+                                    mobHumanoid.PlatformStand = true
+                                end)
+                                
+                                -- Safely modify hitbox
+                                pcall(function()
+                                    if mobRoot.Size ~= Vector3.new(50, 50, 50) then
+                                        mobRoot.Size = Vector3.new(50, 50, 50)
+                                        mobRoot.Transparency = 0.7
+                                    end
+                                end)
                             end
                         end
                     end
@@ -433,11 +439,11 @@ local function AutoHaki()
     end)
 end
 
--- Enhanced Auto Farm Level Function
+-- Enhanced Auto Farm Level Function with better error handling
 local function AutoFarmLevel()
     spawn(function()
         while Settings.AutoFarmLevel do
-            wait()
+            wait(0.5)
             pcall(function()
                 local currentQuest = GetCurrentQuest()
                 if not currentQuest then return end
@@ -445,59 +451,74 @@ local function AutoFarmLevel()
                 UpdateCharacter()
                 if not HumanoidRootPart then return end
                 
-                -- Check if we have the quest
-                local questTitle = LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text
-                local hasQuest = string.find(questTitle, currentQuest.Monster)
+                -- Safely check quest status
+                local hasQuest = false
+                pcall(function()
+                    if LocalPlayer.PlayerGui.Main.Quest.Visible then
+                        local questTitle = LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text
+                        hasQuest = string.find(questTitle, currentQuest.Monster) ~= nil
+                    end
+                end)
                 
-                if not hasQuest or not LocalPlayer.PlayerGui.Main.Quest.Visible then
+                if not hasQuest then
                     -- Go get the quest
                     SafeTeleport(currentQuest.QuestPos)
-                    wait(1)
+                    wait(1.5)
                     
-                    -- Take quest
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", currentQuest.Name, currentQuest.Number)
-                    wait(0.5)
+                    -- Take quest safely
+                    pcall(function()
+                        ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", currentQuest.Name, currentQuest.Number)
+                    end)
+                    wait(1)
                 else
                     -- We have the quest, go farm
                     local foundMob = false
                     
                     -- Look for nearby enemies first
                     for _, mob in pairs(Workspace.Enemies:GetChildren()) do
-                        if mob.Name == currentQuest.Monster and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") then
-                            if mob.Humanoid.Health > 0 then
+                        if mob and mob.Parent and mob.Name == currentQuest.Monster then
+                            local mobHumanoid = mob:FindFirstChild("Humanoid")
+                            local mobRoot = mob:FindFirstChild("HumanoidRootPart")
+                            
+                            if mobHumanoid and mobRoot and mobHumanoid.Health > 0 then
                                 foundMob = true
                                 
-                                -- Equip weapon
-                                EquipWeapon(Settings.SelectedWeapon)
+                                -- Equip weapon safely
+                                pcall(function()
+                                    EquipWeapon(Settings.SelectedWeapon)
+                                end)
                                 
                                 -- Position above mob for better hit detection
-                                local targetPos = mob.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
+                                local targetPos = mobRoot.CFrame * CFrame.new(0, 15, 0)
                                 SafeTeleport(targetPos)
                                 
                                 -- Enable bring mobs
                                 Settings.BringMob = true
-                                BringMobs()
                                 
-                                -- Attack mob
+                                -- Attack mob loop
                                 repeat
                                     wait(Settings.AttackDelay)
+                                    
+                                    -- Verify mob still exists
+                                    if not mob or not mob.Parent or not mobHumanoid or mobHumanoid.Health <= 0 then
+                                        break
+                                    end
+                                    
+                                    -- Fast attack
                                     if Settings.FastAttack then
                                         getgenv().AttackEnabled = true
                                         AdvancedFastAttack()
                                     end
                                     
-                                    -- Auto Haki
-                                    if Settings.AutoHaki then
-                                        AutoHaki()
-                                    end
+                                    -- Keep position above mob safely
+                                    pcall(function()
+                                        if mobRoot and mobRoot.Parent then
+                                            local newPos = mobRoot.CFrame * CFrame.new(0, 15, 0)
+                                            HumanoidRootPart.CFrame = newPos
+                                        end
+                                    end)
                                     
-                                    -- Keep position above mob
-                                    if mob and mob:FindFirstChild("HumanoidRootPart") then
-                                        local newPos = mob.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
-                                        HumanoidRootPart.CFrame = newPos
-                                    end
-                                    
-                                until not mob or not mob.Parent or mob.Humanoid.Health <= 0 or not Settings.AutoFarmLevel
+                                until not mob or not mob.Parent or not mobHumanoid or mobHumanoid.Health <= 0 or not Settings.AutoFarmLevel
                                 
                                 getgenv().AttackEnabled = false
                                 Settings.BringMob = false
@@ -509,7 +530,7 @@ local function AutoFarmLevel()
                     if not foundMob then
                         -- No mobs found, go to spawn location
                         SafeTeleport(currentQuest.MonsterPos)
-                        wait(2)
+                        wait(3)
                     end
                 end
             end)
@@ -534,11 +555,11 @@ local BossData = {
     ["Cyborg"] = {Level = 675, Position = CFrame.new(6041.82373046875, 152.7312507629395, 3907.5)}
 }
 
--- Auto Boss Farm Function
+-- Auto Boss Farm Function with improved error handling
 local function AutoBossFarm()
     spawn(function()
         while Settings.AutoKillBoss do
-            wait()
+            wait(0.5)
             pcall(function()
                 if Settings.SelectedBoss == "" then return end
                 
@@ -548,44 +569,57 @@ local function AutoBossFarm()
                 UpdateCharacter()
                 if not HumanoidRootPart then return end
                 
-                -- Look for the boss
-                local boss = Workspace.Enemies:FindFirstChild(Settings.SelectedBoss)
-                if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChild("Humanoid") then
-                    if boss.Humanoid.Health > 0 then
-                        -- Equip weapon
-                        EquipWeapon(Settings.SelectedWeapon)
+                -- Look for the boss safely
+                local boss = nil
+                pcall(function()
+                    boss = Workspace.Enemies:FindFirstChild(Settings.SelectedBoss)
+                end)
+                
+                if boss and boss.Parent then
+                    local bossHumanoid = boss:FindFirstChild("Humanoid")
+                    local bossRoot = boss:FindFirstChild("HumanoidRootPart")
+                    
+                    if bossHumanoid and bossRoot and bossHumanoid.Health > 0 then
+                        -- Equip weapon safely
+                        pcall(function()
+                            EquipWeapon(Settings.SelectedWeapon)
+                        end)
                         
                         -- Position above boss
-                        local targetPos = boss.HumanoidRootPart.CFrame * CFrame.new(0, 15, 0)
+                        local targetPos = bossRoot.CFrame * CFrame.new(0, 20, 0)
                         SafeTeleport(targetPos)
                         
-                        -- Attack boss
+                        -- Attack boss loop
                         repeat
                             wait(Settings.AttackDelay)
+                            
+                            -- Verify boss still exists
+                            if not boss or not boss.Parent or not bossHumanoid or bossHumanoid.Health <= 0 then
+                                break
+                            end
+                            
+                            -- Fast attack
                             if Settings.FastAttack then
                                 getgenv().AttackEnabled = true
                                 AdvancedFastAttack()
                             end
                             
-                            -- Auto Haki
-                            if Settings.AutoHaki then
-                                AutoHaki()
-                            end
+                            -- Keep position above boss safely
+                            pcall(function()
+                                if bossRoot and bossRoot.Parent then
+                                    local newPos = bossRoot.CFrame * CFrame.new(0, 20, 0)
+                                    HumanoidRootPart.CFrame = newPos
+                                end
+                            end)
                             
-                            -- Keep position above boss
-                            if boss and boss:FindFirstChild("HumanoidRootPart") then
-                                local newPos = boss.HumanoidRootPart.CFrame * CFrame.new(0, 15, 0)
-                                HumanoidRootPart.CFrame = newPos
-                            end
-                            
-                        until not boss or not boss.Parent or boss.Humanoid.Health <= 0 or not Settings.AutoKillBoss
+                        until not boss or not boss.Parent or not bossHumanoid or bossHumanoid.Health <= 0 or not Settings.AutoKillBoss
                         
                         getgenv().AttackEnabled = false
                     end
                 else
                     -- Boss not found, go to spawn location
                     SafeTeleport(bossData.Position)
-                    wait(3)
+                    wait(5)
                 end
             end)
         end
