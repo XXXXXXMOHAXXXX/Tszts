@@ -161,39 +161,69 @@ local function equipWeapon(weaponName)
 end
 
 -- Fast Attack System
+local fastAttackConnections = {}
 local function fastAttack()
-    spawn(function()
-        while _G.FastAttack do
+    if _G.FastAttack then
+        local ac = RunService.Heartbeat:Connect(function()
             pcall(function()
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
                     local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-                    if tool then
+                    if tool and tool:FindFirstChild("Handle") then
                         tool:Activate()
-                        if tool:FindFirstChild("Handle") then
-                            tool.Handle:FindFirstChild("RemoteEvent"):FireServer()
+                        -- Simulate melee attacks
+                        game:GetService("VirtualUser"):CaptureController()
+                        game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0))
+                        game:GetService("VirtualUser"):Button1Up(Vector2.new(0,0))
+                        
+                        -- Fire remote events for weapons
+                        for _, v in pairs(tool:GetDescendants()) do
+                            if v:IsA("RemoteEvent") then
+                                v:FireServer(pos)
+                            end
                         end
                     end
                 end
             end)
-            wait(0.01)
+        end)
+        fastAttackConnections[#fastAttackConnections + 1] = ac
+    else
+        for i, v in pairs(fastAttackConnections) do
+            v:Disconnect()
         end
-    end)
+        fastAttackConnections = {}
+    end
 end
 
--- Mob Bringing System
+-- Mob Bringing and Hitbox System
 local function bringMobs()
     spawn(function()
         while _G.BringMobs do
             pcall(function()
                 for _, mob in pairs(Workspace.Enemies:GetChildren()) do
                     if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
-                        if (mob.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude <= 400 then
-                            mob.HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0, -10)
+                        if string.find(mob.Name, QuestData.Monster) and (mob.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude <= 400 then
+                            -- Bring mob close and expand hitbox
+                            mob.HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, -40, 0)
                             mob.HumanoidRootPart.CanCollide = false
                             mob.Humanoid.WalkSpeed = 0
                             mob.Humanoid.JumpPower = 0
+                            mob.Humanoid.PlatformStand = true
+                            mob.Humanoid.Sit = true
+                            
+                            -- Massive hitbox expansion
                             mob.HumanoidRootPart.Size = Vector3.new(200, 200, 200)
                             mob.HumanoidRootPart.Transparency = 0.8
+                            
+                            -- Disable mob movement completely
+                            if mob:FindFirstChild("BodyVelocity") then
+                                mob.BodyVelocity:Destroy()
+                            end
+                            if mob:FindFirstChild("BodyPosition") then
+                                mob.BodyPosition:Destroy()
+                            end
+                            if mob:FindFirstChild("BodyAngularVelocity") then
+                                mob.BodyAngularVelocity:Destroy()
+                            end
                         end
                     end
                 end
@@ -479,50 +509,90 @@ local function autoFarmLevel()
                 
                 -- Check if quest is active
                 if not LocalPlayer.PlayerGui.Main.Quest.Visible then
+                    _G.BringMobs = false
                     -- Go to quest giver
-                    local questTween = tweenToPosition(QuestData.QuestCFrame)
-                    questTween.Completed:Wait()
-                    wait(1)
+                    tweenToPosition(QuestData.QuestCFrame)
+                    wait(2)
                     
                     -- Accept quest
                     ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", QuestData.QuestName, QuestData.QuestNumber)
                     wait(1)
                 end
                 
-                -- Go to monster location
-                local monsterTween = tweenToPosition(QuestData.MonsterCFrame)
-                monsterTween.Completed:Wait()
+                -- Enable mob bringing and go to monster location
+                _G.BringMobs = true
+                tweenToPosition(QuestData.MonsterCFrame)
+                wait(2)
                 
-                -- Attack monsters
-                for _, monster in pairs(Workspace.Enemies:GetChildren()) do
-                    if string.find(monster.Name, QuestData.Monster) and monster:FindFirstChild("Humanoid") and monster.Humanoid.Health > 0 then
-                        repeat
-                            wait()
-                            equipWeapon(_G.SelectedWeapon)
-                            
-                            -- Position above monster
-                            HumanoidRootPart.CFrame = monster.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0)
-                            
-                            -- Expand hitbox
-                            monster.HumanoidRootPart.Size = Vector3.new(200, 200, 200)
-                            monster.HumanoidRootPart.CanCollide = false
-                            monster.HumanoidRootPart.Transparency = 0.8
-                            
-                            -- Fast attack
-                            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-                            if tool then
-                                tool:Activate()
-                                -- Simulate M1 clicks at high speed
-                                VirtualUser:CaptureController()
-                                VirtualUser:Button1Down(Vector2.new(1280, 672))
-                                VirtualUser:Button1Up(Vector2.new(1280, 672))
-                            end
-                            
-                        until not monster.Parent or monster.Humanoid.Health <= 0 or not _G.AutoFarmLevel
+                -- Check for quest monsters and attack
+                local questActive = LocalPlayer.PlayerGui.Main.Quest.Visible
+                if questActive then
+                    for _, monster in pairs(Workspace.Enemies:GetChildren()) do
+                        if string.find(monster.Name, QuestData.Monster) and monster:FindFirstChild("Humanoid") and monster.Humanoid.Health > 0 then
+                            repeat
+                                wait(0.1)
+                                
+                                -- Ensure weapon is equipped
+                                if _G.SelectedWeapon ~= "" then
+                                    equipWeapon(_G.SelectedWeapon)
+                                end
+                                
+                                -- Position above monster for optimal attack
+                                if monster and monster:FindFirstChild("HumanoidRootPart") then
+                                    HumanoidRootPart.CFrame = monster.HumanoidRootPart.CFrame * CFrame.new(0, 35, 0)
+                                    
+                                    -- Expand monster hitbox for easier hits
+                                    monster.HumanoidRootPart.Size = Vector3.new(200, 200, 200)
+                                    monster.HumanoidRootPart.CanCollide = false
+                                    monster.HumanoidRootPart.Transparency = 0.8
+                                    monster.Humanoid.PlatformStand = true
+                                    monster.Humanoid.Sit = true
+                                    monster.Humanoid.WalkSpeed = 0
+                                    monster.Humanoid.JumpPower = 0
+                                    
+                                    -- Disable monster body movers
+                                    for _, v in pairs(monster:GetDescendants()) do
+                                        if v:IsA("BodyVelocity") or v:IsA("BodyPosition") or v:IsA("BodyAngularVelocity") then
+                                            v:Destroy()
+                                        end
+                                    end
+                                    
+                                    -- Attack with melee weapon
+                                    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                                    if tool then
+                                        -- Activate tool for damage
+                                        tool:Activate()
+                                        
+                                        -- Simulate M1 melee attacks
+                                        VirtualUser:CaptureController()
+                                        VirtualUser:Button1Down(Vector2.new(0, 0))
+                                        wait(0.01)
+                                        VirtualUser:Button1Up(Vector2.new(0, 0))
+                                        
+                                        -- Fire weapon remote events
+                                        for _, remote in pairs(tool:GetDescendants()) do
+                                            if remote:IsA("RemoteEvent") and remote.Name == "RemoteEvent" then
+                                                remote:FireServer()
+                                            end
+                                        end
+                                        
+                                        -- Additional damage calls for swords/melee
+                                        if tool:FindFirstChild("Handle") then
+                                            for _, child in pairs(tool.Handle:GetChildren()) do
+                                                if child:IsA("RemoteEvent") then
+                                                    child:FireServer()
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                                
+                            until not monster.Parent or monster.Humanoid.Health <= 0 or not _G.AutoFarmLevel or not LocalPlayer.PlayerGui.Main.Quest.Visible
+                        end
                     end
                 end
             end)
-            wait(0.1)
+            wait(0.5)
         end
     end)
 end
