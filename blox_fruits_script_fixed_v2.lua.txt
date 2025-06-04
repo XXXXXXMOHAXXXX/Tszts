@@ -90,14 +90,26 @@ end
 local function TweenTo(targetCFrame, speed)
     if not HumanoidRootPart then UpdateCharacter() end
     speed = speed or 350
-    local distance = GetDistance(HumanoidRootPart.Position, targetCFrame.Position)
+    
+    -- Ensure safe teleport above ground/water
+    local safeY = math.max(targetCFrame.Position.Y, 50)
+    local safeCFrame = CFrame.new(targetCFrame.Position.X, safeY, targetCFrame.Position.Z)
+    
+    local distance = GetDistance(HumanoidRootPart.Position, safeCFrame.Position)
     local time = distance / speed
+    
+    -- Cancel any existing tweens
+    if getgenv().currentTween then
+        getgenv().currentTween:Cancel()
+    end
     
     local tween = TweenService:Create(
         HumanoidRootPart,
         TweenInfo.new(time, Enum.EasingStyle.Linear),
-        {CFrame = targetCFrame}
+        {CFrame = safeCFrame}
     )
+    
+    getgenv().currentTween = tween
     tween:Play()
     return tween
 end
@@ -211,16 +223,28 @@ local BossData = {
     ["Cyborg"] = {Level = 675, Position = CFrame.new(6041.82373046875, 52.7312507629395, 3907.5)}
 }
 
--- Attack Functions
+-- Combat System
+getgenv().AttackEnabled = false
+
+local function ClickAttack()
+    VirtualUser:CaptureController()
+    VirtualUser:Button1Down(Vector2.new(851, 158))
+    VirtualUser:Button1Up(Vector2.new(851, 158))
+end
+
 local function AttackFunction()
-    pcall(function()
+    if not getgenv().AttackEnabled then return end
+    
+    spawn(function()
         local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
         if tool and tool:FindFirstChild("Handle") then
             tool:Activate()
-            VirtualUser:CaptureController()
-            VirtualUser:Button1Down(Vector2.new(1280, 672))
-            wait(0.1)
-            VirtualUser:Button1Up(Vector2.new(1280, 672))
+        end
+        ClickAttack()
+        
+        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Attacking)
         end
     end)
 end
@@ -228,11 +252,13 @@ end
 local function FastAttack()
     spawn(function()
         while Settings.FastAttack do
-            wait()
-            pcall(function()
+            getgenv().AttackEnabled = true
+            wait(Settings.AttackDelay)
+            if Settings.FastAttack then
                 AttackFunction()
-            end)
+            end
         end
+        getgenv().AttackEnabled = false
     end)
 end
 
